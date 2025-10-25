@@ -90,7 +90,7 @@ def count_acc_topk(x,y,k=5):
 
 def count_acc_taskIL(logits, label,args):
     basenum=args.base_class
-    incrementnum=(args.num_classes-args.base_class)/args.way
+    # incrementnum=(args.num_classes-args.base_class)/args.way
     for i in range(len(label)):
         currentlabel=label[i]
         if currentlabel<basenum:
@@ -159,10 +159,6 @@ def confmatrix(logits,label,filename):
     plt.close()
 
     return cm
-
-
-
-
 
 def save_list_to_txt(name, input_list):
     f = open(name, mode='w')

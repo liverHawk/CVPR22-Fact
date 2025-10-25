@@ -1,6 +1,6 @@
 import argparse
 import importlib
-from utils import *
+from utils import set_seed, pprint, set_gpu
 
 MODEL_DIR=None
 DATA_DIR = 'data/'
@@ -52,6 +52,7 @@ def get_command_line_parser():
     parser.add_argument('-num_workers', type=int, default=8)
     parser.add_argument('-seed', type=int, default=1)
     parser.add_argument('-debug', action='store_true')
+    parser.add_argument('-sessions', type=int, default=9)
     return parser
 
 

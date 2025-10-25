@@ -1,5 +1,4 @@
 import os
-import os.path as osp
 
 import numpy as np
 import torch
@@ -77,8 +76,8 @@ class CUB200(Dataset):
 
     def list2dict(self, list):
         dict = {}
-        for l in list:
-            s = l.split(' ')
+        for line in list:
+            s = line.split(' ')
             id = int(s[0])
             cls = s[1]
             if id not in dict.keys():

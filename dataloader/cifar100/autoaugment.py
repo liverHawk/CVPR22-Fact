@@ -15,7 +15,7 @@ class Cutout(object):
 
         mask = np.ones((h, w), np.float32)
 
-        for n in range(self.n_holes):
+        for _ in range(self.n_holes):
             y = np.random.randint(h)
             x = np.random.randint(w)
 
@@ -258,6 +258,7 @@ class SubPolicy(object):
 
 
     def __call__(self, img):
-        if random.random() < self.p1: img = self.operation1(img, self.magnitude1)
-        if random.random() < self.p2: img = self.operation2(img, self.magnitude2)
-        return img
+        if random.random() < self.p1:
+            return self.operation1(img, self.magnitude1)
+        if random.random() < self.p2:
+            return self.operation2(img, self.magnitude2)

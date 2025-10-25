@@ -1,11 +1,15 @@
 from .base import Trainer
-import os.path as osp
+import torch
 import torch.nn as nn
+import time
+import numpy as np
+import os
 from copy import deepcopy
-
-from .helper import *
-from utils import *
-from dataloader.data_utils import *
+import torch.nn.functional as F
+from helper import base_train, test, replace_base_fc
+from utils import ensure_path, save_list_to_txt, Averager, count_acc, count_acc_topk
+from dataloader.data_utils import set_up_datasets, get_base_dataloader, get_new_dataloader
+from models.fact.Network import MYNET
 
 
 class FSCILTrainer(Trainer):
@@ -146,7 +150,7 @@ class FSCILTrainer(Trainer):
                 # save model
                 self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                 save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
-                #torch.save(dict(params=self.model.state_dict()), save_model_dir)
+                torch.save(dict(params=self.model.state_dict()), save_model_dir)
                 self.best_model_dict = deepcopy(self.model.state_dict())
                 print('Saving model to :%s' % save_model_dir)
                 print('  test acc={:.3f}'.format(self.trlog['max_acc'][session]))
@@ -177,7 +181,7 @@ class FSCILTrainer(Trainer):
         
         eta=args.eta
         
-        softmaxed_proj_matrix=F.softmax(proj_matrix,dim=1)
+        # softmaxed_proj_matrix=F.softmax(proj_matrix,dim=1)
 
         with torch.no_grad():
             for i, batch in enumerate(testloader, 1):

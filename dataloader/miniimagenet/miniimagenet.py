@@ -33,8 +33,8 @@ class MiniImageNet(Dataset):
 
         self.wnids = []
 
-        for l in lines:
-            name, wnid = l.split(',')
+        for line in lines:
+            name, wnid = line.split(',')
             path = osp.join(self.IMAGE_PATH, name)
             if wnid not in self.wnids:
                 self.wnids.append(wnid)

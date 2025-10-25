@@ -1,4 +1,3 @@
-import torch
 from PIL import Image
 import os
 import os.path
@@ -108,7 +107,7 @@ class CIFAR10(VisionDataset):
         self.targets = []
 
         # now load the picked numpy arrays
-        for file_name, checksum in downloaded_list:
+        for file_name, _ in downloaded_list:
             file_path = os.path.join(self.root, self.base_folder, file_name)
             with open(file_path, 'rb') as f:
                 entry = pickle.load(f, encoding='latin1')

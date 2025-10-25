@@ -1,10 +1,10 @@
-import argparse
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from models.resnet18_encoder import *
-from models.resnet20_cifar import *
+from models.resnet18_encoder import resnet18
+from models.resnet20_cifar import resnet20
+import math
 
 
 class MYNET(nn.Module):

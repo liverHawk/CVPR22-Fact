@@ -1,0 +1,9 @@
+/checkpoint
+/confusion_analysis
+/forward_compatibility_test
+/test_analysis
+/data/*
+
+__pycache__
+
+!/data/index_list

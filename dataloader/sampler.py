@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-import copy
 
 
 class CategoriesSampler():
@@ -26,9 +25,9 @@ class CategoriesSampler():
             batch = []
             classes = torch.randperm(len(self.m_ind))[:self.n_cls]  # sample n_cls classes from total classes.
             for c in classes:
-                l = self.m_ind[c]  # all data indexs of this class
-                pos = torch.randperm(len(l))[:self.n_per]  # sample n_per data index of this class
-                batch.append(l[pos])
+                indices = self.m_ind[c]  # all data indexs of this class
+                pos = torch.randperm(len(indices))[:self.n_per]  # sample n_per data index of this class
+                batch.append(indices[pos])
             batch = torch.stack(batch).t().reshape(-1)
             # .t() transpose,
             # due to it, the label is in the sequence of abcdabcdabcd form after reshape,
@@ -61,9 +60,9 @@ class BasePreserverCategoriesSampler():
             #classes = torch.randperm(len(self.m_ind))[:self.n_cls]  # sample n_cls classes from total classes.
             classes=torch.arange(len(self.m_ind))
             for c in classes:
-                l = self.m_ind[c]  # all data indexs of this class
-                pos = torch.randperm(len(l))[:self.n_per]  # sample n_per data index of this class
-                batch.append(l[pos])
+                indices = self.m_ind[c]  # all data indexs of this class
+                pos = torch.randperm(len(indices))[:self.n_per]  # sample n_per data index of this class
+                batch.append(indices[pos])
             batch = torch.stack(batch).t().reshape(-1)
             # .t() transpose,
             # due to it, the label is in the sequence of abcdabcdabcd form after reshape,
@@ -95,9 +94,9 @@ class NewCategoriesSampler():
         for i_batch in range(self.n_batch):
             batch = []
             for c in self.classlist:
-                l = self.m_ind[c]  # all data indexs of this class
-                pos = torch.randperm(len(l))[:self.n_per]  # sample n_per data index of this class
-                batch.append(l[pos])
+                indices = self.m_ind[c]  # all data indexs of this class
+                pos = torch.randperm(len(indices))[:self.n_per]  # sample n_per data index of this class
+                batch.append(indices[pos])
             batch = torch.stack(batch).t().reshape(-1)
             yield batch
            

@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from dataloader.sampler import CategoriesSampler
 
 def set_up_datasets(args):
     if args.dataset == 'cifar100':
@@ -11,7 +10,7 @@ def set_up_datasets(args):
         args.shot = 5
         args.sessions = 9
     if args.dataset =="manyshotcifar":
-        import dataloader.cifar100.manyshot_cifar as Dataset
+        import dataloader.cifar100.cifar as Dataset
         args.base_class = 60
         args.num_classes=100
         args.way = 5
@@ -26,7 +25,7 @@ def set_up_datasets(args):
         args.sessions = 11
     
     if args.dataset == 'manyshotcub':
-        import dataloader.cub200.manyshot_cub as Dataset
+        import dataloader.cub200.cub200 as Dataset
         args.base_class = 100
         args.num_classes = 200
         args.way = 10
@@ -42,7 +41,7 @@ def set_up_datasets(args):
         args.sessions = 9
 
     if args.dataset == 'mini_imagenet_withpath':
-        import dataloader.miniimagenet.miniimagenet_with_img as Dataset
+        import dataloader.miniimagenet.miniimagenet as Dataset
         args.base_class = 60
         args.num_classes=100
         args.way = 5
@@ -51,7 +50,7 @@ def set_up_datasets(args):
     
     
     if args.dataset == 'manyshotmini':
-        import dataloader.miniimagenet.manyshot_mini as Dataset
+        import dataloader.miniimagenet.miniimagenet as Dataset
         args.base_class = 60
         args.num_classes=100
         args.way = 5
@@ -93,7 +92,7 @@ def get_dataloader(args,session):
     return trainset, trainloader, testloader
 
 def get_base_dataloader(args):
-    txt_path = "data/index_list/" + args.dataset + "/session_" + str(0 + 1) + '.txt'
+    # txt_path = "data/index_list/" + args.dataset + "/session_" + str(0 + 1) + '.txt'
     class_index = np.arange(args.base_class)
 
     if args.dataset == 'cifar100':

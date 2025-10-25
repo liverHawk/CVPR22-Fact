@@ -1,12 +1,7 @@
 import abc
-import torch
-import os.path as osp
-from dataloader.data_utils import *
+from dataloader.data_utils import set_up_datasets
 
-from utils import (
-    ensure_path,
-    Averager, Timer, count_acc,
-)
+from utils import Averager, Timer
 
 
 class Trainer(object, metaclass=abc.ABCMeta):

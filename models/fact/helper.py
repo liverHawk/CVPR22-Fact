@@ -1,9 +1,11 @@
 # import new Network name here and add in model_class args
-from .Network import MYNET
-from utils import *
+from utils import Averager, count_acc, confmatrix
 from tqdm import tqdm
+import torch
 import torch.nn.functional as F
 import numpy as np
+import os
+
 
 def base_train(model, trainloader, optimizer, scheduler, epoch, args,mask):
     tl = Averager()
@@ -16,7 +18,7 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args,mask):
         beta=torch.distributions.beta.Beta(args.alpha, args.alpha).sample([]).item()
         data, train_label = [_.cuda() for _ in batch]
         
-        embeddings=model.module.encode(data)
+        # embeddings=model.module.encode(data)
 
         logits = model(data)
         logits_ = logits[:, :args.base_class]
