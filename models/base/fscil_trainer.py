@@ -6,7 +6,7 @@ import numpy as np
 import os
 from copy import deepcopy
 
-from helper import base_train, test, replace_base_fc
+from .helper import base_train, test, replace_base_fc
 from utils import ensure_path, save_list_to_txt
 from dataloader.data_utils import set_up_datasets, get_base_dataloader, get_new_dataloader
 from models.base.Network import MYNET
@@ -17,17 +17,27 @@ class FSCILTrainer(Trainer):
         self.args = args
         self.set_save_path()
         self.args = set_up_datasets(self.args)
+        
+        # Set device
+        if torch.cuda.is_available() and not self.args.cpu:
+            self.device = torch.device('cuda')
+        else:
+            self.device = torch.device('cpu')
 
         self.model = MYNET(self.args, mode=self.args.base_mode)
-        self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
-        self.model = self.model.cuda()
+        if torch.cuda.is_available() and not self.args.cpu:
+            self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
+        self.model = self.model.to(self.device)
 
-        if self.args.model_dir is not None:
+        if self.args.model_dir is not None and os.path.exists(self.args.model_dir):
             print('Loading init parameters from: %s' % self.args.model_dir)
             self.best_model_dict = torch.load(self.args.model_dir)['params']
             #self.best_model_dict = torch.load(self.args.model_dir)['state_dict']
         else:
-            print('random init params')
+            if self.args.model_dir is not None:
+                print('Model file not found: %s, using random init params' % self.args.model_dir)
+            else:
+                print('random init params')
             if args.start_session > 0:
                 print('WARING: Random init weights for new sessions!')
             self.best_model_dict = deepcopy(self.model.state_dict())
@@ -113,7 +123,10 @@ class FSCILTrainer(Trainer):
                     self.best_model_dict = deepcopy(self.model.state_dict())
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
-                    self.model.module.mode = 'avg_cos'
+                    if hasattr(self.model, 'module'):
+                        self.model.module.mode = 'avg_cos'
+                    else:
+                        self.model.mode = 'avg_cos'
                     tsl, tsa = test(self.model, testloader, 0, args, session)
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
@@ -123,10 +136,14 @@ class FSCILTrainer(Trainer):
             else:  # incremental learning sessions
                 print("training session: [%d]" % session)
 
-                self.model.module.mode = self.args.new_mode
+                if hasattr(self.model, 'module'):
+                    self.model.module.mode = self.args.new_mode
+                    self.model.module.update_fc(trainloader, np.unique(train_set.targets), session)
+                else:
+                    self.model.mode = self.args.new_mode
+                    self.model.update_fc(trainloader, np.unique(train_set.targets), session)
                 self.model.eval()
                 trainloader.dataset.transform = testloader.dataset.transform
-                self.model.module.update_fc(trainloader, np.unique(train_set.targets), session)
 
                 tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
 

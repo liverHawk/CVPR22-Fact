@@ -1,0 +1,38 @@
+---
+alwaysApply: true
+description: "プロジェクト構造とファイルの説明"
+---
+
+# CVPR22-Fact プロジェクト構造
+
+このプロジェクトはFew-Shot Class-Incremental Learning (FSCIL)の研究プロジェクトです。
+
+## 主要ファイル
+
+- [train.py](mdc:train.py) - メインのトレーニングスクリプト
+- [utils.py](mdc:utils.py) - ユーティリティ関数
+- [analyze_existing_results.py](mdc:analyze_existing_results.py) - 結果分析スクリプト
+- [evaluate_with_session0.py](mdc:evaluate_with_session0.py) - セッション0での評価
+- [run_confusion_analysis.py](mdc:run_confusion_analysis.py) - 混同行列分析
+- [visualize_confusion_matrix.py](mdc:visualize_confusion_matrix.py) - 混同行列の可視化
+
+## ディレクトリ構造
+
+- `models/` - モデル定義（base/とfact/の2つのアプローチ）
+- `dataloader/` - データローダー（CIFAR-100、CICIDS2017、CUB200など）
+- `data/` - データセットとインデックスファイル
+- `checkpoint/` - 学習済みモデルのチェックポイント
+- `confusion_analysis/` - 混同行列分析結果
+- `forward_compatibility_test/` - 前方互換性テスト結果
+
+## データセット
+
+- CIFAR-100
+- CICIDS2017 (ネットワーク侵入検知)
+- CUB200 (鳥類分類)
+- Mini-ImageNet
+- ImageNet-100/1000
+
+## 実行方法
+
+すべてのPythonスクリプトは`uv run`を使用して実行してください。

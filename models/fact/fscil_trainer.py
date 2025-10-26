@@ -6,7 +6,7 @@ import numpy as np
 import os
 from copy import deepcopy
 import torch.nn.functional as F
-from helper import base_train, test, replace_base_fc
+from .helper import base_train, test, replace_base_fc
 from utils import ensure_path, save_list_to_txt, Averager, count_acc, count_acc_topk
 from dataloader.data_utils import set_up_datasets, get_base_dataloader, get_new_dataloader
 from models.fact.Network import MYNET
@@ -18,17 +18,25 @@ class FSCILTrainer(Trainer):
         self.args = args
         self.set_save_path()
         self.args = set_up_datasets(self.args)
+        
+        # Set device
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f"Using device: {self.device}")
 
         self.model = MYNET(self.args, mode=self.args.base_mode)
-        self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
-        self.model = self.model.cuda()
+        if torch.cuda.is_available():
+            self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
+        self.model = self.model.to(self.device)
 
-        if self.args.model_dir is not None:
+        if self.args.model_dir is not None and os.path.exists(self.args.model_dir):
             print('Loading init parameters from: %s' % self.args.model_dir)
             self.best_model_dict = torch.load(self.args.model_dir)['params']
             
         else:
-            print('random init params')
+            if self.args.model_dir is not None:
+                print('Model file not found: %s, using random init params' % self.args.model_dir)
+            else:
+                print('random init params')
             if args.start_session > 0:
                 print('WARING: Random init weights for new sessions!')
             self.best_model_dict = deepcopy(self.model.state_dict())
@@ -67,7 +75,7 @@ class FSCILTrainer(Trainer):
         for i in range(args.num_classes-args.base_class):
             picked_dummy=np.random.choice(args.base_class,masknum,replace=False)
             mask[:,i+args.base_class][picked_dummy]=1
-        mask=torch.tensor(mask).cuda()
+        mask=torch.tensor(mask).to(self.device)
 
 
 
@@ -82,9 +90,9 @@ class FSCILTrainer(Trainer):
                 for epoch in range(args.epochs_base):
                     start_time = time.time()
                     # train base sess
-                    tl, ta = base_train(self.model, trainloader, optimizer, scheduler, epoch, args,mask)
+                    tl, ta = base_train(self.model, trainloader, optimizer, scheduler, epoch, args, mask, self.device)
                     # test model with all seen class
-                    tsl, tsa = test(self.model, testloader, epoch, args, session)
+                    tsl, tsa = test(self.model, testloader, epoch, args, session, device=self.device)
 
                     # save better model
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
@@ -117,20 +125,28 @@ class FSCILTrainer(Trainer):
 
                 if not args.not_data_init:
                     self.model.load_state_dict(self.best_model_dict)
-                    self.model = replace_base_fc(train_set, testloader.dataset.transform, self.model, args)
+                    self.model = replace_base_fc(train_set, testloader.dataset.transform, self.model, args, self.device)
                     best_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
                     print('Replace the fc with average embedding, and save it to :%s' % best_model_dir)
                     self.best_model_dict = deepcopy(self.model.state_dict())
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
-                    self.model.module.mode = 'avg_cos'
-                    tsl, tsa = test(self.model, testloader, 0, args, session)
+                    # Handle both DataParallel and single GPU/CPU models
+                    if hasattr(self.model, 'module'):
+                        self.model.module.mode = 'avg_cos'
+                    else:
+                        self.model.mode = 'avg_cos'
+                    tsl, tsa = test(self.model, testloader, 0, args, session, device=self.device)
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                         print('The new best test acc of base session={:.3f}'.format(self.trlog['max_acc'][session]))
 
                 #save dummy classifiers
-                self.dummy_classifiers=deepcopy(self.model.module.fc.weight.detach())
+                # Handle both DataParallel and single GPU/CPU models
+                if hasattr(self.model, 'module'):
+                    self.dummy_classifiers=deepcopy(self.model.module.fc.weight.detach())
+                else:
+                    self.dummy_classifiers=deepcopy(self.model.fc.weight.detach())
                 
                 self.dummy_classifiers=F.normalize(self.dummy_classifiers[self.args.base_class:,:],p=2,dim=-1)
                 self.old_classifiers=self.dummy_classifiers[:self.args.base_class,:]
@@ -138,13 +154,21 @@ class FSCILTrainer(Trainer):
             else:  # incremental learning sessions
                 print("training session: [%d]" % session)
 
-                self.model.module.mode = self.args.new_mode
+                # Handle both DataParallel and single GPU/CPU models
+                if hasattr(self.model, 'module'):
+                    self.model.module.mode = self.args.new_mode
+                else:
+                    self.model.mode = self.args.new_mode
                 self.model.eval()
                 trainloader.dataset.transform = testloader.dataset.transform
-                self.model.module.update_fc(trainloader, np.unique(train_set.targets), session)
+                # Handle both DataParallel and single GPU/CPU models
+                if hasattr(self.model, 'module'):
+                    self.model.module.update_fc(trainloader, np.unique(train_set.targets), session)
+                else:
+                    self.model.update_fc(trainloader, np.unique(train_set.targets), session)
 
-                #tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
-                #tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
+                #tsl, tsa = test(self.model, testloader, 0, args, session, validation=False, device=self.device)
+                #tsl, tsa = test_withfc(self.model, testloader, 0, args, session, validation=False, device=self.device)
                 tsl, tsa = self.test_intergrate(self.model, testloader, 0,args, session,validation=True)
                 
                 # save model
@@ -177,7 +201,12 @@ class FSCILTrainer(Trainer):
         lgt=torch.tensor([])
         lbs=torch.tensor([])
 
-        proj_matrix=torch.mm(self.dummy_classifiers,F.normalize(torch.transpose(model.module.fc.weight[:test_class, :],1,0),p=2,dim=-1))
+        # Handle both DataParallel and single GPU/CPU models
+        if hasattr(model, 'module'):
+            fc_weight = model.module.fc.weight[:test_class, :]
+        else:
+            fc_weight = model.fc.weight[:test_class, :]
+        proj_matrix=torch.mm(self.dummy_classifiers,F.normalize(torch.transpose(fc_weight,1,0),p=2,dim=-1))
         
         eta=args.eta
         
@@ -185,18 +214,40 @@ class FSCILTrainer(Trainer):
 
         with torch.no_grad():
             for i, batch in enumerate(testloader, 1):
-                data, test_label = [_.cuda() for _ in batch]
+                data, test_label = [_.to(self.device) for _ in batch]
                 
-                emb=model.module.encode(data)
+                # Handle both DataParallel and single GPU/CPU models
+                if hasattr(model, 'module'):
+                    emb=model.module.encode(data)
+                else:
+                    emb=model.encode(data)
             
                 proj=torch.mm(F.normalize(emb,p=2,dim=-1),torch.transpose(self.dummy_classifiers,1,0))
-                topk, indices = torch.topk(proj, 40)
+                # Use min of 40 and actual number of classes to avoid out of range error
+                k = min(40, proj.size(1))
+                topk, indices = torch.topk(proj, k)
                 res = (torch.zeros_like(proj))
                 res_logit = res.scatter(1, indices, topk)
 
                 logits1=torch.mm(res_logit,proj_matrix)
-                logits2 = model.module.forpass_fc(data)[:, :test_class] 
+                # Handle both DataParallel and single GPU/CPU models
+                if hasattr(model, 'module'):
+                    logits2 = model.module.forpass_fc(data)[:, :test_class]
+                else:
+                    logits2 = model.forpass_fc(data)[:, :test_class] 
                 logits=eta*F.softmax(logits1,dim=1)+(1-eta)*F.softmax(logits2,dim=1)
+                
+                # Ensure logits has the correct number of classes
+                if logits.size(1) != test_class:
+                    # Pad or truncate logits to match test_class
+                    if logits.size(1) < test_class:
+                        # Pad with zeros
+                        padding = torch.zeros(logits.size(0), test_class - logits.size(1), device=logits.device)
+                        logits = torch.cat([logits, padding], dim=1)
+                    else:
+                        # Truncate
+                        logits = logits[:, :test_class]
+                
             
                 loss = F.cross_entropy(logits, test_label)
                 acc = count_acc(logits, test_label)

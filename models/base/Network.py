@@ -24,6 +24,18 @@ class MYNET(nn.Module):
         if self.args.dataset in ['cub200','manyshotcub']:
             self.encoder = resnet18(True, args)  # pretrained=True follow TOPIC, models for cub is imagenet pre-trained. https://github.com/xyutao/fscil/issues/11#issuecomment-687548790
             self.num_features = 512
+        if self.args.dataset in ['cicids2017_improved']:
+            # For CICIDS2017, use a simple MLP encoder since it's tabular data
+            self.encoder = nn.Sequential(
+                nn.Linear(89, 256),  # 89 features in CICIDS2017
+                nn.ReLU(),
+                nn.Dropout(0.2),
+                nn.Linear(256, 128),
+                nn.ReLU(),
+                nn.Dropout(0.2),
+                nn.Linear(128, 64)
+            )
+            self.num_features = 64
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
         self.fc = nn.Linear(self.num_features, self.args.num_classes, bias=False)
@@ -40,9 +52,14 @@ class MYNET(nn.Module):
         return x
 
     def encode(self, x):
-        x = self.encoder(x)
-        x = F.adaptive_avg_pool2d(x, 1)
-        x = x.squeeze(-1).squeeze(-1)
+        if self.args.dataset in ['cicids2017_improved']:
+            # For tabular data, no pooling needed
+            x = self.encoder(x)
+        else:
+            # For image data, use pooling
+            x = self.encoder(x)
+            x = F.adaptive_avg_pool2d(x, 1)
+            x = x.squeeze(-1).squeeze(-1)
         return x
 
     def forward(self, input):
@@ -56,13 +73,14 @@ class MYNET(nn.Module):
             raise ValueError('Unknown mode')
 
     def update_fc(self,dataloader,class_list,session):
+        device = next(self.parameters()).device
         for batch in dataloader:
-            data, label = [_.cuda() for _ in batch]
+            data, label = [_.to(device) for _ in batch]
             data=self.encode(data).detach()
 
         if self.args.not_data_init:
             new_fc = nn.Parameter(
-                torch.rand(len(class_list), self.num_features, device="cuda"),
+                torch.rand(len(class_list), self.num_features, device=device),
                 requires_grad=True)
             nn.init.kaiming_uniform_(new_fc, a=math.sqrt(5))
         else:

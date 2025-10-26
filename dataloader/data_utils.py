@@ -75,11 +75,11 @@ def set_up_datasets(args):
     
     if args.dataset == 'cicids2017_improved':
         import dataloader.cicids2017_improved.cicids2017_improved as Dataset
-        args.base_class = 10
-        args.num_classes = 10
-        args.way = 5
-        args.shot = 5
-        args.sessions = 9
+        args.base_class = 4  # 基本クラス数（最初の4クラス: 0,1,2,3）
+        args.num_classes = 10  # 総クラス数（0-9の10クラス）
+        args.way = 1  # 各セッションで追加するクラス数
+        args.shot = 5  # 各クラスのサンプル数
+        args.sessions = 6  # セッション数 (base + 6 incremental sessions)
 
     args.Dataset=Dataset
     return args
@@ -129,11 +129,15 @@ def get_base_dataloader(args):
             root=args.dataroot, train=False, index=class_index
         )
     elif args.dataset == 'cicids2017_improved':
+        # For base session, use session_0.txt file
+        txt_path = "data/index_list/" + args.dataset + "/session_0.txt"
         trainset = args.Dataset.CICIDS2017Improved(
-            root=args.dataroot, train=True,
+            root=args.dataroot, train=True, max_samples=getattr(args, 'max_samples', None),
+            index=txt_path
         )
         testset = args.Dataset.CICIDS2017Improved(
-            root=args.dataroot, train=False
+            root=args.dataroot, train=False, max_samples=getattr(args, 'max_samples', None),
+            index=txt_path
         )
     else:
         raise ValueError(f"Dataset {args.dataset} not supported")
@@ -175,7 +179,8 @@ def get_new_dataloader(args,session):
         )
     elif args.dataset == 'cicids2017_improved':
         trainset = args.Dataset.CICIDS2017Improved(
-            root=args.dataroot, train=True,
+            root=args.dataroot, train=True, max_samples=getattr(args, 'max_samples', None),
+            index=txt_path
         )
     else:
         raise ValueError(f"Dataset {args.dataset} not supported")
@@ -216,8 +221,11 @@ def get_new_dataloader(args,session):
             index=class_new
         )
     elif args.dataset == 'cicids2017_improved':
+        # For testing, include all classes seen so far (base classes + new classes)
+        all_classes = list(range(args.base_class + session * args.way))
         testset = args.Dataset.CICIDS2017Improved(
-            root=args.dataroot, train=False
+            root=args.dataroot, train=False, max_samples=getattr(args, 'max_samples', None),
+            index=all_classes
         )
     else:
         raise ValueError(f"Dataset {args.dataset} not supported")

@@ -29,11 +29,15 @@ def set_seed(seed):
 
 
 def set_gpu(args):
-    gpu_list = [int(x) for x in args.gpu.split(',')]
-    print('use gpu:', gpu_list)
-    os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
-    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    return gpu_list.__len__()
+    if hasattr(args, 'cpu') and args.cpu:
+        print('use CPU mode')
+        return 0
+    else:
+        gpu_list = [int(x) for x in args.gpu.split(',')]
+        print('use gpu:', gpu_list)
+        # os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+        # os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+        return gpu_list.__len__()
 
 
 def ensure_path(path):
@@ -81,6 +85,8 @@ def count_acc(logits, label):
         return (pred == label).type(torch.FloatTensor).mean().item()
 
 def count_acc_topk(x,y,k=5):
+    # Limit k to the number of classes
+    k = min(k, x.size(-1))
     _,maxk = torch.topk(x,k,dim=-1)
     total = y.size(0)
     test_labels = y.view(-1,1) 
@@ -110,10 +116,10 @@ def count_acc_taskIL(logits, label,args):
 
 def confmatrix(logits,label,filename):
     
+    print(matplotlib.get_cachedir())
     font={'family':'FreeSerif','size':18}
     matplotlib.rc('font',**font)
-    matplotlib.rcParams.update({'font.family':'FreeSerif','font.size':18})
-    plt.rcParams["font.family"]="FreeSerif"
+    # matplotlib.rcParams['font.family'] = 'Times New Roman'
 
     pred = torch.argmax(logits, dim=1)
     cm=confusion_matrix(label, pred,normalize='true')

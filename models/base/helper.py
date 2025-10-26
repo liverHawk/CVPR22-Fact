@@ -14,7 +14,8 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args):
     # standard classification for pretrain
     tqdm_gen = tqdm(trainloader)
     for i, batch in enumerate(tqdm_gen, 1):
-        data, train_label = [_.cuda() for _ in batch]
+        device = next(model.parameters()).device
+        data, train_label = [_.to(device) for _ in batch]
 
         logits = model(data)
         logits = logits[:, :args.base_class]
@@ -49,8 +50,12 @@ def replace_base_fc(trainset, transform, model, args):
     # data_list=[]
     with torch.no_grad():
         for i, batch in enumerate(trainloader):
-            data, label = [_.cuda() for _ in batch]
-            model.module.mode = 'encoder'
+            device = next(model.parameters()).device
+            data, label = [_.to(device) for _ in batch]
+            if hasattr(model, 'module'):
+                model.module.mode = 'encoder'
+            else:
+                model.mode = 'encoder'
             embedding = model(data)
 
             embedding_list.append(embedding.cpu())
@@ -68,7 +73,10 @@ def replace_base_fc(trainset, transform, model, args):
 
     proto_list = torch.stack(proto_list, dim=0)
 
-    model.module.fc.weight.data[:args.base_class] = proto_list
+    if hasattr(model, 'module'):
+        model.module.fc.weight.data[:args.base_class] = proto_list
+    else:
+        model.fc.weight.data[:args.base_class] = proto_list
 
     return model
 
@@ -85,7 +93,8 @@ def test(model, testloader, epoch,args, session,validation=True):
     lbs=torch.tensor([])
     with torch.no_grad():
         for i, batch in enumerate(testloader, 1):
-            data, test_label = [_.cuda() for _ in batch]
+            device = next(model.parameters()).device
+            data, test_label = [_.to(device) for _ in batch]
             logits = model(data)
             logits = logits[:, :test_class]
             loss = F.cross_entropy(logits, test_label)

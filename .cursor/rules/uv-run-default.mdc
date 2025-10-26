@@ -1,0 +1,29 @@
+---
+alwaysApply: true
+description: "uv runをデフォルトで使用するルール"
+---
+
+# uv runをデフォルトで使用
+
+このプロジェクトはuvを使用したPythonプロジェクトです。Pythonスクリプトの実行時は常に`uv run`を使用してください。
+
+## 実行コマンドの例
+
+- `python train.py` → `uv run python train.py`
+- `python evaluate_with_session0.py` → `uv run python evaluate_with_session0.py`
+- `python analyze_existing_results.py` → `uv run python analyze_existing_results.py`
+- `python run_confusion_analysis.py` → `uv run python run_confusion_analysis.py`
+- `python visualize_confusion_matrix.py` → `uv run python visualize_confusion_matrix.py`
+
+## 理由
+
+- プロジェクトの依存関係が`pyproject.toml`で管理されている
+- `uv.lock`ファイルが存在し、uvによる依存関係の管理が行われている
+- 仮想環境の自動管理と依存関係の解決がuvによって行われる
+- 一貫した実行環境を保証する
+
+## 注意事項
+
+- 直接`python`コマンドを実行せず、必ず`uv run python`を使用する
+- 新しい依存関係を追加する場合は`uv add`コマンドを使用する
+- 依存関係の更新は`uv sync`コマンドを使用する

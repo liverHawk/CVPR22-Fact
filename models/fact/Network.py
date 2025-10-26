@@ -23,6 +23,20 @@ class MYNET(nn.Module):
         if self.args.dataset == 'cub200':
             self.encoder = resnet18(True, args)  # pretrained=True follow TOPIC, models for cub is imagenet pre-trained. https://github.com/xyutao/fscil/issues/11#issuecomment-687548790
             self.num_features = 512
+        if self.args.dataset == 'cicids2017_improved':
+            # For tabular data, create a simple MLP encoder
+            self.encoder = nn.Sequential(
+                nn.Linear(88, 128),  # 88 input features (actual number from dataset)
+                nn.ReLU(),
+                nn.Dropout(0.2),
+                nn.Linear(128, 256),
+                nn.ReLU(),
+                nn.Dropout(0.2),
+                nn.Linear(256, 512),
+                nn.ReLU(),
+                nn.Dropout(0.2)
+            )
+            self.num_features = 512
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
         
@@ -68,9 +82,14 @@ class MYNET(nn.Module):
 
     def encode(self, x):
         x = self.encoder(x)
-        x = F.adaptive_avg_pool2d(x, 1)
-        x = x.squeeze(-1).squeeze(-1)
-        return x
+        if self.args.dataset == 'cicids2017_improved':
+            # For tabular data, no pooling needed
+            return x
+        else:
+            # For image data, apply pooling
+            x = F.adaptive_avg_pool2d(x, 1)
+            x = x.squeeze(-1).squeeze(-1)
+            return x
     
     def pre_encode(self,x):
         
@@ -89,6 +108,15 @@ class MYNET(nn.Module):
             x = self.encoder.layer1(x)
             x = self.encoder.layer2(x)
         
+        elif self.args.dataset == 'cicids2017_improved':
+            # For tabular data, apply first part of MLP
+            x = self.encoder[0](x)  # Linear(69, 128)
+            x = self.encoder[1](x)  # ReLU
+            x = self.encoder[2](x)  # Dropout
+            x = self.encoder[3](x)  # Linear(128, 256)
+            x = self.encoder[4](x)  # ReLU
+            x = self.encoder[5](x)  # Dropout
+        
         return x
         
     
@@ -105,6 +133,12 @@ class MYNET(nn.Module):
             x = self.encoder.layer4(x)
             x = F.adaptive_avg_pool2d(x, 1)
             x = x.squeeze(-1).squeeze(-1)
+        
+        elif self.args.dataset == 'cicids2017_improved':
+            # For tabular data, apply final part of MLP
+            x = self.encoder[6](x)  # Linear(256, 512)
+            x = self.encoder[7](x)  # ReLU
+            x = self.encoder[8](x)  # Dropout
         
         if 'cos' in self.mode:
             x = F.linear(F.normalize(x, p=2, dim=-1), F.normalize(self.fc.weight, p=2, dim=-1))
@@ -127,13 +161,24 @@ class MYNET(nn.Module):
             raise ValueError('Unknown mode')
 
     def update_fc(self,dataloader,class_list,session):
+        device = next(self.parameters()).device  # Get device from model parameters
         for batch in dataloader:
-            data, label = [_.cuda() for _ in batch]
+            data, label = [_.to(device) for _ in batch]
             data=self.encode(data).detach()
+
+        # Check if we need to expand fc.weight for new classes
+        max_class_index = max(class_list)
+        current_fc_size = self.fc.weight.size(0)
+        
+        if max_class_index >= current_fc_size:
+            # Expand fc.weight to accommodate new classes
+            new_fc_weight = torch.zeros(max_class_index + 1, self.num_features, device=device)
+            new_fc_weight[:current_fc_size] = self.fc.weight.data
+            self.fc.weight = nn.Parameter(new_fc_weight, requires_grad=True)
 
         if self.args.not_data_init:
             new_fc = nn.Parameter(
-                torch.rand(len(class_list), self.num_features, device="cuda"),
+                torch.rand(len(class_list), self.num_features, device=device),
                 requires_grad=True)
             nn.init.kaiming_uniform_(new_fc, a=math.sqrt(5))
         else:
