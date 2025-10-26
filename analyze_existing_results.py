@@ -42,6 +42,7 @@ class ExistingResultsAnalyzer:
         if not self.load_model_checkpoint(checkpoint_path):
             return None
             
+        print("=" * 100)
         print(f"Session {session} を分析中...")
         
         # データローダーの準備

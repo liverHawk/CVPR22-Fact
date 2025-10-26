@@ -79,16 +79,16 @@ def set_up_datasets(args):
         args.num_classes = 10  # 総クラス数（0-9の10クラス）
         args.way = 1  # 各セッションで追加するクラス数
         args.shot = 5  # 各クラスのサンプル数
-        args.sessions = 6  # セッション数 (base + 6 incremental sessions)
+        args.sessions = 7  # セッション数 (base + 6 incremental sessions)
 
     args.Dataset=Dataset
     return args
 
 def get_dataloader(args,session):
-    if session == 0:
-        trainset, trainloader, testloader = get_base_dataloader(args)
-    else:
-        trainset, trainloader, testloader = get_new_dataloader(args, session)
+    # if session == 0:
+    #     trainset, trainloader, testloader = get_base_dataloader(args)
+    # else:
+    trainset, trainloader, testloader = get_new_dataloader(args, session)
     return trainset, trainloader, testloader
 
 def get_base_dataloader(args):
@@ -155,7 +155,7 @@ def get_base_dataloader(args):
 
 
 def get_new_dataloader(args,session):
-    txt_path = "data/index_list/" + args.dataset + "/session_" + str(session + 1) + '.txt'
+    txt_path = "data/index_list/" + args.dataset + "/session_" + str(session) + '.txt'
     if args.dataset == 'cifar100':
         class_index = open(txt_path).read().splitlines()
         trainset = args.Dataset.CIFAR100(

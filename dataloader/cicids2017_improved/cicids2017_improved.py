@@ -83,6 +83,7 @@ class CICIDS2017Improved(Dataset):
         download=False, index=None, base_sess=None, autoaug=1, max_samples=None
     ):
         super(CICIDS2017Improved, self).__init__()
+        print(f"index: {index}")
 
         self.root = os.path.expanduser(root)
         self.train = train

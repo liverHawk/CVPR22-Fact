@@ -6,7 +6,7 @@ DATASET := cicids2017_improved
 DATAROOT := data
 EPOCHS_BASE := 1
 EPOCHS_NEW := 1
-SESSIONS := 6
+SESSIONS := 7
 START_SESSION := 0
 BATCH_SIZE_BASE := 128
 BATCH_SIZE_NEW := 16
@@ -53,7 +53,6 @@ help:
 	@echo "  DATAROOT=$(DATAROOT)"
 	@echo "  EPOCHS_BASE=$(EPOCHS_BASE)"
 	@echo "  EPOCHS_NEW=$(EPOCHS_NEW)"
-	@echo "  SESSIONS=$(SESSIONS)"
 	@echo "  MAX_SAMPLES=$(MAX_SAMPLES)"
 	@echo "  DEBUG=$(DEBUG)"
 	@echo ""
@@ -61,7 +60,7 @@ help:
 	@echo "  make train-base                    # Train base model with default settings"
 	@echo "  make train-fact EPOCHS_BASE=3     # Train fact model with 3 base epochs"
 	@echo "  make eval-base                     # Evaluate base model"
-	@echo "  make train-all SESSIONS=3          # Train both models with 3 sessions"
+	@echo "  make train-all MAX_SAMPLES=3          # Train both models with 3 max samples"
 	@echo "  make clean                         # Clean all files"
 
 # Training targets
@@ -74,7 +73,6 @@ train-base:
 		-dataroot $(DATAROOT) \
 		-epochs_base $(EPOCHS_BASE) \
 		-epochs_new $(EPOCHS_NEW) \
-		-sessions $(SESSIONS) \
 		-start_session $(START_SESSION) \
 		-project base \
 		-model base \
@@ -91,7 +89,6 @@ train-fact:
 		-dataroot $(DATAROOT) \
 		-epochs_base $(EPOCHS_BASE) \
 		-epochs_new $(EPOCHS_NEW) \
-		-sessions $(SESSIONS) \
 		-start_session $(START_SESSION) \
 		-model fact \
 		-project fact \

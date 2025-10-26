@@ -125,18 +125,22 @@ def confmatrix(logits,label,filename):
     cm=confusion_matrix(label, pred,normalize='true')
     #print(cm)
     clss=len(cm)
-    fig = plt.figure() 
-    ax = fig.add_subplot(111) 
-    cax = ax.imshow(cm,cmap=plt.cm.jet) 
-    if clss<=100:
-        plt.yticks([0,19,39,59,79,99],[0,20,40,60,80,100],fontsize=16)
-        plt.xticks([0,19,39,59,79,99],[0,20,40,60,80,100],fontsize=16)
-    elif clss<=200:
-        plt.yticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
-        plt.xticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
+    fig = plt.figure(figsize=(12, 10)) 
+    if clss > 20:
+        ax = fig.add_subplot(111) 
+        if clss > 20 and clss<=100:
+            plt.yticks([0,19,39,59,79,99],[0,20,40,60,80,100],fontsize=16)
+            plt.xticks([0,19,39,59,79,99],[0,20,40,60,80,100],fontsize=16)
+        elif clss<=200:
+            plt.yticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
+            plt.xticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
+        else:
+            plt.yticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
+            plt.xticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
     else:
-        plt.yticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
-        plt.xticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
+        ax = fig.add_subplot()
+    cax = ax.imshow(cm,cmap=plt.cm.jet)
+     
 
     plt.xlabel('Predicted Label',fontsize=20)
     plt.ylabel('True Label',fontsize=20)
@@ -144,7 +148,7 @@ def confmatrix(logits,label,filename):
     plt.savefig(filename+'.pdf',bbox_inches='tight')
     plt.close()
 
-    fig = plt.figure() 
+    fig = plt.figure(figsize=(12, 10)) 
     ax = fig.add_subplot(111) 
     cax = ax.imshow(cm,cmap=plt.cm.jet) 
     cbar = plt.colorbar(cax) # This line includes the color bar

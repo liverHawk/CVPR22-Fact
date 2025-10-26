@@ -37,6 +37,7 @@ CICIDS2017_CLASS_NAMES = {
 
 def analyze_session(session, args, checkpoint_dir, output_dir):
     """指定されたセッションを分析"""
+    print("=" * 100)
     print(f"Session {session} を分析中...")
     
     # モデルのセットアップ（チェックポイントディレクトリからモデルタイプを判定）
