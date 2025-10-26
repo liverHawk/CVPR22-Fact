@@ -17,15 +17,33 @@ import json
 sys.path.append('/home/hawk/Documents/school/test/CVPR22-Fact')
 
 from utils import confmatrix
-from models.fact.Network import MYNET
+from models.fact.Network import MYNET as FACT_MYNET
+from models.base.Network import MYNET as BASE_MYNET
 from dataloader.data_utils import set_up_datasets, get_dataloader
+
+# CICIDS2017のクラス名マッピング
+CICIDS2017_CLASS_NAMES = {
+    0: 'BENIGN',
+    1: 'Botnet', 
+    2: 'DDoS',
+    3: 'DoS',
+    4: 'FTP-Patator',
+    5: 'Heartbleed',
+    6: 'Infiltration',
+    7: 'Portscan',
+    8: 'SSH-Patator',
+    9: 'Web Attack'
+}
 
 def analyze_session(session, args, checkpoint_dir, output_dir):
     """指定されたセッションを分析"""
     print(f"Session {session} を分析中...")
     
-    # モデルのセットアップ
-    model = MYNET(args, mode='ft_cos')
+    # モデルのセットアップ（チェックポイントディレクトリからモデルタイプを判定）
+    if 'fact' in checkpoint_dir:
+        model = FACT_MYNET(args, mode='ft_cos')
+    else:
+        model = BASE_MYNET(args, mode='ft_cos')
     model = torch.nn.DataParallel(model, device_ids=range(torch.cuda.device_count()))
     model = model.cuda()
     
@@ -75,7 +93,11 @@ def analyze_session(session, args, checkpoint_dir, output_dir):
                 logits = model(data)
             else:
                 # インクリメンタルセッション
-                logits = model.module.forpass_fc(data)
+                if 'fact' in checkpoint_dir:
+                    logits = model.module.forpass_fc(data)
+                else:
+                    # baseモデルの場合
+                    logits = model(data)
             
             # 現在のセッションまでのクラスのみ使用
             logits = logits[:, :test_class]
@@ -85,7 +107,8 @@ def analyze_session(session, args, checkpoint_dir, output_dir):
             all_labels.extend(labels.cpu().numpy())
     
     # 混同行列の生成
-    cm = confmatrix(all_labels, all_predictions, normalize='true')
+    from sklearn.metrics import confusion_matrix
+    cm = confusion_matrix(all_labels, all_predictions, normalize='true')
     
     # 結果の保存
     session_dir = os.path.join(output_dir, f'session_{session}')
@@ -95,6 +118,16 @@ def analyze_session(session, args, checkpoint_dir, output_dir):
     plt.figure(figsize=(12, 10))
     plt.imshow(cm, cmap='Blues', aspect='auto')
     plt.colorbar(label='Normalized Count')
+    
+    # クラス名の設定
+    if args.dataset == 'cicids2017_improved':
+        class_labels = [CICIDS2017_CLASS_NAMES.get(i, f'Class {i}') for i in range(test_class)]
+        plt.xticks(range(test_class), class_labels, rotation=45, ha='right')
+        plt.yticks(range(test_class), class_labels)
+    else:
+        plt.xticks(range(test_class))
+        plt.yticks(range(test_class))
+    
     plt.title(f'Confusion Matrix - Session {session}\n'
              f'Classes: {test_class}, Overall Accuracy: {np.mean(np.array(all_labels) == np.array(all_predictions)):.3f}')
     plt.xlabel('Predicted Label')
@@ -267,14 +300,14 @@ def compare_sessions(all_stats, output_dir):
 def main():
     parser = argparse.ArgumentParser(description='混同行列分析スクリプト')
     parser.add_argument('-dataset', type=str, default='cifar100', 
-                       choices=['cifar100', 'cub200', 'mini_imagenet'])
+                       choices=['cifar100', 'cub200', 'mini_imagenet', 'cicids2017_improved'])
     parser.add_argument('-dataroot', type=str, default='data/')
     parser.add_argument('-checkpoint_dir', type=str, 
-                       default='checkpoint/cifar100/fact/ft_cos-avg_cos-data_init-start_0/Cosine-Epo_3-Lr_0.1000Bal0.00-LossIter0-T_16.00',
+                       default='checkpoint/cicids2017_improved/fact/ft_cos-avg_cos-data_init-start_0/Epo_1-Lr_0.1000-Step_20-Gam_0.10-Bs_128-Mom_0.90-T_16.00',
                        help='チェックポイントディレクトリ')
     parser.add_argument('-output_dir', type=str, default='confusion_analysis',
                        help='出力ディレクトリ')
-    parser.add_argument('-sessions', type=int, nargs='+', default=[0, 1, 2, 3, 4, 5, 6, 7, 8],
+    parser.add_argument('-sessions', type=int, nargs='+', default=[0, 1, 2, 3, 4, 5],
                        help='分析するセッション')
     parser.add_argument('-batch_size_base', type=int, default=128,
                        help='ベースセッションのバッチサイズ')

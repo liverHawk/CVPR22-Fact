@@ -74,7 +74,7 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask, devi
 
         lrc = scheduler.get_last_lr()[0]
         tqdm_gen.set_description(
-            'Session 0, epo {}, lrc={:.4f},total loss={:.4f} acc={:.4f}'.format(epoch, lrc, total_loss.item(), acc))
+            'Session 0, epo {}, lrc={:.4f},total loss={:.4f} acc={:.4f}'.format(epoch+1, lrc, total_loss.item(), acc))
         tl.add(total_loss.item())
         ta.add(acc)
 
@@ -161,7 +161,7 @@ def test(model, testloader, epoch, args, session, validation=True, device=None):
             lbs=torch.cat([lbs,test_label.cpu()])
         vl = vl.item()
         va = va.item()
-        print('epo {}, test, loss={:.4f} acc={:.4f}'.format(epoch, vl, va))
+        print('epo {}, test, loss={:.4f} acc={:.4f}'.format(epoch+1, vl, va))
 
         
         lgt=lgt.view(-1,test_class)
@@ -205,7 +205,7 @@ def test_withfc(model, testloader, epoch, args, session, validation=True, device
             lbs=torch.cat([lbs,test_label.cpu()])
         vl = vl.item()
         va = va.item()
-        print('epo {}, test, loss={:.4f} acc={:.4f}'.format(epoch, vl, va))
+        print('epo {}, test, loss={:.4f} acc={:.4f}'.format(epoch+1, vl, va))
 
         
         lgt=lgt.view(-1,test_class)

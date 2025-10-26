@@ -260,7 +260,7 @@ class FSCILTrainer(Trainer):
             vl = vl.item()
             va = va.item()
             va5= va5.item()
-            print('epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}'.format(epoch, vl, va,va5))
+            print('epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}'.format(epoch+1, vl, va,va5))
 
             
         return vl, va

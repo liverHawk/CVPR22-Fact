@@ -26,7 +26,7 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args):
 
         lrc = scheduler.get_last_lr()[0]
         tqdm_gen.set_description(
-            'Session 0, epo {}, lrc={:.4f},total loss={:.4f} acc={:.4f}'.format(epoch, lrc, total_loss.item(), acc))
+            'Session 0, epo {}, lrc={:.4f},total loss={:.4f} acc={:.4f}'.format(epoch+1, lrc, total_loss.item(), acc))
         tl.add(total_loss.item())
         ta.add(acc)
 
@@ -110,7 +110,7 @@ def test(model, testloader, epoch,args, session,validation=True):
         vl = vl.item()
         va = va.item()
         va5= va5.item()
-        print('epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}'.format(epoch, vl, va,va5))
+        print('epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}'.format(epoch+1, vl, va,va5))
 
         
         lgt=lgt.view(-1,test_class)

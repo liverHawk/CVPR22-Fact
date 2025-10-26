@@ -26,7 +26,7 @@ class MYNET(nn.Module):
         if self.args.dataset == 'cicids2017_improved':
             # For tabular data, create a simple MLP encoder
             self.encoder = nn.Sequential(
-                nn.Linear(88, 128),  # 88 input features (actual number from dataset)
+                nn.Linear(89, 128),  # 89 input features (actual number from dataset)
                 nn.ReLU(),
                 nn.Dropout(0.2),
                 nn.Linear(128, 256),
