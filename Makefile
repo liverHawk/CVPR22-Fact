@@ -23,6 +23,7 @@ FACT_MODEL_DIR := checkpoint/$(DATASET)/fact
 # Output directories
 BASE_OUTPUT := confusion_analysis/$(DATASET)_base
 FACT_OUTPUT := confusion_analysis/$(DATASET)_fact
+COMPARISON_OUTPUT := base_fact_comparison/$(DATASET)
 
 # Colors for output
 RED := \033[0;31m
@@ -31,7 +32,7 @@ YELLOW := \033[1;33m
 BLUE := \033[0;34m
 NC := \033[0m # No Color
 
-.PHONY: help train-base train-fact eval-base eval-fact clean clean-checkpoints clean-analysis
+.PHONY: help train-base train-fact eval-base eval-fact compare-base-fact clean clean-checkpoints clean-analysis
 
 # Default target
 help:
@@ -44,6 +45,8 @@ help:
 	@echo "  $(GREEN)eval-fact$(NC)      - Evaluate fact model with confusion analysis"
 	@echo "  $(GREEN)train-all$(NC)      - Train both base and fact models"
 	@echo "  $(GREEN)eval-all$(NC)       - Evaluate both base and fact models"
+	@echo "  $(GREEN)compare-base-fact$(NC) - Compare base and fact models side by side"
+	@echo "  $(GREEN)compare-base-fact-separate$(NC) - Compare base and fact models separately (recommended)"
 	@echo "  $(GREEN)clean$(NC)          - Clean all generated files"
 	@echo "  $(GREEN)clean-checkpoints$(NC) - Clean only checkpoint files"
 	@echo "  $(GREEN)clean-analysis$(NC) - Clean only analysis files"
@@ -60,6 +63,8 @@ help:
 	@echo "  make train-base                    # Train base model with default settings"
 	@echo "  make train-fact EPOCHS_BASE=3     # Train fact model with 3 base epochs"
 	@echo "  make eval-base                     # Evaluate base model"
+	@echo "  make compare-base-fact             # Compare base and fact models"
+	@echo "  make compare-base-fact-separate    # Compare base and fact models separately"
 	@echo "  make train-all MAX_SAMPLES=3          # Train both models with 3 max samples"
 	@echo "  make clean                         # Clean all files"
 
@@ -154,6 +159,72 @@ train-all: train-base train-fact
 eval-all: eval-base eval-fact
 	@echo "$(GREEN)All models evaluation completed!$(NC)"
 
+# Comparison target
+compare-base-fact:
+	@echo "$(BLUE)Comparing base and fact models for $(DATASET)...$(NC)"
+	@if [ ! -d "$(BASE_MODEL_DIR)" ] || [ ! -d "$(FACT_MODEL_DIR)" ]; then \
+		echo "$(RED)Error: Both base and fact model checkpoint directories are required$(NC)"; \
+		echo "$(YELLOW)Please run 'make train-all' first.$(NC)"; \
+		exit 1; \
+	fi
+	@mkdir -p $(COMPARISON_OUTPUT)
+	@BASE_CHECKPOINT_DIR=$$(find $(BASE_MODEL_DIR) -name "session0_max_acc.pth" -exec dirname {} \; | head -1); \
+	FACT_CHECKPOINT_DIR=$$(find $(FACT_MODEL_DIR) -name "session0_max_acc.pth" -exec dirname {} \; | head -1); \
+	if [ -z "$$BASE_CHECKPOINT_DIR" ] || [ -z "$$FACT_CHECKPOINT_DIR" ]; then \
+		echo "$(RED)Error: Checkpoint files not found$(NC)"; \
+		echo "$(YELLOW)Base: $$BASE_CHECKPOINT_DIR$(NC)"; \
+		echo "$(YELLOW)Fact: $$FACT_CHECKPOINT_DIR$(NC)"; \
+		exit 1; \
+	fi; \
+	echo "$(YELLOW)Using base checkpoint: $$BASE_CHECKPOINT_DIR$(NC)"; \
+	echo "$(YELLOW)Using fact checkpoint: $$FACT_CHECKPOINT_DIR$(NC)"; \
+	uv run python compare_base_fact.py \
+		-dataset $(DATASET) \
+		-dataroot $(DATAROOT) \
+		-base_checkpoint_dir "$$BASE_CHECKPOINT_DIR" \
+		-fact_checkpoint_dir "$$FACT_CHECKPOINT_DIR" \
+		-output_dir $(COMPARISON_OUTPUT) \
+		-sessions $$(seq 0 $$(($(SESSIONS)-1))) \
+		-batch_size_base $(BATCH_SIZE_BASE) \
+		-batch_size_new $(BATCH_SIZE_NEW) \
+		-test_batch_size $(TEST_BATCH_SIZE) \
+		-max_samples $(MAX_SAMPLES) \
+		$(if $(filter true,$(DEBUG)),-debug)
+	@echo "$(GREEN)Base vs FACT comparison completed! Results saved to $(COMPARISON_OUTPUT)$(NC)"
+
+# Separate evaluation comparison target (recommended)
+compare-base-fact-separate:
+	@echo "$(BLUE)Comparing base and fact models separately for $(DATASET)...$(NC)"
+	@if [ ! -d "$(BASE_MODEL_DIR)" ] || [ ! -d "$(FACT_MODEL_DIR)" ]; then \
+		echo "$(RED)Error: Both base and fact model checkpoint directories are required$(NC)"; \
+		echo "$(YELLOW)Please run 'make train-all' first.$(NC)"; \
+		exit 1; \
+	fi
+	@mkdir -p $(COMPARISON_OUTPUT)_separate
+	@BASE_CHECKPOINT_DIR=$$(find $(BASE_MODEL_DIR) -name "session0_max_acc.pth" -exec dirname {} \; | head -1); \
+	FACT_CHECKPOINT_DIR=$$(find $(FACT_MODEL_DIR) -name "session0_max_acc.pth" -exec dirname {} \; | head -1); \
+	if [ -z "$$BASE_CHECKPOINT_DIR" ] || [ -z "$$FACT_CHECKPOINT_DIR" ]; then \
+		echo "$(RED)Error: Checkpoint files not found$(NC)"; \
+		echo "$(YELLOW)Base: $$BASE_CHECKPOINT_DIR$(NC)"; \
+		echo "$(YELLOW)Fact: $$FACT_CHECKPOINT_DIR$(NC)"; \
+		exit 1; \
+	fi; \
+	echo "$(YELLOW)Using base checkpoint: $$BASE_CHECKPOINT_DIR$(NC)"; \
+	echo "$(YELLOW)Using fact checkpoint: $$FACT_CHECKPOINT_DIR$(NC)"; \
+	uv run python compare_base_fact_separate.py \
+		-dataset $(DATASET) \
+		-dataroot $(DATAROOT) \
+		-base_checkpoint_dir "$$BASE_CHECKPOINT_DIR" \
+		-fact_checkpoint_dir "$$FACT_CHECKPOINT_DIR" \
+		-output_dir $(COMPARISON_OUTPUT)_separate \
+		-sessions $$(seq 0 $$(($(SESSIONS)-1))) \
+		-batch_size_base $(BATCH_SIZE_BASE) \
+		-batch_size_new $(BATCH_SIZE_NEW) \
+		-test_batch_size $(TEST_BATCH_SIZE) \
+		-max_samples $(MAX_SAMPLES) \
+		$(if $(filter true,$(DEBUG)),-debug)
+	@echo "$(GREEN)Base vs FACT separate comparison completed! Results saved to $(COMPARISON_OUTPUT)_separate$(NC)"
+
 # Quick training (debug mode with fewer epochs)
 quick-base:
 	@echo "$(BLUE)Quick training base model (debug mode)...$(NC)"
@@ -175,6 +246,7 @@ clean-checkpoints:
 clean-analysis:
 	@echo "$(YELLOW)Cleaning analysis files...$(NC)"
 	@rm -rf confusion_analysis/$(DATASET)_*
+	@rm -rf base_fact_comparison/$(DATASET)
 	@echo "$(GREEN)Analysis files cleaned!$(NC)"
 
 clean: clean-checkpoints clean-analysis
@@ -208,6 +280,11 @@ status:
 		echo "$(GREEN)✓ Fact analysis: $(FACT_OUTPUT)$(NC)"; \
 	else \
 		echo "$(RED)✗ Fact analysis: Not found$(NC)"; \
+	fi
+	@if [ -d "$(COMPARISON_OUTPUT)" ]; then \
+		echo "$(GREEN)✓ Comparison analysis: $(COMPARISON_OUTPUT)$(NC)"; \
+	else \
+		echo "$(RED)✗ Comparison analysis: Not found$(NC)"; \
 	fi
 
 # Development helpers
