@@ -18,6 +18,7 @@ class FSCILTrainer(Trainer):
         self.model = MYNET(self.args, mode=self.args.base_mode)
         self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
         self.model = self.model.cuda()
+        self.wandb.watch(self.model)
 
         if self.args.model_dir is not None:
             print('Loading init parameters from: %s' % self.args.model_dir)
@@ -71,7 +72,7 @@ class FSCILTrainer(Trainer):
                     # train base sess
                     tl, ta = base_train(self.model, trainloader, optimizer, scheduler, epoch, args)
                     # test model with all seen class
-                    tsl, tsa = test(self.model, testloader, epoch, args, session)
+                    tsl, tsa = test(self.model, testloader, epoch, args, session, wandb_logger=self.wandb)
 
                     # save better model
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
@@ -94,6 +95,16 @@ class FSCILTrainer(Trainer):
                     result_list.append(
                         'epoch:%03d,lr:%.4f,training_loss:%.5f,training_acc:%.5f,test_loss:%.5f,test_acc:%.5f' % (
                             epoch, lrc, tl, ta, tsl, tsa))
+                    self.global_step += 1
+                    self.wandb.log_metrics({
+                        'session': session,
+                        'epoch': epoch,
+                        'lr': lrc,
+                        'train/loss': tl,
+                        'train/acc': ta,
+                        'test/loss': tsl,
+                        'test/acc': tsa,
+                    }, step=self.global_step)
                     print('This epoch takes %d seconds' % (time.time() - start_time),
                           '\nstill need around %.2f mins to finish this session' % (
                                   (time.time() - start_time) * (args.epochs_base - epoch) / 60))
@@ -113,7 +124,7 @@ class FSCILTrainer(Trainer):
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
                     self.model.module.mode = 'avg_cos'
-                    tsl, tsa = test(self.model, testloader, 0, args, session)
+                    tsl, tsa = test(self.model, testloader, 0, args, session, wandb_logger=self.wandb)
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                         print('The new best test acc of base session={:.3f}'.format(self.trlog['max_acc'][session]))
@@ -129,7 +140,7 @@ class FSCILTrainer(Trainer):
                     trainloader.dataset.transform = testloader.dataset.transform
                 self.model.module.update_fc(trainloader, np.unique(train_set.targets), session)
 
-                tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
+                tsl, tsa = test(self.model, testloader, 0, args, session, validation=False, wandb_logger=self.wandb)
 
                 # save model
                 self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
@@ -140,6 +151,13 @@ class FSCILTrainer(Trainer):
                 print('  test acc={:.3f}'.format(self.trlog['max_acc'][session]))
 
                 result_list.append('Session {}, test Acc {:.3f}\n'.format(session, self.trlog['max_acc'][session]))
+                self.global_step += 1
+                self.wandb.log_metrics({
+                    'session': session,
+                    'epoch': 0,
+                    'test/loss': tsl,
+                    'test/acc': tsa,
+                }, step=self.global_step)
 
         result_list.append('Base Session Best Epoch {}\n'.format(self.trlog['max_acc_epoch']))
         result_list.append(self.trlog['max_acc'])
@@ -150,6 +168,11 @@ class FSCILTrainer(Trainer):
         total_time = (t_end_time - t_start_time) / 60
         print('Base Session Best epoch:', self.trlog['max_acc_epoch'])
         print('Total time used %.2f mins' % total_time)
+        summary_payload = {f'session_{idx}_best_acc': acc for idx, acc in enumerate(self.trlog['max_acc'])}
+        summary_payload['base_best_epoch'] = self.trlog['max_acc_epoch']
+        summary_payload['total_time_min'] = total_time
+        self.wandb.set_summary(**summary_payload)
+        self.finalize()
 
     def set_save_path(self):
         mode = self.args.base_mode + '-' + self.args.new_mode

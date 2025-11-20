@@ -105,7 +105,7 @@ def replace_base_fc(trainset, transform, model, args):
 
 
 
-def test(model, testloader, epoch,args, session,validation=True):
+def test(model, testloader, epoch,args, session,validation=True, wandb_logger=None):
     test_class = args.base_class + session * args.way
     model = model.eval()
     vl = Averager()
@@ -144,6 +144,8 @@ def test(model, testloader, epoch,args, session,validation=True):
             # Classification reportを保存
             from utils import save_classification_report
             save_classification_report(lgt, lbs, save_model_dir)
+            if wandb_logger is not None:
+                wandb_logger.log_image(f'session_{session}_confusion_matrix', save_model_dir + '.png')
     return vl, va
 
 

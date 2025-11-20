@@ -4,6 +4,7 @@ import os
 import time
 import numpy as np
 import pprint as pprint
+from typing import Any, Dict, Optional
 from sklearn.metrics import confusion_matrix, classification_report
 import matplotlib.pyplot as plt 
 import matplotlib
@@ -237,7 +238,88 @@ def save_classification_report(logits, label, filename):
     return report
 
 
+class WandbLogger:
+    """
+    Weights & Biasesへのロギングをラップする軽量ユーティリティ.
+    """
 
+    def __init__(self, args):
+        self.enabled = bool(getattr(args, 'use_wandb', False))
+        self.run = None
+        self._wandb = None
+        self._watch_mode = getattr(args, 'wandb_watch', 'gradients')
+        self._watch_freq = int(getattr(args, 'wandb_watch_freq', 100))
+        if not self.enabled:
+            return
+        try:
+            import wandb
+        except ImportError as exc:
+            print(f'wandbのインポートに失敗したため、ロギングを無効化します: {exc}')
+            self.enabled = False
+            return
+
+        self._wandb = wandb
+        tags = getattr(args, 'wandb_tags', None)
+        if tags == []:
+            tags = None
+
+        project = getattr(args, 'wandb_project', None) or f'CVPR22-Fact-{getattr(args, "dataset", "default")}'
+        entity = getattr(args, 'wandb_entity', None)
+        group = getattr(args, 'wandb_group', None)
+        run_name = getattr(args, 'wandb_run_name', None)
+        mode = getattr(args, 'wandb_mode', 'online')
+        config = self._build_config(vars(args))
+
+        self.run = wandb.init(
+            project=project,
+            entity=entity,
+            name=run_name,
+            group=group,
+            tags=tags,
+            mode=mode,
+            config=config,
+        )
+
+    def _coerce_value(self, value: Any):
+        if isinstance(value, (int, float, str, bool)) or value is None:
+            return value
+        if isinstance(value, (list, tuple)):
+            return [self._coerce_value(v) for v in value]
+        if isinstance(value, set):
+            return [self._coerce_value(v) for v in sorted(value, key=lambda item: str(item))]
+        if hasattr(value, 'tolist'):
+            return value.tolist()
+        return str(value)
+
+    def _build_config(self, args_dict: Dict[str, Any]) -> Dict[str, Any]:
+        return {key: self._coerce_value(val) for key, val in args_dict.items() if not key.startswith('_')}
+
+    def log_metrics(self, metrics: Dict[str, Any], step: Optional[int] = None, commit: bool = True):
+        if not self.enabled or not metrics:
+            return
+        self._wandb.log(metrics, step=step, commit=commit)
+
+    def watch(self, model):
+        if not self.enabled or self._watch_mode == 'none' or model is None:
+            return
+        log_target = 'all' if self._watch_mode == 'all' else self._watch_mode
+        self._wandb.watch(model, log=log_target, log_freq=self._watch_freq)
+
+    def log_image(self, label: str, image_path: str):
+        if not self.enabled or not image_path or not os.path.exists(image_path):
+            return
+        self._wandb.log({label: self._wandb.Image(image_path, caption=label)})
+
+    def set_summary(self, **kwargs):
+        if not self.enabled or self.run is None:
+            return
+        for key, value in kwargs.items():
+            self.run.summary[key] = value
+
+    def finish(self):
+        if not self.enabled or self.run is None:
+            return
+        self.run.finish()
 
 
 def save_list_to_txt(name, input_list):

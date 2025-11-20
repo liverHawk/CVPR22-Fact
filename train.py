@@ -11,7 +11,7 @@ def get_command_line_parser():
 
     # about dataset and network
     parser.add_argument('-project', type=str, default=PROJECT)
-    parser.add_argument('-dataset', type=str, default='cub200',
+    parser.add_argument('-dataset', type=str, default='CICIDS2017_improved',
                         choices=['mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved'])
     parser.add_argument('-dataroot', type=str, default=DATA_DIR)
     parser.add_argument('-encoder', type=str, default='mlp',
@@ -54,6 +54,19 @@ def get_command_line_parser():
     parser.add_argument('-num_workers', type=int, default=8)
     parser.add_argument('-seed', type=int, default=1)
     parser.add_argument('-debug', action='store_true')
+
+    # wandb logging
+    parser.add_argument('--use_wandb', action='store_true', help='Weights & Biasesへのログ送信を有効化')
+    parser.add_argument('--wandb_project', type=str, default=None, help='wandbのプロジェクト名')
+    parser.add_argument('--wandb_entity', type=str, default=None, help='wandbのエンティティ（ユーザーまたはチーム）')
+    parser.add_argument('--wandb_group', type=str, default=None, help='wandbのグループ名')
+    parser.add_argument('--wandb_run_name', type=str, default=None, help='wandb上の実行名')
+    parser.add_argument('--wandb_tags', nargs='*', default=None, help='wandbタグ（スペース区切り）')
+    parser.add_argument('--wandb_mode', type=str, default='online',
+                        choices=['online', 'offline', 'disabled'], help='wandbの実行モード')
+    parser.add_argument('--wandb_watch', type=str, default='gradients',
+                        choices=['gradients', 'parameters', 'all', 'none'], help='wandb.watchの対象')
+    parser.add_argument('--wandb_watch_freq', type=int, default=100, help='wandb.watchのログ頻度（step単位）')
     return parser
 
 
