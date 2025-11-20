@@ -1,10 +1,13 @@
 import argparse
+import math
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from models.resnet18_encoder import *
 from models.resnet20_cifar import *
+from models.mlp_encoder import mlp_encoder
+from models.cnn1d_encoder import cnn1d_encoder
 
 
 class MYNET(nn.Module):
@@ -24,6 +27,15 @@ class MYNET(nn.Module):
         if self.args.dataset in ['cub200','manyshotcub']:
             self.encoder = resnet18(True, args)  # pretrained=True follow TOPIC, models for cub is imagenet pre-trained. https://github.com/xyutao/fscil/issues/11#issuecomment-687548790
             self.num_features = 512
+        if self.args.dataset == 'CICIDS2017_improved':
+            if self.args.encoder == 'mlp':
+                self.encoder = mlp_encoder(input_dim=66, hidden_dims=[512, 256, 128], output_dim=128, dropout=0.1)
+                self.num_features = 128
+            elif self.args.encoder == 'cnn1d':
+                self.encoder = cnn1d_encoder(num_features=66, num_classes=self.args.num_classes, config={'conv1_out': 64, 'conv2_out': 128, 'kernel_size': 3, 'pool_size': 2, 'fc1_dim': 256, 'embedding_dim': 128, 'dropout': 0.5})
+                self.num_features = 128
+            else:
+                raise ValueError(f'Unknown encoder: {self.args.encoder}. Available encoders: mlp, cnn1d')
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
         self.fc = nn.Linear(self.num_features, self.args.num_classes, bias=False)
@@ -40,10 +52,25 @@ class MYNET(nn.Module):
         return x
 
     def encode(self, x):
-        x = self.encoder(x)
-        x = F.adaptive_avg_pool2d(x, 1)
-        x = x.squeeze(-1).squeeze(-1)
-        return x
+        if self.args.dataset == 'CICIDS2017_improved':
+            # For tabular data
+            if self.args.encoder == 'cnn1d':
+                # CNN1D expects [batch_size, channels, sequence_length]
+                # Reshape from [batch_size, num_features] to [batch_size, 1, num_features]
+                if x.dim() == 2:
+                    x = x.unsqueeze(1)  # Add channel dimension
+                # Use get_embedding to get normalized embedding
+                x = self.encoder.get_embedding(x)
+            else:
+                # MLP encoder directly outputs features
+                x = self.encoder(x)
+            return x
+        else:
+            # For image data, use ResNet encoder
+            x = self.encoder(x)
+            x = F.adaptive_avg_pool2d(x, 1)
+            x = x.squeeze(-1).squeeze(-1)
+            return x
 
     def forward(self, input):
         if self.mode != 'encoder':

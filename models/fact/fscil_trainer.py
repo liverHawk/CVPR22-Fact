@@ -113,7 +113,9 @@ class FSCILTrainer(Trainer):
 
                 if not args.not_data_init:
                     self.model.load_state_dict(self.best_model_dict)
-                    self.model = replace_base_fc(train_set, testloader.dataset.transform, self.model, args)
+                    # For CICIDS2017_improved (tabular data), transform is not needed
+                    transform = getattr(testloader.dataset, 'transform', None) if args.dataset != 'CICIDS2017_improved' else None
+                    self.model = replace_base_fc(train_set, transform, self.model, args)
                     best_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
                     print('Replace the fc with average embedding, and save it to :%s' % best_model_dir)
                     self.best_model_dict = deepcopy(self.model.state_dict())
@@ -136,17 +138,19 @@ class FSCILTrainer(Trainer):
 
                 self.model.module.mode = self.args.new_mode
                 self.model.eval()
-                trainloader.dataset.transform = testloader.dataset.transform
+                # Only set transform for image datasets (CICIDS2017_improved doesn't have transform attribute)
+                if hasattr(trainloader.dataset, 'transform') and hasattr(testloader.dataset, 'transform'):
+                    trainloader.dataset.transform = testloader.dataset.transform
                 self.model.module.update_fc(trainloader, np.unique(train_set.targets), session)
 
                 #tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
                 #tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
-                tsl, tsa = self.test_intergrate(self.model, testloader, 0,args, session,validation=True)
+                tsl, tsa = self.test_intergrate(self.model, testloader, 0,args, session,validation=False)
                 
                 # save model
                 self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                 save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
-                #torch.save(dict(params=self.model.state_dict()), save_model_dir)
+                torch.save(dict(params=self.model.state_dict()), save_model_dir)
                 self.best_model_dict = deepcopy(self.model.state_dict())
                 print('Saving model to :%s' % save_model_dir)
                 print('  test acc={:.3f}'.format(self.trlog['max_acc'][session]))
@@ -186,7 +190,9 @@ class FSCILTrainer(Trainer):
                 emb=model.module.encode(data)
             
                 proj=torch.mm(F.normalize(emb,p=2,dim=-1),torch.transpose(self.dummy_classifiers,1,0))
-                topk, indices = torch.topk(proj, 40)
+                # Adjust k based on actual dimension (for datasets with fewer classes like CICIDS2017_improved)
+                k = min(40, proj.size(1))
+                topk, indices = torch.topk(proj, k)
                 res = (torch.zeros_like(proj))
                 res_logit = res.scatter(1, indices, topk)
 
@@ -207,6 +213,22 @@ class FSCILTrainer(Trainer):
             va5= va5.item()
             print('epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}'.format(epoch, vl, va,va5))
 
+            lgt=lgt.view(-1,test_class)
+            lbs=lbs.view(-1)
+            if validation is not True:
+                save_model_dir = os.path.join(args.save_path, 'session' + str(session) + 'confusion_matrix')
+                # ラベル名を取得（CICIDS2017_improvedの場合）
+                label_names = None
+                if args.dataset == 'CICIDS2017_improved' and hasattr(testloader.dataset, 'label_encoder'):
+                    label_names = list(testloader.dataset.label_encoder.classes_)
+                cm=confmatrix(lgt,lbs,save_model_dir, label_names=label_names)
+                perclassacc=cm.diagonal()
+                seenac=np.mean(perclassacc[:args.base_class])
+                unseenac=np.mean(perclassacc[args.base_class:])
+                print('Seen Acc:',seenac, 'Unseen ACC:', unseenac)
+                # Classification reportを保存
+                from utils import save_classification_report
+                save_classification_report(lgt, lbs, save_model_dir)
             
         return vl, va
 

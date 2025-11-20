@@ -74,6 +74,17 @@ def set_up_datasets(args):
         args.shot = 5
         args.sessions = 9
 
+    if args.dataset == 'CICIDS2017_improved':
+        import dataloader.cicids2017.cicids2017 as Dataset
+        # CICIDS2017_improved has 10 classes after preprocessing (label consolidation)
+        # Following research_data_drl preprocessing: labels are consolidated
+        # Configuration: base_class + (way * sessions) = num_classes
+        args.base_class = 5  # Base classes (BENIGN + major attack types)
+        args.num_classes = 10  # Total classes after label consolidation
+        args.way = 1  # Number of new classes per session
+        args.shot = 5  # Few-shot samples per class
+        args.sessions = 5  # Number of incremental sessions (5 + 1*5 = 10)
+
     args.Dataset=Dataset
     return args
 
@@ -108,6 +119,12 @@ def get_base_dataloader(args):
         trainset = args.Dataset.ImageNet(root=args.dataroot, train=True,
                                              index=class_index, base_sess=True)
         testset = args.Dataset.ImageNet(root=args.dataroot, train=False, index=class_index)
+
+    if args.dataset == 'CICIDS2017_improved':
+        trainset = args.Dataset.CICIDS2017_improved(root=args.dataroot, train=True,
+                                                     index=class_index, base_sess=True)
+        testset = args.Dataset.CICIDS2017_improved(root=args.dataroot, train=False,
+                                                    index=class_index, base_sess=True)
 
     trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=args.batch_size_base, shuffle=True,
                                               num_workers=8, pin_memory=True)
@@ -166,6 +183,9 @@ def get_new_dataloader(args,session):
     if args.dataset == 'imagenet100' or args.dataset == 'imagenet1000':
         trainset = args.Dataset.ImageNet(root=args.dataroot, train=True,
                                        index_path=txt_path)
+    if args.dataset == 'CICIDS2017_improved':
+        trainset = args.Dataset.CICIDS2017_improved(root=args.dataroot, train=True,
+                                                    index_path=txt_path)
 
     if args.batch_size_new == 0:
         batch_size_new = trainset.__len__()
@@ -190,6 +210,9 @@ def get_new_dataloader(args,session):
     if args.dataset == 'imagenet100' or args.dataset == 'imagenet1000':
         testset = args.Dataset.ImageNet(root=args.dataroot, train=False,
                                       index=class_new)
+    if args.dataset == 'CICIDS2017_improved':
+        testset = args.Dataset.CICIDS2017_improved(root=args.dataroot, train=False,
+                                                   index=class_new, base_sess=False)
 
     testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=args.test_batch_size, shuffle=False,
                                              num_workers=args.num_workers, pin_memory=True)

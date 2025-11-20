@@ -12,8 +12,10 @@ def get_command_line_parser():
     # about dataset and network
     parser.add_argument('-project', type=str, default=PROJECT)
     parser.add_argument('-dataset', type=str, default='cub200',
-                        choices=['mini_imagenet', 'cub200', 'cifar100'])
+                        choices=['mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved'])
     parser.add_argument('-dataroot', type=str, default=DATA_DIR)
+    parser.add_argument('-encoder', type=str, default='mlp',
+                        choices=['mlp', 'cnn1d'])
 
     # about pre-training
     parser.add_argument('-epochs_base', type=int, default=100)
@@ -48,7 +50,7 @@ def get_command_line_parser():
     parser.add_argument('-set_no_val', action='store_true', help='set validation using test set or no validation')
 
     # about training
-    parser.add_argument('-gpu', default='0,1,2,3')
+    parser.add_argument('-gpu', default='0')
     parser.add_argument('-num_workers', type=int, default=8)
     parser.add_argument('-seed', type=int, default=1)
     parser.add_argument('-debug', action='store_true')

@@ -104,7 +104,9 @@ class FSCILTrainer(Trainer):
 
                 if not args.not_data_init:
                     self.model.load_state_dict(self.best_model_dict)
-                    self.model = replace_base_fc(train_set, testloader.dataset.transform, self.model, args)
+                    # For CICIDS2017_improved (tabular data), transform is not needed
+                    transform = getattr(testloader.dataset, 'transform', None) if args.dataset != 'CICIDS2017_improved' else None
+                    self.model = replace_base_fc(train_set, transform, self.model, args)
                     best_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
                     print('Replace the fc with average embedding, and save it to :%s' % best_model_dir)
                     self.best_model_dict = deepcopy(self.model.state_dict())
@@ -122,7 +124,9 @@ class FSCILTrainer(Trainer):
 
                 self.model.module.mode = self.args.new_mode
                 self.model.eval()
-                trainloader.dataset.transform = testloader.dataset.transform
+                # Only set transform for image datasets (CICIDS2017_improved doesn't have transform attribute)
+                if hasattr(trainloader.dataset, 'transform') and hasattr(testloader.dataset, 'transform'):
+                    trainloader.dataset.transform = testloader.dataset.transform
                 self.model.module.update_fc(trainloader, np.unique(train_set.targets), session)
 
                 tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
