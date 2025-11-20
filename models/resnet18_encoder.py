@@ -64,7 +64,7 @@ def load_state_dict_from_url(url, model_dir=None, map_location=None, progress=Tr
         sys.stderr.write('Downloading: "{}" to {}\n'.format(url, cached_file))
         hash_prefix = HASH_REGEX.search(filename).group(1)
         _download_url_to_file(url, cached_file, hash_prefix, progress=progress)
-    return torch.load(cached_file, map_location=map_location)
+    return torch.load(cached_file, map_location=map_location, weights_only=False)
 
 
 def _download_url_to_file(url, dst, hash_prefix, progress):

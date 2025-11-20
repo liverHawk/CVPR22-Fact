@@ -1,0 +1,60 @@
+# Central configuration file for the project.
+# Edit values here to change experiment settings across scripts.
+
+project:
+  name: CVPR22-Fact
+  seed: 42
+  device: cuda  # change to cpu if needed
+
+data:
+  root: data/CICIDS2017_improved
+  dataset: cicids2017_improved
+  train_dir: data/CICIDS2017_improved/train
+  test_dir: data/CICIDS2017_improved/test
+  index_list_dir: index_list/cicids2017_improved
+  batch_size: 128
+  num_workers: 4
+
+augment:
+  autoaugment: true
+  policy: DEFAULT  # placeholder; dataloader code can read this value
+  random_erase: false
+
+model:
+  backbone: resnet18
+  pretrained: false
+  num_classes: 100
+
+training:
+  epochs: 200
+  optimizer: sgd
+  lr: 0.1
+  momentum: 0.9
+  weight_decay: 5e-4
+  scheduler: step
+  step_size: 60
+  gamma: 0.1
+
+checkpoint:
+  base_dir: checkpoint/cicids2017_improved
+  base_subdir: base
+  fact_subdir: fact
+  resume: null  # path to checkpoint to resume from, or null
+  save_best_only: true
+
+fact:
+  sessions: 7
+  base_classes: 50
+  novel_per_session: 5
+  n_way: 5
+  k_shot: 5
+
+logging:
+  save_dir: debug/checkpoint
+  log_interval: 100
+  verbose: true
+
+# Optional experiment / run-level overrides can be added under `run:` by scripts
+# run:
+#   name: my_experiment
+#   notes: "something about this run"

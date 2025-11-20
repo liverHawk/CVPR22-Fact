@@ -15,7 +15,7 @@ import json
 # プロジェクトのルートディレクトリをパスに追加
 sys.path.append('/home/hawk/Documents/school/test/CVPR22-Fact')
 
-from utils import confmatrix
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from models.fact.Network import MYNET
 from dataloader.data_utils import set_up_datasets, get_dataloader
 
@@ -64,7 +64,7 @@ def evaluate_session_with_session0_model(session, args, checkpoint_path, output_
             all_labels.extend(labels.cpu().numpy())
     
     # 混同行列の生成
-    cm = confmatrix(all_labels, all_predictions, normalize='true')
+    cm = confusion_matrix(all_labels, all_predictions, normalize='true')
     
     # 結果の保存
     session_dir = os.path.join(output_dir, f'session_{session}')
@@ -72,8 +72,11 @@ def evaluate_session_with_session0_model(session, args, checkpoint_path, output_
     
     # 1. 混同行列の可視化
     plt.figure(figsize=(12, 10))
-    plt.imshow(cm, cmap='Blues', aspect='auto')
-    plt.colorbar(label='Normalized Count')
+    disp = ConfusionMatrixDisplay(
+        confusion_matrix=cm,
+        display_labels=range(test_class),
+    )
+    disp.plot(cmap='Blues', values_format='.2f')
     plt.title(f'Confusion Matrix - Session {session} (Evaluated with Session 0 Model)\n'
              f'Classes: {test_class}, Overall Accuracy: {np.mean(np.array(all_labels) == np.array(all_predictions)):.3f}')
     plt.xlabel('Predicted Label')
@@ -279,7 +282,7 @@ def compare_forward_compatibility(all_stats, output_dir):
 def main():
     parser = argparse.ArgumentParser(description='Session 0モデルでの前方互換性テスト')
     parser.add_argument('-dataset', type=str, default='cifar100', 
-                       choices=['cifar100', 'cub200', 'mini_imagenet'])
+                       choices=['cifar100', 'cub200', 'mini_imagenet', 'cicids2017_improved'])
     parser.add_argument('-dataroot', type=str, default='data/')
     parser.add_argument('-checkpoint_dir', type=str, 
                        default='checkpoint/cifar100/fact/ft_cos-avg_cos-data_init-start_0/Cosine-Epo_3-Lr_0.1000Bal0.00-LossIter0-T_16.00',

@@ -37,6 +37,22 @@ def _preprocess_data(df: pd.DataFrame, label_column: str) -> pd.DataFrame:
     return df
 
 
+def _sample_normalize(data: pd.DataFrame, label_column: str) -> pd.DataFrame:
+    num_columns = data.columns
+    num_columns = [col for col in num_columns if col != label_column]
+
+    for column in num_columns:
+        col_max = data[column].max()
+        col_min = data[column].min()
+        if col_max == col_min:
+            data[column] = 0.0
+        else:
+            data[column] = (data[column] - col_min) / (col_max - col_min)
+        data[column] = data[column].astype(np.float32)
+    data = data.replace(np.nan, 0.0)
+    return data
+
+
 def _load_data(data_path: str, label_column: str) -> pd.DataFrame:
     files = glob(os.path.join(data_path, "*.csv.gz"))
     dfs = [pd.read_csv(file) for file in tqdm(files, desc="Loading data")]
@@ -115,15 +131,25 @@ class CICIDS2017Improved(Dataset):
                 self.data = self.data[class_filter].reset_index(drop=True)
         
         # Limit dataset size if max_samples is specified - do this AFTER class filtering
-        if max_samples is not None and len(self.data) > max_samples:
-            # Use stratified sampling to maintain class balance
-            from sklearn.model_selection import train_test_split
-            X = self.data.drop(columns=["Label"])
-            y = self.data["Label"]
-            X_sampled, _, y_sampled, _ = train_test_split(
-                X, y, train_size=max_samples, stratify=y, random_state=42
-            )
-            self.data = pd.concat([X_sampled, y_sampled], axis=1).reset_index(drop=True)
+        if self.train and max_samples is not None and len(self.data) > max_samples:
+            # Use stratified sampling to maintain class balance if max_samples >= number of classes
+            # Otherwise, just take the first max_samples samples
+            n_classes = self.data["Label"].nunique()
+            if max_samples >= n_classes:
+                from sklearn.model_selection import train_test_split
+                X = self.data.drop(columns=["Label"])
+                y = self.data["Label"]
+                X_sampled, _, y_sampled, _ = train_test_split(
+                    X, y, train_size=max_samples, stratify=y, random_state=42
+                )
+                self.data = pd.concat([X_sampled, y_sampled], axis=1).reset_index(drop=True)
+            else:
+                # Just take the first max_samples samples
+                self.data = self.data.head(max_samples).reset_index(drop=True)
+        
+        self.data = _sample_normalize(self.data, "Label")
+
+        print(self.data["Label"].value_counts())
         
         # Pre-compute features and labels for efficiency
         self.features = self.data.drop(columns=["Label"]).values.astype(np.float32)

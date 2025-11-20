@@ -17,24 +17,36 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args):
         device = next(model.parameters()).device
         data, train_label = [_.to(device) for _ in batch]
 
+        print(f"base_train: イテレーション {i}, data.shape={data.shape}, train_label.shape={train_label.shape}")
+        print(f"base_train: train_label={train_label}")
+
         logits = model(data)
         logits = logits[:, :args.base_class]
+        print(f"base_train: logits.shape={logits.shape}, logits={logits}")
+
         loss = F.cross_entropy(logits, train_label)
         acc = count_acc(logits, train_label)
+
+        print(f"base_train: loss={loss.item():.4f}, acc={acc:.4f}")
 
         total_loss = loss
 
         lrc = scheduler.get_last_lr()[0]
+        print(f"base_train: lrc (学習率)={lrc:.4f}")
         tqdm_gen.set_description(
             'Session 0, epo {}, lrc={:.4f},total loss={:.4f} acc={:.4f}'.format(epoch+1, lrc, total_loss.item(), acc))
         tl.add(total_loss.item())
         ta.add(acc)
+
+        print(f"base_train: tl (累積平均損失)={tl.item():.4f}, ta (累積平均精度)={ta.item():.4f}")
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
     tl = tl.item()
     ta = ta.item()
+    print(f"base_train: 最終値 - tl={tl:.4f}, ta={ta:.4f}")
+    print(f"base_train: 返り値 - tl={tl}, ta={ta}")
     return tl, ta
 
 
