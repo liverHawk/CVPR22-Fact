@@ -62,6 +62,12 @@ def create_session_files(train_csv='data/CICIDS2017_improved/train.csv',
     print(f"Total classes: {len(unique_labels)}")
     print(f"Classes: {unique_labels}")
     
+    # num_classesが実際のクラス数より大きい場合は警告を出して調整
+    if num_classes > len(unique_labels):
+        print(f"\nWarning: num_classes ({num_classes}) is larger than actual number of classes ({len(unique_labels)})")
+        print(f"  Adjusting num_classes to {len(unique_labels)}")
+        num_classes = len(unique_labels)
+    
     # クラスごとにデータインデックスをグループ化
     class_indices = defaultdict(list)
     for idx, label_idx in enumerate(df['label_idx']):
@@ -103,7 +109,16 @@ def create_session_files(train_csv='data/CICIDS2017_improved/train.csv',
         
         session_indices = []
         for class_idx in range(start_class, end_class):
+            # class_idxが実際のクラス数の範囲内かチェック
+            if class_idx >= len(unique_labels):
+                print(f"  Warning: Class {class_idx} is out of range (max class index: {len(unique_labels)-1}), skipping")
+                continue
+            
             class_samples = class_indices[class_idx]
+            if len(class_samples) == 0:
+                print(f"  Warning: Class {class_idx} ({unique_labels[class_idx]}) has no samples, skipping")
+                continue
+            
             if len(class_samples) < shot:
                 print(f"  Warning: Class {class_idx} ({unique_labels[class_idx]}) has only {len(class_samples)} samples, using all")
                 selected = class_samples

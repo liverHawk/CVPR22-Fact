@@ -39,8 +39,10 @@ def replace_base_fc(trainset, transform, model, args):
     # replace fc.weight with the embedding average of train data
     model = model.eval()
 
+    from utils import should_use_pin_memory
+    pin_mem = should_use_pin_memory(getattr(args, 'device', None))
     trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=128,
-                                              num_workers=8, pin_memory=True, shuffle=False)
+                                              num_workers=8, pin_memory=pin_mem, shuffle=False)
     # Only set transform for image datasets (CICIDS2017_improved doesn't have transform attribute)
     if hasattr(trainloader.dataset, 'transform') and transform is not None:
         trainloader.dataset.transform = transform

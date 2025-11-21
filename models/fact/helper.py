@@ -10,13 +10,15 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args,mask):
     ta = Averager()
     model = model.train()
     tqdm_gen = tqdm(trainloader)
+    device = getattr(args, 'device', torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    model_module = get_model_module(model)
 
     for i, batch in enumerate(tqdm_gen, 1):
 
         beta=torch.distributions.beta.Beta(args.alpha, args.alpha).sample([]).item()
-        data, train_label = [_.cuda() for _ in batch]
+        data, train_label = [_.to(device) for _ in batch]
         
-        embeddings=model.module.encode(data)
+        embeddings=model_module.encode(data)
 
         logits = model(data)
         logits_ = logits[:, :args.base_class]
@@ -26,16 +28,16 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args,mask):
         
         
         if epoch>=args.loss_iter:
-            logits_masked = logits.masked_fill(F.one_hot(train_label, num_classes=model.module.pre_allocate) == 1, -1e9)
+            logits_masked = logits.masked_fill(F.one_hot(train_label, num_classes=model_module.pre_allocate) == 1, -1e9)
             logits_masked_chosen= logits_masked * mask[train_label]
             pseudo_label = torch.argmax(logits_masked_chosen[:,args.base_class:], dim=-1) + args.base_class
             #pseudo_label = torch.argmax(logits_masked[:,args.base_class:], dim=-1) + args.base_class
             loss2 = F.cross_entropy(logits_masked, pseudo_label)
 
-            index = torch.randperm(data.size(0)).cuda()
-            pre_emb1=model.module.pre_encode(data)
+            index = torch.randperm(data.size(0), device=device)
+            pre_emb1=model_module.pre_encode(data)
             mixed_data=beta*pre_emb1+(1-beta)*pre_emb1[index]
-            mixed_logits=model.module.post_encode(mixed_data)
+            mixed_logits=model_module.post_encode(mixed_data)
 
             newys=train_label[index]
             idx_chosen=newys!=train_label
@@ -44,7 +46,7 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args,mask):
             pseudo_label1 = torch.argmax(mixed_logits[:,args.base_class:], dim=-1) + args.base_class # new class label
             pseudo_label2 = torch.argmax(mixed_logits[:,:args.base_class], dim=-1)  # old class label
             loss3 = F.cross_entropy(mixed_logits, pseudo_label1)
-            novel_logits_masked = mixed_logits.masked_fill(F.one_hot(pseudo_label1, num_classes=model.module.pre_allocate) == 1, -1e9)
+            novel_logits_masked = mixed_logits.masked_fill(F.one_hot(pseudo_label1, num_classes=model_module.pre_allocate) == 1, -1e9)
             loss4 = F.cross_entropy(novel_logits_masked, pseudo_label2)
             total_loss = loss+args.balance*(loss2+loss3+loss4)
         else:
@@ -69,9 +71,13 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args,mask):
 def replace_base_fc(trainset, transform, model, args):
     # replace fc.weight with the embedding average of train data
     model = model.eval()
+    device = getattr(args, 'device', torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    model_module = get_model_module(model)
 
+    from utils import should_use_pin_memory
+    pin_mem = should_use_pin_memory(getattr(args, 'device', None))
     trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=128,
-                                              num_workers=8, pin_memory=True, shuffle=False)
+                                              num_workers=8, pin_memory=pin_mem, shuffle=False)
     # Only set transform for image datasets (CICIDS2017_improved doesn't have transform attribute)
     if hasattr(trainloader.dataset, 'transform') and transform is not None:
         trainloader.dataset.transform = transform
@@ -80,8 +86,8 @@ def replace_base_fc(trainset, transform, model, args):
     # data_list=[]
     with torch.no_grad():
         for i, batch in enumerate(trainloader):
-            data, label = [_.cuda() for _ in batch]
-            model.module.mode = 'encoder'
+            data, label = [_.to(device) for _ in batch]
+            model_module.mode = 'encoder'
             embedding = model(data)
 
             embedding_list.append(embedding.cpu())
@@ -99,7 +105,7 @@ def replace_base_fc(trainset, transform, model, args):
 
     proto_list = torch.stack(proto_list, dim=0)
 
-    model.module.fc.weight.data[:args.base_class] = proto_list
+    model_module.fc.weight.data[:args.base_class] = proto_list
 
     return model
 
@@ -112,9 +118,11 @@ def test(model, testloader, epoch,args, session,validation=True, wandb_logger=No
     va = Averager()
     lgt=torch.tensor([])
     lbs=torch.tensor([])
+    device = getattr(args, 'device', torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    model_module = get_model_module(model)
     with torch.no_grad():
         for i, batch in enumerate(testloader, 1):
-            data, test_label = [_.cuda() for _ in batch]
+            data, test_label = [_.to(device) for _ in batch]
             logits = model(data)
             logits = logits[:, :test_class]
             loss = F.cross_entropy(logits, test_label)
@@ -157,10 +165,12 @@ def test_withfc(model, testloader, epoch,args, session,validation=True):
     va = Averager()
     lgt=torch.tensor([])
     lbs=torch.tensor([])
+    device = getattr(args, 'device', torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+    model_module = get_model_module(model)
     with torch.no_grad():
         for i, batch in enumerate(testloader, 1):
-            data, test_label = [_.cuda() for _ in batch]
-            logits = model.module.forpass_fc(data)
+            data, test_label = [_.to(device) for _ in batch]
+            logits = model_module.forpass_fc(data)
             logits = logits[:, :test_class]
             loss = F.cross_entropy(logits, test_label)
             acc = count_acc(logits, test_label)

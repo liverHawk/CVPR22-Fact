@@ -12,6 +12,7 @@ CUB_DATAROOT ?= $(DATA_DIR)/cub200
 MINI_IMAGENET_ROOT ?= $(DATA_DIR)/mini_imagenet
 
 GPU ?= 0
+DEVICE ?= $(GPU)
 SEED ?= 1
 
 TRAIN_PROJECT ?= fact
@@ -26,9 +27,9 @@ TRAIN_EPOCHS_NEW ?= 100
 TRAIN_START_SESSION ?= 0
 TRAIN_EXTRA ?=
 
-FACT_CIFAR_EXTRA ?= -gamma 0.1 -lr_base 0.1 -lr_new 0.1 -decay 0.0005 -epochs_base 600 -schedule Cosine -temperature 16 -batch_size_base 256 -balance 0.001 -loss_iter 0 -alpha 0.5 -gpu $(GPU)
-FACT_CUB_EXTRA ?= -gamma 0.25 -lr_base 0.005 -lr_new 0.1 -decay 0.0005 -epochs_base 400 -schedule Milestone -milestones 50 100 150 200 250 300 -temperature 16 -batch_size_base 256 -balance 0.01 -loss_iter 0 -gpu $(GPU)
-FACT_MINI_EXTRA ?= -gamma 0.1 -lr_base 0.1 -lr_new 0.1 -decay 0.0005 -epochs_base 1000 -schedule Cosine -temperature 16 -alpha 0.5 -balance 0.01 -loss_iter 150 -eta 0.1 -gpu $(GPU)
+FACT_CIFAR_EXTRA ?= -gamma 0.1 -lr_base 0.1 -lr_new 0.1 -decay 0.0005 -epochs_base 600 -schedule Cosine -temperature 16 -batch_size_base 256 -balance 0.001 -loss_iter 0 -alpha 0.5 -gpu $(DEVICE)
+FACT_CUB_EXTRA ?= -gamma 0.25 -lr_base 0.005 -lr_new 0.1 -decay 0.0005 -epochs_base 400 -schedule Milestone -milestones 50 100 150 200 250 300 -temperature 16 -batch_size_base 256 -balance 0.01 -loss_iter 0 -gpu $(DEVICE)
+FACT_MINI_EXTRA ?= -gamma 0.1 -lr_base 0.1 -lr_new 0.1 -decay 0.0005 -epochs_base 1000 -schedule Cosine -temperature 16 -alpha 0.5 -balance 0.01 -loss_iter 150 -eta 0.1 -gpu $(DEVICE)
 
 WAND_ENABLE ?= 0
 WAND_PROJECT ?= origin-fact
@@ -70,11 +71,41 @@ SESSION_SHOT ?= 5
 
 WILDCARD := $(if $(filter 1,$(CICIDS_STRATIFY)),,--no_stratify)
 
+# Reinforcement Learning parameters
+RL_REWARD_TYPE ?= simple
+RL_BUFFER_SIZE ?= 50000
+RL_BATCH_SIZE ?= 64
+RL_LR ?= 0.001
+RL_GAMMA ?= 0.99
+RL_EPSILON_START ?= 1.0
+RL_EPSILON_END ?= 0.05
+RL_EPSILON_DECAY ?= 5000.0
+RL_NUM_UPDATES ?= 1000
+RL_TARGET_UPDATE ?= 500
+RL_VIRTUAL_CLASSES ?= 0
+
+RL_ARGS := --rl_reward_type $(RL_REWARD_TYPE) \
+	--rl_buffer_size $(RL_BUFFER_SIZE) \
+	--rl_batch_size $(RL_BATCH_SIZE) \
+	--rl_lr $(RL_LR) \
+	--rl_gamma $(RL_GAMMA) \
+	--rl_epsilon_start $(RL_EPSILON_START) \
+	--rl_epsilon_end $(RL_EPSILON_END) \
+	--rl_epsilon_decay $(RL_EPSILON_DECAY) \
+	--rl_num_updates $(RL_NUM_UPDATES) \
+	--rl_target_update $(RL_TARGET_UPDATE) \
+	--rl_virtual_classes $(RL_VIRTUAL_CLASSES)
+
 .PHONY: help setup train train_fact_cifar train_fact_cub train_fact_mini train_debug \
+	train_fact_rl train_fact_rl_debug \
 	create_cicids_sessions split_cicids clean_pycache clean_checkpoints show_paths
 
 help: ## 利用可能なターゲット一覧を表示
 	@echo "Usage: make <target> [VAR=value]..."
+	@echo ""
+	@echo "主要変数:"
+	@echo "  DEVICE=0,1    GPUデバイス指定（例: 0, 1, 0,1）"
+	@echo "  DEVICE=cpu   CPUを使用"
 	@echo ""
 	@echo "主要ターゲット:"
 	@grep -E '^[a-zA-Z0-9_-]+:.*##' $(MAKEFILE_LIST) | sed -e 's/:.*##/: ##/' | column -t -s '##'
@@ -96,7 +127,7 @@ train: ## 変数で指定した設定でtrain.pyを実行
 		-batch_size_base $(TRAIN_BATCH_SIZE) \
 		-test_batch_size $(TRAIN_TEST_BATCH_SIZE) \
 		-start_session $(TRAIN_START_SESSION) \
-		-gpu $(GPU) \
+		-gpu $(DEVICE) \
 		-seed $(SEED) \
 		$(TRAIN_EXTRA) \
 		$(WAND_ARGS)
@@ -147,8 +178,64 @@ train_debug: ## 64バッチ・10epochで素早く動作確認
 		-epochs_new 5 \
 		-batch_size_base 64 \
 		-test_batch_size 64 \
-		-gpu $(GPU) \
+		-gpu $(DEVICE) \
 		-debug \
+		$(TRAIN_EXTRA) \
+		$(WAND_ARGS)
+
+train_fact_rl: ## FACT+強化学習（DQN）で訓練（CICIDS2017_improved）
+	cd $(PROJECT_ROOT) && \
+	$(PYTHON) train.py \
+		-project fact_rl \
+		-dataset CICIDS2017_improved \
+		-dataroot $(DATA_DIR) \
+		-encoder mlp \
+		-base_mode ft_cos \
+		-new_mode avg_cos \
+		-epochs_base 100 \
+		-lr_base 0.001 \
+		-schedule Cosine \
+		-batch_size_base 128 \
+		-temperature 16 \
+		-balance 1.0 \
+		-loss_iter 50 \
+		-gpu $(DEVICE) \
+		-seed $(SEED) \
+		$(RL_ARGS) \
+		$(TRAIN_EXTRA) \
+		$(WAND_ARGS)
+
+train_fact_rl_debug: ## FACT+強化学習のデバッグ実行（短縮版）
+	cd $(PROJECT_ROOT) && \
+	$(PYTHON) train.py \
+		-project fact_rl \
+		-dataset CICIDS2017_improved \
+		-dataroot $(DATA_DIR) \
+		-encoder mlp \
+		-epochs_base 5 \
+		-batch_size_base 64 \
+		-test_batch_size 64 \
+		-gpu $(DEVICE) \
+		-debug \
+		--rl_num_updates 100 \
+		--rl_reward_type $(RL_REWARD_TYPE) \
+		$(TRAIN_EXTRA) \
+		$(WAND_ARGS)
+
+train_fact_rl_debug_short: ## FACT+強化学習のデバッグ実行（短縮版）
+	cd $(PROJECT_ROOT) && \
+	$(PYTHON) train.py \
+		-project fact_rl \
+		-dataset CICIDS2017_improved \
+		-dataroot $(DATA_DIR) \
+		-encoder mlp \
+		-epochs_base 1 \
+		-batch_size_base 64 \
+		-test_batch_size 64 \
+		-gpu $(DEVICE) \
+		-debug \
+		--rl_num_updates 100 \
+		--rl_reward_type $(RL_REWARD_TYPE) \
 		$(TRAIN_EXTRA) \
 		$(WAND_ARGS)
 
@@ -194,5 +281,6 @@ show_paths: ## 主要パスと変数を表示
 	@echo "CUB_DATAROOT      = $(CUB_DATAROOT)"
 	@echo "MINI_IMAGENET_ROOT= $(MINI_IMAGENET_ROOT)"
 	@echo "GPU               = $(GPU)"
+	@echo "DEVICE            = $(DEVICE)"
 	@echo "SEED              = $(SEED)"
 

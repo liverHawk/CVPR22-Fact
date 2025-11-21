@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from dataloader.sampler import CategoriesSampler
+from utils import should_use_pin_memory
 
 def set_up_datasets(args):
     if args.dataset == 'cifar100':
@@ -126,10 +127,11 @@ def get_base_dataloader(args):
         testset = args.Dataset.CICIDS2017_improved(root=args.dataroot, train=False,
                                                     index=class_index, base_sess=True)
 
+    pin_mem = should_use_pin_memory(getattr(args, 'device', None))
     trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=args.batch_size_base, shuffle=True,
-                                              num_workers=8, pin_memory=True)
+                                              num_workers=8, pin_memory=pin_mem)
     testloader = torch.utils.data.DataLoader(
-        dataset=testset, batch_size=args.test_batch_size, shuffle=False, num_workers=8, pin_memory=True)
+        dataset=testset, batch_size=args.test_batch_size, shuffle=False, num_workers=8, pin_memory=pin_mem)
 
     return trainset, trainloader, testloader
 
@@ -160,11 +162,12 @@ def get_base_dataloader_meta(args):
     sampler = CategoriesSampler(trainset.targets, args.train_episode, args.episode_way,
                                 args.episode_shot + args.episode_query)
 
+    pin_mem = should_use_pin_memory(getattr(args, 'device', None))
     trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_sampler=sampler, num_workers=args.num_workers,
-                                              pin_memory=True)
+                                              pin_memory=pin_mem)
 
     testloader = torch.utils.data.DataLoader(
-        dataset=testset, batch_size=args.test_batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
+        dataset=testset, batch_size=args.test_batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=pin_mem)
 
     return trainset, trainloader, testloader
 
@@ -187,13 +190,14 @@ def get_new_dataloader(args,session):
         trainset = args.Dataset.CICIDS2017_improved(root=args.dataroot, train=True,
                                                     index_path=txt_path)
 
+    pin_mem = should_use_pin_memory(getattr(args, 'device', None))
     if args.batch_size_new == 0:
         batch_size_new = trainset.__len__()
         trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=batch_size_new, shuffle=False,
-                                                  num_workers=args.num_workers, pin_memory=True)
+                                                  num_workers=args.num_workers, pin_memory=pin_mem)
     else:
         trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=args.batch_size_new, shuffle=True,
-                                                  num_workers=args.num_workers, pin_memory=True)
+                                                  num_workers=args.num_workers, pin_memory=pin_mem)
 
     # test on all encountered classes
     class_new = get_session_classes(args, session)
@@ -214,8 +218,9 @@ def get_new_dataloader(args,session):
         testset = args.Dataset.CICIDS2017_improved(root=args.dataroot, train=False,
                                                    index=class_new, base_sess=False)
 
+    pin_mem = should_use_pin_memory(getattr(args, 'device', None))
     testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=args.test_batch_size, shuffle=False,
-                                             num_workers=args.num_workers, pin_memory=True)
+                                             num_workers=args.num_workers, pin_memory=pin_mem)
 
     return trainset, trainloader, testloader
 

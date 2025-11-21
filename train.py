@@ -10,7 +10,8 @@ def get_command_line_parser():
     parser = argparse.ArgumentParser()
 
     # about dataset and network
-    parser.add_argument('-project', type=str, default=PROJECT)
+    parser.add_argument('-project', type=str, default=PROJECT,
+                        choices=['base', 'fact', 'fact_rl'])
     parser.add_argument('-dataset', type=str, default='CICIDS2017_improved',
                         choices=['mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved'])
     parser.add_argument('-dataroot', type=str, default=DATA_DIR)
@@ -67,6 +68,23 @@ def get_command_line_parser():
     parser.add_argument('--wandb_watch', type=str, default='gradients',
                         choices=['gradients', 'parameters', 'all', 'none'], help='wandb.watchの対象')
     parser.add_argument('--wandb_watch_freq', type=int, default=100, help='wandb.watchのログ頻度（step単位）')
+
+    # Reinforcement Learning (for fact_rl project)
+    parser.add_argument('--rl_reward_type', type=str, default='simple',
+                        choices=['simple', 'distance', 'fact_loss'],
+                        help='強化学習の報酬タイプ: simple (±1), distance (距離ベース), fact_loss (FACT損失ベース)')
+    parser.add_argument('--rl_buffer_size', type=int, default=50000, help='Replay bufferのサイズ')
+    parser.add_argument('--rl_batch_size', type=int, default=64, help='強化学習のバッチサイズ')
+    parser.add_argument('--rl_lr', type=float, default=1e-3, help='DQNヘッドの学習率')
+    parser.add_argument('--rl_gamma', type=float, default=0.99, help='割引率')
+    parser.add_argument('--rl_epsilon_start', type=float, default=1.0, help='Epsilon-greedyの初期値')
+    parser.add_argument('--rl_epsilon_end', type=float, default=0.05, help='Epsilon-greedyの最終値')
+    parser.add_argument('--rl_epsilon_decay', type=float, default=5000.0, help='Epsilonの減衰率')
+    parser.add_argument('--rl_num_updates', type=int, default=1000, help='各sessionでのDQN更新回数')
+    parser.add_argument('--rl_target_update', type=int, default=500, help='Target networkの更新間隔')
+    parser.add_argument('--rl_virtual_classes', type=int, default=0, help='仮想クラス数（FACT互換性用）')
+    parser.add_argument('--rl_reward_correct', type=float, default=1.0, help='正解時の報酬')
+    parser.add_argument('--rl_reward_incorrect', type=float, default=-1.0, help='不正解時の報酬')
     return parser
 
 
@@ -76,5 +94,14 @@ if __name__ == '__main__':
     set_seed(args.seed)
     pprint(vars(args))
     args.num_gpu = set_gpu(args)
-    trainer = importlib.import_module('models.%s.fscil_trainer' % (args.project)).FSCILTrainer(args)
+
+    # Select trainer based on project
+    if args.project == 'fact_rl':
+        # Use RL-enhanced FACT trainer
+        from models.fact.fscil_trainer_rl import FSCILTrainerRL
+        trainer = FSCILTrainerRL(args)
+    else:
+        # Use standard FSCIL trainer (base or fact)
+        trainer = importlib.import_module('models.%s.fscil_trainer' % (args.project)).FSCILTrainer(args)
+
     trainer.train()

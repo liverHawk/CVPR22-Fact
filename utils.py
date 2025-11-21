@@ -30,11 +30,76 @@ def set_seed(seed):
 
 
 def set_gpu(args):
+    # CPU指定の場合
+    if args.gpu.lower() == 'cpu':
+        print('use cpu')
+        args.device = torch.device('cpu')
+        args.use_cuda = False
+        return 0
+    
+    # GPU指定の場合
     gpu_list = [int(x) for x in args.gpu.split(',')]
     print('use gpu:', gpu_list)
     os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    args.device = torch.device('cuda')
+    args.use_cuda = True
     return gpu_list.__len__()
+
+
+def get_model_module(model):
+    """
+    DataParallelでラップされている場合はmodel.moduleを返し、
+    そうでない場合はmodelをそのまま返す
+    """
+    if hasattr(model, 'module'):
+        return model.module
+    return model
+
+
+def should_use_pin_memory(device=None):
+    """
+    pin_memoryを使用すべきかどうかを判定
+    MPS（Apple Silicon GPU）ではpin_memoryがサポートされていないためFalseを返す
+    """
+    # MPSバックエンドのチェック（PyTorch 1.12+で利用可能）
+    try:
+        if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            # MPSが利用可能な場合、デバイスがMPSかどうかを確認
+            if device is None:
+                return False
+            if isinstance(device, torch.device) and device.type == 'mps':
+                return False
+            if isinstance(device, str) and ('mps' in device.lower() or device == 'mps'):
+                return False
+    except (AttributeError, RuntimeError):
+        # torch.backends.mpsが存在しない、またはエラーが発生した場合は無視
+        pass
+    
+    if device is None:
+        # デバイスが指定されていない場合、CUDAが利用可能ならTrue
+        if torch.cuda.is_available():
+            return True
+        return False
+    
+    # デバイスが指定されている場合
+    if isinstance(device, torch.device):
+        if device.type == 'mps':
+            return False
+        if device.type == 'cuda':
+            return True
+        return False
+    
+    # 文字列の場合
+    if isinstance(device, str):
+        if device == 'mps' or 'mps' in device.lower():
+            return False
+        if device == 'cpu':
+            return False
+        if 'cuda' in device.lower():
+            return True
+    
+    return False
 
 
 def ensure_path(path):
