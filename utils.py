@@ -76,10 +76,9 @@ class Timer():
 
 def count_acc(logits, label):
     pred = torch.argmax(logits, dim=1)
-    if torch.cuda.is_available():
-        return (pred == label).type(torch.cuda.FloatTensor).mean().item()
-    else:
-        return (pred == label).type(torch.FloatTensor).mean().item()
+    # 既存のテンソル型を活用して型変換を削減（高速化）
+    correct = (pred == label).float()
+    return correct.mean().item()
 
 def count_acc_topk(x,y,k=5):
     _,maxk = torch.topk(x,k,dim=-1)
@@ -104,10 +103,9 @@ def count_acc_taskIL(logits, label,args):
             logits[i,high:]=-1e9
 
     pred = torch.argmax(logits, dim=1)
-    if torch.cuda.is_available():
-        return (pred == label).type(torch.cuda.FloatTensor).mean().item()
-    else:
-        return (pred == label).type(torch.FloatTensor).mean().item()
+    # 既存のテンソル型を活用して型変換を削減（高速化）
+    correct = (pred == label).float()
+    return correct.mean().item()
 
 def confmatrix(logits,label,filename,label_names=None):
     """
@@ -119,10 +117,10 @@ def confmatrix(logits,label,filename,label_names=None):
         filename: 保存ファイル名
         label_names: ラベル名のリスト（Noneの場合は数値ラベルを使用）
     """
-    font={'family':'FreeSerif','size':18}
+    font={'family':'DejaVu Serif','size':18}
     matplotlib.rc('font',**font)
-    matplotlib.rcParams.update({'font.family':'FreeSerif','font.size':18})
-    plt.rcParams["font.family"]="FreeSerif"
+    matplotlib.rcParams.update({'font.family':'DejaVu Serif','font.size':18})
+    plt.rcParams["font.family"]="DejaVu Serif"
 
     pred = torch.argmax(logits, dim=1)
     # 正規化された混同行列（割合）
@@ -229,7 +227,7 @@ def save_classification_report(logits, label, filename):
         label = label.cpu().numpy()
     
     # Classification reportを生成
-    report = classification_report(label, pred, output_dict=False)
+    report = classification_report(label, pred, output_dict=False, zero_division=0)
     
     # ファイルに保存
     with open(filename + '_classification_report.txt', 'w') as f:

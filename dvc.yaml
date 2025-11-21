@@ -1,0 +1,134 @@
+# DVC Pipeline Configuration
+# このファイルはDVCパイプラインのステージを定義します
+# 参考: https://doc.dvc.org/user-guide/project-structure/dvcyaml-files
+
+# パラメータファイルの指定
+params:
+  - params.yaml
+
+# メトリクスファイルの指定
+metrics:
+  - checkpoint/*/results.txt
+
+# アーティファクトの定義
+artifacts:
+  model-cicids2017:
+    path: checkpoint/${project.dataset}/${project.name}/*/session*_max_acc.pth
+    type: model
+    desc: 'FACT model trained on CICIDS2017_improved dataset'
+    labels:
+      - fact
+      - cicids2017
+      - few-shot-learning
+    meta:
+      framework: pytorch
+      project: ${project.name}
+      dataset: ${project.dataset}
+
+# パイプラインステージの定義
+stages:
+  # ステージ1: CICIDS2017データの分割
+  split_cicids:
+    cmd: >-
+      uv run python split_cicids2017.py
+      --data_dir ${data.cicids_dir}
+      --output_dir ${data.cicids_dir}
+      --test_size ${split.test_size}
+      --random_state ${split.random_state}
+    deps:
+      - split_cicids2017.py
+      - ${data.cicids_dir}
+    outs:
+      - ${data.cicids_dir}/train.csv
+      - ${data.cicids_dir}/test.csv
+    params:
+      - split.test_size
+      - split.random_state
+      - split.stratify
+
+  # ステージ2: セッションファイルの作成
+  create_sessions:
+    cmd: >-
+      uv run python create_session_files.py
+      --train_csv ${data.cicids_dir}/train.csv
+      --output_dir ${data.cicids_index_dir}
+      --base_class ${session.base_class}
+      --num_classes ${session.num_classes}
+      --way ${session.way}
+      --shot ${session.shot}
+      --random_state ${hardware.seed}
+    deps:
+      - create_session_files.py
+      - ${data.cicids_dir}/train.csv
+    outs:
+      - ${data.cicids_index_dir}/session_0.txt
+      - ${data.cicids_index_dir}/session_1.txt
+      - ${data.cicids_index_dir}/session_2.txt
+      - ${data.cicids_index_dir}/session_3.txt
+      - ${data.cicids_index_dir}/session_4.txt
+      - ${data.cicids_index_dir}/session_5.txt
+      - ${data.cicids_index_dir}/session_6.txt
+    params:
+      - session.base_class
+      - session.num_classes
+      - session.way
+      - session.shot
+      - hardware.seed
+
+  # ステージ3: モデルの学習
+  train:
+    cmd: >-
+      uv run python train.py
+      -project ${project.name}
+      -dataset ${project.dataset}
+      -dataroot ${data.dataroot}
+      -encoder ${project.encoder}
+      -base_mode ${project.base_mode}
+      -new_mode ${project.new_mode}
+      -epochs_base ${training.epochs_base}
+      -epochs_new ${training.epochs_new}
+      -lr_base ${training.lr_base}
+      -lr_new ${training.lr_new}
+      -schedule ${schedule.type}
+      -step ${schedule.step}
+      -milestones ${schedule.milestones}
+      -gamma ${schedule.gamma}
+      -decay ${schedule.decay}
+      -momentum ${schedule.momentum}
+      -temperature ${fact.temperature}
+      -batch_size_base ${training.batch_size_base}
+      -batch_size_new ${training.batch_size_new}
+      -test_batch_size ${training.test_batch_size}
+      -balance ${fact.balance}
+      -loss_iter ${fact.loss_iter}
+      -alpha ${fact.alpha}
+      -eta ${fact.eta}
+      -start_session ${training.start_session}
+      -gpu ${hardware.gpu}
+      -num_workers ${hardware.num_workers}
+      -seed ${hardware.seed}
+    deps:
+      - train.py
+      - utils.py
+      - models/
+      - dataloader/
+      - ${data.cicids_dir}/train.csv
+      - ${data.cicids_index_dir}/session_0.txt
+      - ${data.cicids_index_dir}/session_1.txt
+    outs:
+      - checkpoint/${project.dataset}/${project.name}/*/session*_max_acc.pth
+      - checkpoint/${project.dataset}/${project.name}/*/optimizer_best.pth
+      - checkpoint/${project.dataset}/${project.name}/*/results.txt
+      - checkpoint/${project.dataset}/${project.name}/*/session*confusion_matrix.png
+      - checkpoint/${project.dataset}/${project.name}/*/session*confusion_matrix_classification_report.txt
+    metrics:
+      - checkpoint/${project.dataset}/${project.name}/*/results.txt
+    params:
+      - project
+      - training
+      - schedule
+      - fact
+      - hardware
+      - debug
+      - wandb
+      - unknown_detection

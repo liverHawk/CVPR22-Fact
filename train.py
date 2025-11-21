@@ -67,6 +67,15 @@ def get_command_line_parser():
     parser.add_argument('--wandb_watch', type=str, default='gradients',
                         choices=['gradients', 'parameters', 'all', 'none'], help='wandb.watchの対象')
     parser.add_argument('--wandb_watch_freq', type=int, default=100, help='wandb.watchのログ頻度（step単位）')
+    
+    # unknown detection
+    parser.add_argument('--enable_unknown_detection', action='store_true', 
+                        help='未知クラス検出を有効化（埋め込み空間での距離ベース検出）')
+    parser.add_argument('--distance_type', type=str, default='cosine',
+                        choices=['cosine', 'euclidean', 'euclidean_normalized', 'manhattan', 'chebyshev', 'mahalanobis'],
+                        help='未知クラス検出に使用する距離メトリクスの種類')
+    parser.add_argument('--distance_threshold', type=float, default=None,
+                        help='未知クラス検出の距離閾値（Noneの場合は自動計算）')
     return parser
 
 

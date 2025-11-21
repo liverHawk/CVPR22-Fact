@@ -1,7 +1,6 @@
 from .base import Trainer
 import os.path as osp
 import torch.nn as nn
-from copy import deepcopy
 
 from .helper import *
 from utils import *
@@ -28,7 +27,8 @@ class FSCILTrainer(Trainer):
             print('random init params')
             if args.start_session > 0:
                 print('WARING: Random init weights for new sessions!')
-            self.best_model_dict = deepcopy(self.model.state_dict())
+            # state_dict()は既に新しい辞書を返すので、deepcopyは不要（高速化）
+            self.best_model_dict = dict(self.model.state_dict())
 
     def get_optimizer_base(self):
 
@@ -72,7 +72,15 @@ class FSCILTrainer(Trainer):
                     # train base sess
                     tl, ta = base_train(self.model, trainloader, optimizer, scheduler, epoch, args)
                     # test model with all seen class
-                    tsl, tsa = test(self.model, testloader, epoch, args, session, wandb_logger=self.wandb)
+                    test_result = test(self.model, testloader, epoch, args, session, 
+                                     wandb_logger=self.wandb,
+                                     enable_unknown_detection=getattr(args, 'enable_unknown_detection', False),
+                                     distance_type=getattr(args, 'distance_type', 'cosine'),
+                                     distance_threshold=getattr(args, 'distance_threshold', None))
+                    if isinstance(test_result, tuple) and len(test_result) == 3:
+                        tsl, tsa, _ = test_result  # unknown_statsは無視（base sessionでは不要）
+                    else:
+                        tsl, tsa = test_result
 
                     # save better model
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
@@ -81,7 +89,8 @@ class FSCILTrainer(Trainer):
                         save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
                         torch.save(dict(params=self.model.state_dict()), save_model_dir)
                         torch.save(optimizer.state_dict(), os.path.join(args.save_path, 'optimizer_best.pth'))
-                        self.best_model_dict = deepcopy(self.model.state_dict())
+                        # state_dict()は既に新しい辞書を返すので、deepcopyは不要（高速化）
+                        self.best_model_dict = dict(self.model.state_dict())
                         print('********A better model is found!!**********')
                         print('Saving model to :%s' % save_model_dir)
                     print('best epoch {}, best test acc={:.3f}'.format(self.trlog['max_acc_epoch'],
@@ -120,11 +129,20 @@ class FSCILTrainer(Trainer):
                     self.model = replace_base_fc(train_set, transform, self.model, args)
                     best_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
                     print('Replace the fc with average embedding, and save it to :%s' % best_model_dir)
-                    self.best_model_dict = deepcopy(self.model.state_dict())
+                    # state_dict()は既に新しい辞書を返すので、deepcopyは不要（高速化）
+                    self.best_model_dict = dict(self.model.state_dict())
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
                     self.model.module.mode = 'avg_cos'
-                    tsl, tsa = test(self.model, testloader, 0, args, session, wandb_logger=self.wandb)
+                    test_result = test(self.model, testloader, 0, args, session, 
+                                      wandb_logger=self.wandb,
+                                      enable_unknown_detection=getattr(args, 'enable_unknown_detection', False),
+                                      distance_type=getattr(args, 'distance_type', 'cosine'),
+                                      distance_threshold=getattr(args, 'distance_threshold', None))
+                    if isinstance(test_result, tuple) and len(test_result) == 3:
+                        tsl, tsa, _ = test_result  # unknown_statsは無視（base sessionでは不要）
+                    else:
+                        tsl, tsa = test_result
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                         print('The new best test acc of base session={:.3f}'.format(self.trlog['max_acc'][session]))
@@ -146,7 +164,8 @@ class FSCILTrainer(Trainer):
                 self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                 save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
                 #torch.save(dict(params=self.model.state_dict()), save_model_dir)
-                self.best_model_dict = deepcopy(self.model.state_dict())
+                # state_dict()は既に新しい辞書を返すので、deepcopyは不要（高速化）
+                self.best_model_dict = dict(self.model.state_dict())
                 print('Saving model to :%s' % save_model_dir)
                 print('  test acc={:.3f}'.format(self.trlog['max_acc'][session]))
 

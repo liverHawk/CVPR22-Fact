@@ -40,6 +40,12 @@ WAND_MODE ?= online
 WAND_WATCH ?= gradients
 WAND_WATCH_FREQ ?= 100
 
+ifeq ($(UNKNOWN_DETECTION_ENABLE),1)
+  UNKNOWN_DETECTION_EXTRA := --enable_unknown_detection --distance_type cosine --distance_threshold 0.6
+else
+  UNKNOWN_DETECTION_EXTRA :=
+endif
+
 ifeq ($(WAND_ENABLE),1)
   WAND_ARGS := --use_wandb --wandb_mode $(WAND_MODE) --wandb_watch $(WAND_WATCH) --wandb_watch_freq $(WAND_WATCH_FREQ)
   ifneq ($(strip $(WAND_PROJECT)),)
@@ -63,9 +69,9 @@ endif
 
 SPLIT_TEST_SIZE ?= 0.2
 CICIDS_STRATIFY ?= 1
-SESSION_BASE_CLASS ?= 15
-SESSION_NUM_CLASSES ?= 27
-SESSION_WAY ?= 2
+SESSION_BASE_CLASS ?= 4
+SESSION_NUM_CLASSES ?= 9
+SESSION_WAY ?= 1
 SESSION_SHOT ?= 5
 
 WILDCARD := $(if $(filter 1,$(CICIDS_STRATIFY)),,--no_stratify)
@@ -99,7 +105,8 @@ train: ## 変数で指定した設定でtrain.pyを実行
 		-gpu $(GPU) \
 		-seed $(SEED) \
 		$(TRAIN_EXTRA) \
-		$(WAND_ARGS)
+		$(WAND_ARGS) \
+		$(UNKNOWN_DETECTION_EXTRA)
 
 train_fact_cifar: ## README準拠のFACT+CIFAR100レシピ
 	cd $(PROJECT_ROOT) && \
@@ -111,7 +118,8 @@ train_fact_cifar: ## README準拠のFACT+CIFAR100レシピ
 		-dataroot $(DATA_DIR) \
 		$(FACT_CIFAR_EXTRA) \
 		$(TRAIN_EXTRA) \
-		$(WAND_ARGS)
+		$(WAND_ARGS) \
+		$(UNKNOWN_DETECTION_EXTRA)
 
 train_fact_cub: ## README準拠のFACT+CUB200レシピ（CUB_DATAROOTを指定）
 	cd $(PROJECT_ROOT) && \
@@ -123,7 +131,8 @@ train_fact_cub: ## README準拠のFACT+CUB200レシピ（CUB_DATAROOTを指定�
 		-dataroot $(CUB_DATAROOT) \
 		$(FACT_CUB_EXTRA) \
 		$(TRAIN_EXTRA) \
-		$(WAND_ARGS)
+		$(WAND_ARGS) \
+		$(UNKNOWN_DETECTION_EXTRA)
 
 train_fact_mini: ## README準拠のFACT+miniImageNetレシピ（MINI_IMAGENET_ROOTを指定）
 	cd $(PROJECT_ROOT) && \
@@ -135,7 +144,8 @@ train_fact_mini: ## README準拠のFACT+miniImageNetレシピ（MINI_IMAGENET_RO
 		-dataroot $(MINI_IMAGENET_ROOT) \
 		$(FACT_MINI_EXTRA) \
 		$(TRAIN_EXTRA) \
-		$(WAND_ARGS)
+		$(WAND_ARGS) \
+		$(UNKNOWN_DETECTION_EXTRA)
 
 train_debug: ## 64バッチ・10epochで素早く動作確認
 	cd $(PROJECT_ROOT) && \
@@ -143,14 +153,15 @@ train_debug: ## 64バッチ・10epochで素早く動作確認
 		-project $(TRAIN_PROJECT) \
 		-dataset $(TRAIN_DATASET) \
 		-dataroot $(DATA_DIR) \
-		-epochs_base 10 \
+		-epochs_base 1 \
 		-epochs_new 5 \
 		-batch_size_base 64 \
 		-test_batch_size 64 \
 		-gpu $(GPU) \
 		-debug \
 		$(TRAIN_EXTRA) \
-		$(WAND_ARGS)
+		$(WAND_ARGS) \
+		$(UNKNOWN_DETECTION_EXTRA)
 
 split_cicids: ## CICIDS2017_improvedをtrain/testに分割
 	cd $(PROJECT_ROOT) && \

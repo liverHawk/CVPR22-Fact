@@ -1,7 +1,6 @@
 from .base import Trainer
 import os.path as osp
 import torch.nn as nn
-from copy import deepcopy
 
 from .helper import *
 from utils import *
@@ -28,7 +27,8 @@ class FSCILTrainer(Trainer):
             print('random init params')
             if args.start_session > 0:
                 print('WARING: Random init weights for new sessions!')
-            self.best_model_dict = deepcopy(self.model.state_dict())
+            # state_dict()は既に新しい辞書を返すので、deepcopyは不要（高速化）
+            self.best_model_dict = dict(self.model.state_dict())
 
     def get_optimizer_base(self):
 
@@ -81,7 +81,15 @@ class FSCILTrainer(Trainer):
                     # train base sess
                     tl, ta = base_train(self.model, trainloader, optimizer, scheduler, epoch, args,mask)
                     # test model with all seen class
-                    tsl, tsa = test(self.model, testloader, epoch, args, session, wandb_logger=self.wandb)
+                    test_result = test(self.model, testloader, epoch, args, session, 
+                                     wandb_logger=self.wandb,
+                                     enable_unknown_detection=getattr(args, 'enable_unknown_detection', False),
+                                     distance_type=getattr(args, 'distance_type', 'cosine'),
+                                     distance_threshold=getattr(args, 'distance_threshold', None))
+                    if isinstance(test_result, tuple) and len(test_result) == 3:
+                        tsl, tsa, _ = test_result  # unknown_statsは無視（base sessionでは不要）
+                    else:
+                        tsl, tsa = test_result
 
                     # save better model
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
@@ -90,7 +98,8 @@ class FSCILTrainer(Trainer):
                         save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
                         torch.save(dict(params=self.model.state_dict()), save_model_dir)
                         torch.save(optimizer.state_dict(), os.path.join(args.save_path, 'optimizer_best.pth'))
-                        self.best_model_dict = deepcopy(self.model.state_dict())
+                        # state_dict()は既に新しい辞書を返すので、deepcopyは不要（高速化）
+                        self.best_model_dict = dict(self.model.state_dict())
                         print('********A better model is found!!**********')
                         print('Saving model to :%s' % save_model_dir)
                     print('best epoch {}, best test acc={:.3f}'.format(self.trlog['max_acc_epoch'],
@@ -129,17 +138,27 @@ class FSCILTrainer(Trainer):
                     self.model = replace_base_fc(train_set, transform, self.model, args)
                     best_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
                     print('Replace the fc with average embedding, and save it to :%s' % best_model_dir)
-                    self.best_model_dict = deepcopy(self.model.state_dict())
+                    # state_dict()は既に新しい辞書を返すので、deepcopyは不要（高速化）
+                    self.best_model_dict = dict(self.model.state_dict())
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
                     self.model.module.mode = 'avg_cos'
-                    tsl, tsa = test(self.model, testloader, 0, args, session, wandb_logger=self.wandb)
+                    test_result = test(self.model, testloader, 0, args, session, 
+                                      wandb_logger=self.wandb,
+                                      enable_unknown_detection=getattr(args, 'enable_unknown_detection', False),
+                                      distance_type=getattr(args, 'distance_type', 'cosine'),
+                                      distance_threshold=getattr(args, 'distance_threshold', None))
+                    if isinstance(test_result, tuple) and len(test_result) == 3:
+                        tsl, tsa, _ = test_result  # unknown_statsは無視（base sessionでは不要）
+                    else:
+                        tsl, tsa = test_result
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                         print('The new best test acc of base session={:.3f}'.format(self.trlog['max_acc'][session]))
 
                 #save dummy classifiers
-                self.dummy_classifiers=deepcopy(self.model.module.fc.weight.detach())
+                # テンソルの場合はclone()を使用（deepcopyより高速）
+                self.dummy_classifiers=self.model.module.fc.weight.detach().clone()
                 
                 self.dummy_classifiers=F.normalize(self.dummy_classifiers[self.args.base_class:,:],p=2,dim=-1)
                 self.old_classifiers=self.dummy_classifiers[:self.args.base_class,:]
@@ -156,15 +175,34 @@ class FSCILTrainer(Trainer):
 
                 #tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
                 #tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
-                tsl, tsa = self.test_intergrate(self.model, testloader, 0,args, session,validation=False, wandb_logger=self.wandb)
+                test_result = self.test_intergrate(
+                    self.model, testloader, 0, args, session, validation=False, 
+                    wandb_logger=self.wandb,
+                    enable_unknown_detection=getattr(args, 'enable_unknown_detection', False),
+                    distance_type=getattr(args, 'distance_type', 'cosine'),
+                    distance_threshold=getattr(args, 'distance_threshold', None)
+                )
+                
+                if isinstance(test_result, tuple) and len(test_result) == 3:
+                    tsl, tsa, unknown_stats = test_result
+                else:
+                    tsl, tsa = test_result
+                    unknown_stats = None
                 
                 # save model
                 self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                 save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
                 torch.save(dict(params=self.model.state_dict()), save_model_dir)
-                self.best_model_dict = deepcopy(self.model.state_dict())
+                # state_dict()は既に新しい辞書を返すので、deepcopyは不要（高速化）
+                self.best_model_dict = dict(self.model.state_dict())
                 print('Saving model to :%s' % save_model_dir)
                 print('  test acc={:.3f}'.format(self.trlog['max_acc'][session]))
+                
+                # 未知クラス検出の結果をunseen accのように表示
+                if getattr(args, 'enable_unknown_detection', False) and unknown_stats and unknown_stats['total_samples'] > 0:
+                    unknown_rate = 100 * unknown_stats['total_unknown_detected'] / unknown_stats['total_samples']
+                    avg_distance = sum(unknown_stats['unknown_distances']) / len(unknown_stats['unknown_distances']) if unknown_stats['unknown_distances'] else 0.0
+                    print('  Unknown Detection Rate: {:.2f}% (avg_distance={:.4f})'.format(unknown_rate, avg_distance))
 
                 result_list.append('Session {}, test Acc {:.3f}\n'.format(session, self.trlog['max_acc'][session]))
                 self.global_step += 1
@@ -191,20 +229,29 @@ class FSCILTrainer(Trainer):
         self.finalize()
 
 
-    def test_intergrate(self, model, testloader, epoch,args, session,validation=True, wandb_logger=None):
+    def test_intergrate(self, model, testloader, epoch, args, session, validation=True, wandb_logger=None,
+                       enable_unknown_detection=False, distance_type='cosine', distance_threshold=None):
         test_class = args.base_class + session * args.way
         model = model.eval()
         vl = Averager()
         va = Averager()
         va5= Averager()
-        lgt=torch.tensor([])
-        lbs=torch.tensor([])
+        # リストに蓄積してから最後にまとめてcat（高速化）
+        lgt_list = []
+        lbs_list = []
 
         proj_matrix=torch.mm(self.dummy_classifiers,F.normalize(torch.transpose(model.module.fc.weight[:test_class, :],1,0),p=2,dim=-1))
         
         eta=args.eta
         
         softmaxed_proj_matrix=F.softmax(proj_matrix,dim=1)
+
+        # 未知クラス検出用の統計
+        unknown_stats = {
+            'total_unknown_detected': 0,
+            'total_samples': 0,
+            'unknown_distances': [],
+        } if enable_unknown_detection else None
 
         with torch.no_grad():
             for i, batch in enumerate(testloader, 1):
@@ -229,12 +276,38 @@ class FSCILTrainer(Trainer):
                 vl.add(loss.item())
                 va.add(acc)
                 va5.add(top5acc)
-                lgt=torch.cat([lgt,logits.cpu()])
-                lbs=torch.cat([lbs,test_label.cpu()])
+                
+                # 未知クラス検出が有効な場合
+                if enable_unknown_detection:
+                    known_class_indices = list(range(test_class))
+                    is_unknown, distances, nearest_class = model.module.detect_unknown_by_distance(
+                        data,
+                        known_class_indices=known_class_indices,
+                        distance_threshold=distance_threshold,
+                        distance_type=distance_type
+                    )
+                    unknown_stats['total_samples'] += data.size(0)
+                    unknown_stats['total_unknown_detected'] += is_unknown.sum().item()
+                    unknown_stats['unknown_distances'].extend(distances[is_unknown].cpu().tolist())
+                
+                lgt_list.append(logits.cpu())
+                lbs_list.append(test_label.cpu())
             vl = vl.item()
             va = va.item()
             va5= va5.item()
-            print('epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}'.format(epoch, vl, va,va5))
+            
+            # 未知クラス検出の結果を表示
+            if enable_unknown_detection and unknown_stats['total_samples'] > 0:
+                unknown_rate = 100 * unknown_stats['total_unknown_detected'] / unknown_stats['total_samples']
+                avg_distance = sum(unknown_stats['unknown_distances']) / len(unknown_stats['unknown_distances']) if unknown_stats['unknown_distances'] else 0.0
+                print('epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}, unknown_detected={:.2f}% (avg_dist={:.4f})'.format(
+                    epoch, vl, va, va5, unknown_rate, avg_distance))
+            else:
+                print('epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}'.format(epoch, vl, va,va5))
+            
+            # 最後にまとめてcat（メモリ効率と速度が向上）
+            lgt = torch.cat(lgt_list, dim=0)
+            lbs = torch.cat(lbs_list, dim=0)
 
             lgt=lgt.view(-1,test_class)
             lbs=lbs.view(-1)
@@ -255,7 +328,8 @@ class FSCILTrainer(Trainer):
                 if wandb_logger is not None:
                     wandb_logger.log_image(f'session_{session}_confusion_matrix', save_model_dir + '.png')
             
-        return vl, va
+        # 未知クラス検出の統計を返す
+        return vl, va, unknown_stats if enable_unknown_detection else None
 
     def set_save_path(self):
         mode = self.args.base_mode + '-' + self.args.new_mode

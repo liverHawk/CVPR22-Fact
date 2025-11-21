@@ -1,0 +1,127 @@
+# DVC Parameters Configuration
+# このファイルはDVCパイプラインで使用されるパラメータを定義します
+
+# プロジェクト設定
+project:
+  name: fact
+  dataset: CICIDS2017_improved
+  encoder: mlp
+  base_mode: ft_cos
+  new_mode: avg_cos
+
+# データ設定
+data:
+  dir: data
+  dataroot: data/
+  cicids_dir: data/CICIDS2017_improved
+  cicids_index_dir: data/index_list/CICIDS2017_improved
+  cub_dataroot: data/cub200
+  mini_imagenet_root: data/mini_imagenet
+
+# 学習設定
+training:
+  epochs_base: 100
+  epochs_new: 100
+  lr_base: 0.1
+  lr_new: 0.1
+  batch_size_base: 128
+  batch_size_new: 0
+  test_batch_size: 100
+  start_session: 0
+
+# スケジューラー設定
+schedule:
+  type: Step  # Step, Milestone, Cosine
+  step: 20
+  milestones: [60, 70]
+  gamma: 0.1
+  decay: 0.0005
+  momentum: 0.9
+
+# FACT設定
+fact:
+  balance: 1.0
+  loss_iter: 200
+  alpha: 2.0
+  eta: 0.1
+  temperature: 16
+
+# セッション設定（CICIDS2017_improved用）
+session:
+  base_class: 4
+  num_classes: 9
+  way: 1
+  shot: 5
+
+# データ分割設定
+split:
+  test_size: 0.2
+  stratify: true
+  random_state: 1
+
+# ハードウェア設定
+hardware:
+  gpu: "0"
+  num_workers: 8
+  seed: 1
+
+# デバッグ設定
+debug:
+  enabled: false
+
+# WandB設定
+wandb:
+  enabled: false
+  mode: online  # online, offline, disabled
+  project: origin-fact
+  entity: ""
+  group: ""
+  run_name: ""
+  tags: []
+  watch: gradients  # gradients, parameters, all, none
+  watch_freq: 100
+
+# 未知クラス検出設定
+unknown_detection:
+  enabled: false
+  distance_type: cosine  # cosine, euclidean, euclidean_normalized, manhattan, chebyshev, mahalanobis
+  distance_threshold: null  # nullの場合は自動計算
+
+# データセット別の設定
+datasets:
+  cifar100:
+    epochs_base: 600
+    schedule_type: Cosine
+    lr_base: 0.1
+    lr_new: 0.1
+    gamma: 0.1
+    batch_size_base: 256
+    temperature: 16
+    balance: 0.001
+    loss_iter: 0
+    alpha: 0.5
+  
+  cub200:
+    epochs_base: 400
+    schedule_type: Milestone
+    milestones: [50, 100, 150, 200, 250, 300]
+    lr_base: 0.005
+    lr_new: 0.1
+    gamma: 0.25
+    batch_size_base: 256
+    temperature: 16
+    balance: 0.01
+    loss_iter: 0
+  
+  mini_imagenet:
+    epochs_base: 1000
+    schedule_type: Cosine
+    lr_base: 0.1
+    lr_new: 0.1
+    gamma: 0.1
+    temperature: 16
+    alpha: 0.5
+    balance: 0.01
+    loss_iter: 150
+    eta: 0.1
+

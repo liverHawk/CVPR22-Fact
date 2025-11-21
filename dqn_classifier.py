@@ -47,6 +47,10 @@ class ClassificationEnv:
         self.reward_incorrect = reward_incorrect
         self.rng = np.random.default_rng(42)
         self._current_idx = 0
+        # インデックス配列を事前にシャッフルして順次アクセス（高速化）
+        self.indices = np.arange(len(self.features))
+        self.rng.shuffle(self.indices)
+        self._shuffle_idx = 0
 
     @property
     def num_actions(self) -> int:
@@ -57,13 +61,23 @@ class ClassificationEnv:
         return self.features.shape[1]
 
     def reset(self) -> np.ndarray:
-        self._current_idx = int(self.rng.integers(0, len(self.features)))
+        # シャッフル配列を使い切ったら再シャッフル
+        if self._shuffle_idx >= len(self.indices):
+            self.rng.shuffle(self.indices)
+            self._shuffle_idx = 0
+        self._current_idx = self.indices[self._shuffle_idx]
+        self._shuffle_idx += 1
         return self.features[self._current_idx]
 
     def step(self, action: int) -> Tuple[np.ndarray, float, bool, dict]:
         target = self.labels[self._current_idx]
         reward = self.reward_correct if action == target else self.reward_incorrect
-        self._current_idx = int(self.rng.integers(0, len(self.features)))
+        # シャッフル配列を使い切ったら再シャッフル
+        if self._shuffle_idx >= len(self.indices):
+            self.rng.shuffle(self.indices)
+            self._shuffle_idx = 0
+        self._current_idx = self.indices[self._shuffle_idx]
+        self._shuffle_idx += 1
         next_state = self.features[self._current_idx]
         done = False
         info = {"label": int(target), "correct": action == target}
@@ -74,6 +88,7 @@ class ReplayBuffer:
     def __init__(self, capacity: int, state_dim: int, device: torch.device) -> None:
         self.capacity = capacity
         self.device = device
+        # CPU上に保持してメモリ効率を向上（GPUメモリが限られている場合に有効）
         self.states = torch.zeros((capacity, state_dim), dtype=torch.float32)
         self.actions = torch.zeros(capacity, dtype=torch.int64)
         self.rewards = torch.zeros(capacity, dtype=torch.float32)
@@ -91,10 +106,11 @@ class ReplayBuffer:
         done: bool,
     ) -> None:
         idx = self.index
-        self.states[idx] = torch.from_numpy(state)
+        # copy_を使用して既存テンソルに直接コピー（メモリ割り当てを回避）
+        self.states[idx].copy_(torch.from_numpy(state), non_blocking=True)
         self.actions[idx] = int(action)
         self.rewards[idx] = reward
-        self.next_states[idx] = torch.from_numpy(next_state)
+        self.next_states[idx].copy_(torch.from_numpy(next_state), non_blocking=True)
         self.dones[idx] = float(done)
         self.index = (self.index + 1) % self.capacity
         if self.index == 0:
@@ -105,13 +121,15 @@ class ReplayBuffer:
 
     def sample(self, batch_size: int) -> ClassificationBatch:
         max_index = self.capacity if self.full else self.index
-        indices = torch.randint(0, max_index, (batch_size,), device=self.device)
+        # CPU上でインデックスを生成してからサンプリング
+        indices = torch.randint(0, max_index, (batch_size,))
+        # まとめてGPUに転送（個別転送より効率的）
         return ClassificationBatch(
-            states=self.states[indices].to(self.device),
-            actions=self.actions[indices].to(self.device),
-            rewards=self.rewards[indices].to(self.device),
-            next_states=self.next_states[indices].to(self.device),
-            dones=self.dones[indices].to(self.device),
+            states=self.states[indices].to(self.device, non_blocking=True),
+            actions=self.actions[indices].to(self.device, non_blocking=True),
+            rewards=self.rewards[indices].to(self.device, non_blocking=True),
+            next_states=self.next_states[indices].to(self.device, non_blocking=True),
+            dones=self.dones[indices].to(self.device, non_blocking=True),
         )
 
 
@@ -204,7 +222,11 @@ def fact_forward_compatibility_loss(
     row_idx = torch.arange(batch, device=logits.device)
     masked_logits[row_idx, actions] = -1e9
     if mask is not None:
-        action_mask = mask[actions].to(logits.device)
+        # 既に同じdevice上にある場合は転送をスキップ
+        if mask.device != logits.device:
+            action_mask = mask[actions].to(logits.device)
+        else:
+            action_mask = mask[actions]
         masked_logits = masked_logits.masked_fill(action_mask == 0, -1e9)
     dummy_part = masked_logits[:, base_class:]
     pseudo = dummy_part.argmax(dim=-1) + base_class
