@@ -21,7 +21,7 @@ class FSCILTrainer(Trainer):
 
         if self.args.model_dir is not None:
             print('Loading init parameters from: %s' % self.args.model_dir)
-            self.best_model_dict = torch.load(self.args.model_dir)['params']
+            self.best_model_dict = torch.load(self.args.model_dir, weights_only=False)['params']
             
         else:
             print('random init params')

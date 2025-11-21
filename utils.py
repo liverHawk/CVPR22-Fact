@@ -110,10 +110,10 @@ def count_acc_taskIL(logits, label,args):
 
 def confmatrix(logits,label,filename):
     
-    font={'family':'FreeSerif','size':18}
+    font={'family':'DejaVu Serif','size':18}
     matplotlib.rc('font',**font)
-    matplotlib.rcParams.update({'font.family':'FreeSerif','font.size':18})
-    plt.rcParams["font.family"]="FreeSerif"
+    matplotlib.rcParams.update({'font.family':'DejaVu Serif','font.size':18})
+    plt.rcParams["font.family"]="DejaVu Serif"
 
     pred = torch.argmax(logits, dim=1)
     cm=confusion_matrix(label, pred,normalize='true')
