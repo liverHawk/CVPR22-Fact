@@ -24,6 +24,20 @@ class MYNET(nn.Module):
         if self.args.dataset in ['cub200','manyshotcub']:
             self.encoder = resnet18(True, args)  # pretrained=True follow TOPIC, models for cub is imagenet pre-trained. https://github.com/xyutao/fscil/issues/11#issuecomment-687548790
             self.num_features = 512
+        if self.args.dataset == 'cicids2017_improved':
+            # Simple MLP encoder for tabular data (66 input features)
+            self.encoder = nn.Sequential(
+                nn.Linear(66, 512),
+                nn.BatchNorm1d(512),
+                nn.ReLU(),
+                nn.Dropout(0.1),
+                nn.Linear(512, 256),
+                nn.BatchNorm1d(256),
+                nn.ReLU(),
+                nn.Dropout(0.1),
+                nn.Linear(256, 128)
+            )
+            self.num_features = 128
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
         self.fc = nn.Linear(self.num_features, self.args.num_classes, bias=False)
@@ -41,8 +55,10 @@ class MYNET(nn.Module):
 
     def encode(self, x):
         x = self.encoder(x)
-        x = F.adaptive_avg_pool2d(x, 1)
-        x = x.squeeze(-1).squeeze(-1)
+        # For tabular data (cicids2017_improved), no pooling needed
+        if self.args.dataset != 'cicids2017_improved':
+            x = F.adaptive_avg_pool2d(x, 1)
+            x = x.squeeze(-1).squeeze(-1)
         return x
 
     def forward(self, input):

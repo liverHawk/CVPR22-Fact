@@ -23,7 +23,7 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args):
 
         lrc = scheduler.get_last_lr()[0]
         tqdm_gen.set_description(
-            'Session 0, epo {}, lrc={:.4f},total loss={:.4f} acc={:.4f}'.format(epoch, lrc, total_loss.item(), acc))
+            'Session 0, epo {}, lrc={:.4f},total loss={:.4f} acc={:.4f}'.format(epoch+1, lrc, total_loss.item(), acc))
         tl.add(total_loss.item())
         ta.add(acc)
 

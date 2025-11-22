@@ -1,6 +1,8 @@
 import argparse
 import importlib
+import os
 from utils import *
+from scripts.config_utils import load_config, merge_args_with_config
 
 MODEL_DIR=None
 DATA_DIR = 'data/'
@@ -9,10 +11,14 @@ PROJECT='fact' # base, fact
 def get_command_line_parser():
     parser = argparse.ArgumentParser()
 
+    # Configuration file
+    parser.add_argument('-config', type=str, default='params.yaml',
+                        help='Path to YAML configuration file')
+
     # about dataset and network
     parser.add_argument('-project', type=str, default=PROJECT)
     parser.add_argument('-dataset', type=str, default='cifar100',
-                        choices=['mini_imagenet', 'cub200', 'cifar100'])
+                        choices=['mini_imagenet', 'cub200', 'cifar100', 'cicids2017_improved'])
     parser.add_argument('-dataroot', type=str, default=DATA_DIR)
 
     # about pre-training
@@ -58,7 +64,18 @@ def get_command_line_parser():
 if __name__ == '__main__':
     parser = get_command_line_parser()
     args = parser.parse_args()
+
+    # Load configuration from YAML if config file exists
+    if os.path.exists(args.config):
+        print(f'Loading configuration from {args.config}...')
+        config = load_config(args.config)
+        args = merge_args_with_config(args, config)
+        print('Configuration loaded and merged with command line arguments.')
+    else:
+        print(f'Config file {args.config} not found. Using command line arguments only.')
+
     set_seed(args.seed)
+    print('\nFinal configuration:')
     pprint(vars(args))
     args.num_gpu = set_gpu(args)
     trainer = importlib.import_module('models.%s.fscil_trainer' % (args.project)).FSCILTrainer(args)

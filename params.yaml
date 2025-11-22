@@ -1,0 +1,106 @@
+# CVPR22-Fact Configuration File
+# This file contains all parameters for training and data preparation
+
+# Dataset Configuration
+dataset:
+  name: 'cicids2017_improved'  # Options: 'cifar100', 'cub200', 'mini_imagenet', 'cicids2017_improved'
+  dataroot: 'data/'
+
+  # Session configuration
+  sessions:
+    base_class: 4              # Number of classes in base session
+    num_classes: 10            # Total number of classes
+    way: 1                     # Number of new classes per incremental session
+    shot: 5                    # Number of samples per new class
+    total_sessions: 7          # Total number of sessions (1 base + 6 incremental)
+
+  # CICIDS2017 specific settings
+  cicids2017:
+    # Base session classes (most common attacks)
+    base_classes:
+      - 'BENIGN'
+      - 'DDoS'
+      - 'DoS'
+      - 'Portscan'
+
+    # Incremental session classes (one per session)
+    incremental_classes:
+      - 'Botnet'
+      - 'FTP-Patator'
+      - 'Heartbleed'
+      - 'Infiltration'
+      - 'SSH-Patator'
+      - 'Web Attack'
+
+# Training Configuration
+training:
+  # Project settings
+  project: 'fact'              # Options: 'base', 'fact'
+
+  # Base session training
+  base:
+    epochs: 10
+    learning_rate: 0.001
+    batch_size: 128
+
+  # Incremental session training
+  incremental:
+    epochs: 100
+    learning_rate: 0.1
+    batch_size: 0              # 0 = use all available samples
+
+  # Optimizer settings
+  optimizer:
+    momentum: 0.9
+    weight_decay: 0.0005
+    nesterov: true
+
+  # Learning rate scheduler
+  scheduler:
+    type: 'Cosine'          # Options: 'Step', 'Milestone', 'Cosine'
+    milestones: [60, 70]
+    gamma: 0.1
+    step: 20                   # For 'Step' scheduler
+
+  # Model settings
+  model:
+    base_mode: 'ft_cos'        # Options: 'ft_dot', 'ft_cos'
+    new_mode: 'avg_cos'        # Options: 'ft_dot', 'ft_cos', 'avg_cos'
+    temperature: 16
+    not_data_init: false       # Whether to skip data initialization
+
+  # FACT-specific parameters
+  fact:
+    balance: 1.0
+    loss_iter: 50
+    alpha: 2.0
+    eta: 0.1
+
+# Evaluation Configuration
+evaluation:
+  test_batch_size: 100
+  validation: true
+
+# System Configuration
+system:
+  gpu: '0'
+  num_workers: 8
+  seed: 1
+  debug: false
+
+# Checkpoint Configuration
+checkpoint:
+  save_path: 'checkpoint'
+  model_dir: null              # Path to load pretrained model (null = random init)
+  start_session: 0             # Session to start from
+
+# Session Index Generation (for create_session_indices.py)
+index_generation:
+  output_dir: 'data/index_list/cicids2017_improved'
+  random_seed: 42
+
+  # For few-shot learning, how many samples to select per class
+  shots_per_class: 5
+
+  # Whether to use stratified sampling
+  stratified: true

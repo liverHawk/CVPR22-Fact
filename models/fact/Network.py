@@ -23,6 +23,20 @@ class MYNET(nn.Module):
         if self.args.dataset == 'cub200':
             self.encoder = resnet18(True, args)  # pretrained=True follow TOPIC, models for cub is imagenet pre-trained. https://github.com/xyutao/fscil/issues/11#issuecomment-687548790
             self.num_features = 512
+        if self.args.dataset == 'cicids2017_improved':
+            # Simple MLP encoder for tabular data (66 input features)
+            self.encoder = nn.Sequential(
+                nn.Linear(66, 512),
+                nn.BatchNorm1d(512),
+                nn.ReLU(),
+                nn.Dropout(0.1),
+                nn.Linear(512, 256),
+                nn.BatchNorm1d(256),
+                nn.ReLU(),
+                nn.Dropout(0.1),
+                nn.Linear(256, 128)
+            )
+            self.num_features = 128
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
         
@@ -68,19 +82,21 @@ class MYNET(nn.Module):
 
     def encode(self, x):
         x = self.encoder(x)
-        x = F.adaptive_avg_pool2d(x, 1)
-        x = x.squeeze(-1).squeeze(-1)
+        # For tabular data (cicids2017_improved), no pooling needed
+        if self.args.dataset != 'cicids2017_improved':
+            x = F.adaptive_avg_pool2d(x, 1)
+            x = x.squeeze(-1).squeeze(-1)
         return x
     
     def pre_encode(self,x):
-        
+
         if self.args.dataset in ['cifar100','manyshotcifar']:
             x = self.encoder.conv1(x)
             x = self.encoder.bn1(x)
             x = self.encoder.relu(x)
             x = self.encoder.layer1(x)
             x = self.encoder.layer2(x)
-            
+
         elif self.args.dataset in ['mini_imagenet','manyshotmini','cub200']:
             x = self.encoder.conv1(x)
             x = self.encoder.bn1(x)
@@ -88,24 +104,37 @@ class MYNET(nn.Module):
             x = self.encoder.maxpool(x)
             x = self.encoder.layer1(x)
             x = self.encoder.layer2(x)
-        
+
+        elif self.args.dataset == 'cicids2017_improved':
+            # For MLP encoder, apply first two layers
+            x = self.encoder[0](x)  # Linear(66, 256)
+            x = self.encoder[1](x)  # ReLU
+            x = self.encoder[2](x)  # Dropout
+
         return x
         
     
     def post_encode(self,x):
         if self.args.dataset in ['cifar100','manyshotcifar']:
-            
+
             x = self.encoder.layer3(x)
             x = F.adaptive_avg_pool2d(x, 1)
             x = x.squeeze(-1).squeeze(-1)
 
         elif self.args.dataset in ['mini_imagenet','manyshotmini','cub200']:
-            
+
             x = self.encoder.layer3(x)
             x = self.encoder.layer4(x)
             x = F.adaptive_avg_pool2d(x, 1)
             x = x.squeeze(-1).squeeze(-1)
-        
+
+        elif self.args.dataset == 'cicids2017_improved':
+            # For MLP encoder, apply remaining layers
+            x = self.encoder[3](x)  # Linear(256, 128)
+            x = self.encoder[4](x)  # ReLU
+            x = self.encoder[5](x)  # Dropout
+            x = self.encoder[6](x)  # Linear(128, 64)
+
         if 'cos' in self.mode:
             x = F.linear(F.normalize(x, p=2, dim=-1), F.normalize(self.fc.weight, p=2, dim=-1))
             x = self.args.temperature * x
@@ -113,7 +142,7 @@ class MYNET(nn.Module):
         elif 'dot' in self.mode:
             x = self.fc(x)
             x = self.args.temperature * x
-            
+
         return x
 
     def forward(self, input):

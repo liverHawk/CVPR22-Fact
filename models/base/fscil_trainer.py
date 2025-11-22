@@ -77,9 +77,9 @@ class FSCILTrainer(Trainer):
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                         self.trlog['max_acc_epoch'] = epoch
-                        save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
+                        save_model_dir = os.path.join(args.save_path, 'best_model.pth')
                         torch.save(dict(params=self.model.state_dict()), save_model_dir)
-                        torch.save(optimizer.state_dict(), os.path.join(args.save_path, 'optimizer_best.pth'))
+                        torch.save(optimizer.state_dict(), os.path.join(args.save_path, 'optimizer.pth'))
                         self.best_model_dict = deepcopy(self.model.state_dict())
                         print('********A better model is found!!**********')
                         print('Saving model to :%s' % save_model_dir)
@@ -105,7 +105,7 @@ class FSCILTrainer(Trainer):
                 if not args.not_data_init:
                     self.model.load_state_dict(self.best_model_dict)
                     self.model = replace_base_fc(train_set, testloader.dataset.transform, self.model, args)
-                    best_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
+                    best_model_dir = os.path.join(args.save_path, 'best_model.pth')
                     print('Replace the fc with average embedding, and save it to :%s' % best_model_dir)
                     self.best_model_dict = deepcopy(self.model.state_dict())
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
@@ -129,8 +129,8 @@ class FSCILTrainer(Trainer):
 
                 # save model
                 self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
-                save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
-                #torch.save(dict(params=self.model.state_dict()), save_model_dir)
+                save_model_dir = os.path.join(args.save_path, 'session_{}.pth'.format(session))
+                torch.save(dict(params=self.model.state_dict()), save_model_dir)
                 self.best_model_dict = deepcopy(self.model.state_dict())
                 print('Saving model to :%s' % save_model_dir)
                 print('  test acc={:.3f}'.format(self.trlog['max_acc'][session]))
@@ -148,33 +148,7 @@ class FSCILTrainer(Trainer):
         print('Total time used %.2f mins' % total_time)
 
     def set_save_path(self):
-        mode = self.args.base_mode + '-' + self.args.new_mode
-        if not self.args.not_data_init:
-            mode = mode + '-' + 'data_init'
-
-        self.args.save_path = '%s/' % self.args.dataset
-        self.args.save_path = self.args.save_path + '%s/' % self.args.project
-
-        self.args.save_path = self.args.save_path + '%s-start_%d/' % (mode, self.args.start_session)
-        if self.args.schedule == 'Milestone':
-            mile_stone = str(self.args.milestones).replace(" ", "").replace(',', '_')[1:-1]
-            self.args.save_path = self.args.save_path + 'Epo_%d-Lr_%.4f-MS_%s-Gam_%.2f-Bs_%d-Mom_%.2f' % (
-                self.args.epochs_base, self.args.lr_base, mile_stone, self.args.gamma, self.args.batch_size_base,
-                self.args.momentum)
-        elif self.args.schedule == 'Step':
-            self.args.save_path = self.args.save_path + 'Epo_%d-Lr_%.4f-Step_%d-Gam_%.2f-Bs_%d-Mom_%.2f' % (
-                self.args.epochs_base, self.args.lr_base, self.args.step, self.args.gamma, self.args.batch_size_base,
-                self.args.momentum)
-        if 'cos' in mode:
-            self.args.save_path = self.args.save_path + '-T_%.2f' % (self.args.temperature)
-
-        if 'ft' in self.args.new_mode:
-            self.args.save_path = self.args.save_path + '-ftLR_%.3f-ftEpoch_%d' % (
-                self.args.lr_new, self.args.epochs_new)
-
-        if self.args.debug:
-            self.args.save_path = os.path.join('debug', self.args.save_path)
-
-        self.args.save_path = os.path.join('checkpoint', self.args.save_path)
+        # Simple save path structure: checkpoint/ directory only
+        self.args.save_path = 'checkpoint'
         ensure_path(self.args.save_path)
         return None

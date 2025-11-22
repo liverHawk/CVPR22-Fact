@@ -74,6 +74,14 @@ def set_up_datasets(args):
         args.shot = 5
         args.sessions = 9
 
+    if args.dataset == 'cicids2017_improved':
+        import dataloader.cicids2017.cicids2017 as Dataset
+        args.base_class = 4
+        args.num_classes = 10
+        args.way = 1
+        args.shot = 5
+        args.sessions = 7
+
     args.Dataset=Dataset
     return args
 
@@ -86,6 +94,7 @@ def get_dataloader(args,session):
 
 def get_base_dataloader(args):
     txt_path = "data/index_list/" + args.dataset + "/session_" + str(0 + 1) + '.txt'
+    txt_path_base = "data/index_list/" + args.dataset + "/session_0.txt"
     class_index = np.arange(args.base_class)
     if args.dataset == 'cifar100':
 
@@ -108,6 +117,13 @@ def get_base_dataloader(args):
         trainset = args.Dataset.ImageNet(root=args.dataroot, train=True,
                                              index=class_index, base_sess=True)
         testset = args.Dataset.ImageNet(root=args.dataroot, train=False, index=class_index)
+
+    if args.dataset == 'cicids2017_improved':
+        # For CICIDS2017, use index_path to select data by sample indices
+        trainset = args.Dataset.CICIDS2017_improved(root=args.dataroot, train=True,
+                                                     index_path=txt_path_base, base_sess=False)
+        testset = args.Dataset.CICIDS2017_improved(root=args.dataroot, train=False,
+                                                    index=class_index, base_sess=True)
 
     trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=args.batch_size_base, shuffle=True,
                                               num_workers=8, pin_memory=True)
@@ -152,7 +168,7 @@ def get_base_dataloader_meta(args):
     return trainset, trainloader, testloader
 
 def get_new_dataloader(args,session):
-    txt_path = "data/index_list/" + args.dataset + "/session_" + str(session + 1) + '.txt'
+    txt_path = "data/index_list/" + args.dataset + "/session_" + str(session) + '.txt'
     if args.dataset == 'cifar100':
         class_index = open(txt_path).read().splitlines()
         trainset = args.Dataset.CIFAR100(root=args.dataroot, train=True, download=False,
@@ -166,6 +182,9 @@ def get_new_dataloader(args,session):
     if args.dataset == 'imagenet100' or args.dataset == 'imagenet1000':
         trainset = args.Dataset.ImageNet(root=args.dataroot, train=True,
                                        index_path=txt_path)
+    if args.dataset == 'cicids2017_improved':
+        trainset = args.Dataset.CICIDS2017_improved(root=args.dataroot, train=True,
+                                                     index_path=txt_path)
 
     if args.batch_size_new == 0:
         batch_size_new = trainset.__len__()
@@ -190,6 +209,9 @@ def get_new_dataloader(args,session):
     if args.dataset == 'imagenet100' or args.dataset == 'imagenet1000':
         testset = args.Dataset.ImageNet(root=args.dataroot, train=False,
                                       index=class_new)
+    if args.dataset == 'cicids2017_improved':
+        testset = args.Dataset.CICIDS2017_improved(root=args.dataroot, train=False,
+                                                    index=class_new, base_sess=False)
 
     testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=args.test_batch_size, shuffle=False,
                                              num_workers=args.num_workers, pin_memory=True)

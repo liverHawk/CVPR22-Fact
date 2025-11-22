@@ -108,8 +108,8 @@ def count_acc_taskIL(logits, label,args):
     else:
         return (pred == label).type(torch.FloatTensor).mean().item()
 
-def confmatrix(logits,label,filename):
-    
+def confmatrix(logits,label,filename,class_names=None):
+
     font={'family':'DejaVu Serif','size':18}
     matplotlib.rc('font',**font)
     matplotlib.rcParams.update({'font.family':'DejaVu Serif','font.size':18})
@@ -119,18 +119,40 @@ def confmatrix(logits,label,filename):
     cm=confusion_matrix(label, pred,normalize='true')
     #print(cm)
     clss=len(cm)
-    fig = plt.figure() 
-    ax = fig.add_subplot(111) 
-    cax = ax.imshow(cm,cmap=plt.cm.jet) 
-    if clss<=100:
-        plt.yticks([0,19,39,59,79,99],[0,20,40,60,80,100],fontsize=16)
-        plt.xticks([0,19,39,59,79,99],[0,20,40,60,80,100],fontsize=16)
-    elif clss<=200:
-        plt.yticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
-        plt.xticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
+
+    # Create figure with appropriate size based on number of classes
+    if class_names is not None and len(class_names) <= 15:
+        fig = plt.figure(figsize=(10, 8))
     else:
-        plt.yticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
-        plt.xticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
+        fig = plt.figure()
+
+    ax = fig.add_subplot(111)
+    cax = ax.imshow(cm,cmap=plt.cm.Blues)
+
+    # Use class names if provided and number of classes is small
+    if class_names is not None and len(class_names) <= 15:
+        plt.yticks(range(len(class_names)), class_names, fontsize=10, rotation=0)
+        plt.xticks(range(len(class_names)), class_names, fontsize=10, rotation=45, ha='right')
+    else:
+        # Dynamic tick positioning based on number of classes
+        if clss <= 15:
+            # For small number of classes, show all
+            plt.yticks(range(clss), range(clss), fontsize=14)
+            plt.xticks(range(clss), range(clss), fontsize=14)
+        elif clss <= 100:
+            # For medium number of classes, show every 20th
+            step = max(1, clss // 5)
+            ticks = list(range(0, clss, step))
+            if ticks[-1] != clss - 1:
+                ticks.append(clss - 1)
+            plt.yticks(ticks, ticks, fontsize=16)
+            plt.xticks(ticks, ticks, fontsize=16)
+        elif clss <= 200:
+            plt.yticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
+            plt.xticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
+        else:
+            plt.yticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
+            plt.xticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
 
     plt.xlabel('Predicted Label',fontsize=20)
     plt.ylabel('True Label',fontsize=20)
@@ -138,20 +160,41 @@ def confmatrix(logits,label,filename):
     plt.savefig(filename+'.pdf',bbox_inches='tight')
     plt.close()
 
-    fig = plt.figure() 
-    ax = fig.add_subplot(111) 
-    cax = ax.imshow(cm,cmap=plt.cm.jet) 
+    # Create version with colorbar
+    if class_names is not None and len(class_names) <= 15:
+        fig = plt.figure(figsize=(12, 8))
+    else:
+        fig = plt.figure()
+
+    ax = fig.add_subplot(111)
+    cax = ax.imshow(cm,cmap=plt.cm.Blues)
     cbar = plt.colorbar(cax) # This line includes the color bar
     cbar.ax.tick_params(labelsize=16)
-    if clss<=100:
-        plt.yticks([0,19,39,59,79,99],[0,20,40,60,80,100],fontsize=16)
-        plt.xticks([0,19,39,59,79,99],[0,20,40,60,80,100],fontsize=16)
-    elif clss<=200:
-        plt.yticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
-        plt.xticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
+
+    # Use class names if provided
+    if class_names is not None and len(class_names) <= 15:
+        plt.yticks(range(len(class_names)), class_names, fontsize=10, rotation=0)
+        plt.xticks(range(len(class_names)), class_names, fontsize=10, rotation=45, ha='right')
     else:
-        plt.yticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
-        plt.xticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
+        # Dynamic tick positioning based on number of classes
+        if clss <= 15:
+            # For small number of classes, show all
+            plt.yticks(range(clss), range(clss), fontsize=14)
+            plt.xticks(range(clss), range(clss), fontsize=14)
+        elif clss <= 100:
+            # For medium number of classes, show every 20th
+            step = max(1, clss // 5)
+            ticks = list(range(0, clss, step))
+            if ticks[-1] != clss - 1:
+                ticks.append(clss - 1)
+            plt.yticks(ticks, ticks, fontsize=16)
+            plt.xticks(ticks, ticks, fontsize=16)
+        elif clss <= 200:
+            plt.yticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
+            plt.xticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
+        else:
+            plt.yticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
+            plt.xticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
     plt.xlabel('Predicted Label',fontsize=20)
     plt.ylabel('True Label',fontsize=20)
     plt.tight_layout()

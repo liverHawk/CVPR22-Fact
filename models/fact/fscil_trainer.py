@@ -86,12 +86,15 @@ class FSCILTrainer(Trainer):
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                         self.trlog['max_acc_epoch'] = epoch
-                        save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
+                        save_model_dir = os.path.join(args.save_path, 'best_model.pth')
                         torch.save(dict(params=self.model.state_dict()), save_model_dir)
-                        torch.save(optimizer.state_dict(), os.path.join(args.save_path, 'optimizer_best.pth'))
+                        torch.save(optimizer.state_dict(), os.path.join(args.save_path, 'optimizer.pth'))
                         self.best_model_dict = deepcopy(self.model.state_dict())
                         print('********A better model is found!!**********')
                         print('Saving model to :%s' % save_model_dir)
+                        # Generate confusion matrix for best model
+                        print('Generating confusion matrix for best model...')
+                        test(self.model, testloader, epoch, args, session, validation=True, save_conf_matrix=True)
                     print('best epoch {}, best test acc={:.3f}'.format(self.trlog['max_acc_epoch'],
                                                                        self.trlog['max_acc'][session]))
 
@@ -114,7 +117,7 @@ class FSCILTrainer(Trainer):
                 if not args.not_data_init:
                     self.model.load_state_dict(self.best_model_dict)
                     self.model = replace_base_fc(train_set, testloader.dataset.transform, self.model, args)
-                    best_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
+                    best_model_dir = os.path.join(args.save_path, 'best_model.pth')
                     print('Replace the fc with average embedding, and save it to :%s' % best_model_dir)
                     self.best_model_dict = deepcopy(self.model.state_dict())
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
@@ -142,14 +145,18 @@ class FSCILTrainer(Trainer):
                 #tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
                 #tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
                 tsl, tsa = self.test_intergrate(self.model, testloader, 0,args, session,validation=True)
-                
+
                 # save model
                 self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
-                save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
-                #torch.save(dict(params=self.model.state_dict()), save_model_dir)
+                save_model_dir = os.path.join(args.save_path, 'session_{}.pth'.format(session))
+                torch.save(dict(params=self.model.state_dict()), save_model_dir)
                 self.best_model_dict = deepcopy(self.model.state_dict())
                 print('Saving model to :%s' % save_model_dir)
                 print('  test acc={:.3f}'.format(self.trlog['max_acc'][session]))
+
+                # Generate confusion matrix for this session
+                print('Generating confusion matrix for session {}...'.format(session))
+                self.test_intergrate(self.model, testloader, 0, args, session, validation=True, save_conf_matrix=True)
 
                 result_list.append('Session {}, test Acc {:.3f}\n'.format(session, self.trlog['max_acc'][session]))
 
@@ -164,7 +171,7 @@ class FSCILTrainer(Trainer):
         print('Total time used %.2f mins' % total_time)
 
 
-    def test_intergrate(self, model, testloader, epoch,args, session,validation=True):
+    def test_intergrate(self, model, testloader, epoch,args, session,validation=True,save_conf_matrix=False):
         test_class = args.base_class + session * args.way
         model = model.eval()
         vl = Averager()
@@ -174,26 +181,28 @@ class FSCILTrainer(Trainer):
         lbs=torch.tensor([])
 
         proj_matrix=torch.mm(self.dummy_classifiers,F.normalize(torch.transpose(model.module.fc.weight[:test_class, :],1,0),p=2,dim=-1))
-        
+
         eta=args.eta
-        
+
         softmaxed_proj_matrix=F.softmax(proj_matrix,dim=1)
 
         with torch.no_grad():
             for i, batch in enumerate(testloader, 1):
                 data, test_label = [_.cuda() for _ in batch]
-                
+
                 emb=model.module.encode(data)
-            
+
                 proj=torch.mm(F.normalize(emb,p=2,dim=-1),torch.transpose(self.dummy_classifiers,1,0))
-                topk, indices = torch.topk(proj, 40)
+                # Dynamically adjust k based on the size of proj
+                k = min(40, proj.size(1))
+                topk, indices = torch.topk(proj, k)
                 res = (torch.zeros_like(proj))
                 res_logit = res.scatter(1, indices, topk)
 
                 logits1=torch.mm(res_logit,proj_matrix)
-                logits2 = model.module.forpass_fc(data)[:, :test_class] 
+                logits2 = model.module.forpass_fc(data)[:, :test_class]
                 logits=eta*F.softmax(logits1,dim=1)+(1-eta)*F.softmax(logits2,dim=1)
-            
+
                 loss = F.cross_entropy(logits, test_label)
                 acc = count_acc(logits, test_label)
                 top5acc=count_acc_topk(logits, test_label)
@@ -207,45 +216,31 @@ class FSCILTrainer(Trainer):
             va5= va5.item()
             print('epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}'.format(epoch, vl, va,va5))
 
-            
+            lgt=lgt.view(-1,test_class)
+            lbs=lbs.view(-1)
+            if validation is not True or save_conf_matrix:
+                save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_confusion_matrix')
+
+                # Get class names for CICIDS2017
+                class_names = None
+                if args.dataset == 'cicids2017_improved':
+                    all_class_names = ['BENIGN', 'Botnet', 'DDoS', 'DoS', 'FTP-Patator',
+                                      'Heartbleed', 'Infiltration', 'Portscan', 'SSH-Patator', 'Web Attack']
+                    class_names = all_class_names[:test_class]
+
+                cm=confmatrix(lgt,lbs,save_model_dir,class_names=class_names)
+                perclassacc=cm.diagonal()
+                seenac=np.mean(perclassacc[:args.base_class])
+                if session > 0:
+                    unseenac=np.mean(perclassacc[args.base_class:])
+                    print('Seen Acc:',seenac, 'Unseen ACC:', unseenac)
+                else:
+                    print('Base session Acc:',seenac)
+
         return vl, va
 
     def set_save_path(self):
-        mode = self.args.base_mode + '-' + self.args.new_mode
-        if not self.args.not_data_init:
-            mode = mode + '-' + 'data_init'
-
-        self.args.save_path = '%s/' % self.args.dataset
-        self.args.save_path = self.args.save_path + '%s/' % self.args.project
-
-        self.args.save_path = self.args.save_path + '%s-start_%d/' % (mode, self.args.start_session)
-        if self.args.schedule == 'Milestone':
-            mile_stone = str(self.args.milestones).replace(" ", "").replace(',', '_')[1:-1]
-            self.args.save_path = self.args.save_path + 'Epo_%d-Lr_%.4f-MS_%s-Gam_%.2f-Bs_%d-Mom_%.2f' % (
-                self.args.epochs_base, self.args.lr_base, mile_stone, self.args.gamma, self.args.batch_size_base,
-                self.args.momentum)
-            self.args.save_path = self.args.save_path + 'Bal%.2f-LossIter%d' % (
-                self.args.balance, self.args.loss_iter)
-        elif self.args.schedule == 'Step':
-            self.args.save_path = self.args.save_path + 'Epo_%d-Lr_%.4f-Step_%d-Gam_%.2f-Bs_%d-Mom_%.2f' % (
-                self.args.epochs_base, self.args.lr_base, self.args.step, self.args.gamma, self.args.batch_size_base,
-                self.args.momentum)
-        elif self.args.schedule == 'Cosine':
-            self.args.save_path = self.args.save_path + 'Cosine-Epo_%d-Lr_%.4f' % (
-                self.args.epochs_base, self.args.lr_base)
-            self.args.save_path = self.args.save_path + 'Bal%.2f-LossIter%d' % (
-                self.args.balance, self.args.loss_iter)
-
-        if 'cos' in mode:
-            self.args.save_path = self.args.save_path + '-T_%.2f' % (self.args.temperature)
-
-        if 'ft' in self.args.new_mode:
-            self.args.save_path = self.args.save_path + '-ftLR_%.3f-ftEpoch_%d' % (
-                self.args.lr_new, self.args.epochs_new)
-
-        if self.args.debug:
-            self.args.save_path = os.path.join('debug', self.args.save_path)
-
-        self.args.save_path = os.path.join('checkpoint', self.args.save_path)
+        # Simple save path structure: checkpoint/ directory only
+        self.args.save_path = 'checkpoint'
         ensure_path(self.args.save_path)
         return None

@@ -53,7 +53,7 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args,mask):
 
         lrc = scheduler.get_last_lr()[0]
         tqdm_gen.set_description(
-            'Session 0, epo {}, lrc={:.4f},total loss={:.4f} acc={:.4f}'.format(epoch, lrc, total_loss.item(), acc))
+            'Session 0, epo {}, lrc={:.4f},total loss={:.4f} acc={:.4f}'.format(epoch+1, lrc, total_loss.item(), acc))
         tl.add(total_loss.item())
         ta.add(acc)
 
@@ -103,7 +103,7 @@ def replace_base_fc(trainset, transform, model, args):
 
 
 
-def test(model, testloader, epoch,args, session,validation=True):
+def test(model, testloader, epoch,args, session,validation=True,save_conf_matrix=False):
     test_class = args.base_class + session * args.way
     model = model.eval()
     vl = Averager()
@@ -125,12 +125,20 @@ def test(model, testloader, epoch,args, session,validation=True):
         va = va.item()
         print('epo {}, test, loss={:.4f} acc={:.4f}'.format(epoch, vl, va))
 
-        
+
         lgt=lgt.view(-1,test_class)
         lbs=lbs.view(-1)
-        if validation is not True:
-            save_model_dir = os.path.join(args.save_path, 'session' + str(session) + 'confusion_matrix')
-            cm=confmatrix(lgt,lbs,save_model_dir)
+        if validation is not True or save_conf_matrix:
+            save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_confusion_matrix')
+
+            # Get class names for CICIDS2017
+            class_names = None
+            if args.dataset == 'cicids2017_improved':
+                all_class_names = ['BENIGN', 'Botnet', 'DDoS', 'DoS', 'FTP-Patator',
+                                  'Heartbleed', 'Infiltration', 'Portscan', 'SSH-Patator', 'Web Attack']
+                class_names = all_class_names[:test_class]
+
+            cm=confmatrix(lgt,lbs,save_model_dir,class_names=class_names)
             perclassacc=cm.diagonal()
             seenac=np.mean(perclassacc[:args.base_class])
             unseenac=np.mean(perclassacc[args.base_class:])
