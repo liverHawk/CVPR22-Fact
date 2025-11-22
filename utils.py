@@ -109,7 +109,7 @@ def count_acc_taskIL(logits, label,args):
     else:
         return (pred == label).type(torch.FloatTensor).mean().item()
 
-def confmatrix(logits,label,filename):
+def confmatrix(logits,label,filename,label_names=None):
     
     font={'family':'DejaVu Serif','size':18}
     matplotlib.rc('font',**font)
@@ -188,10 +188,20 @@ def confmatrix(logits,label,filename):
     for i in range(clss):
         for j in range(clss):
             text = f'{cm_normalized[i, j]:.2f}'
-            ax.text(j, i, text,
+            text_obj = ax.text(j, i, text,
                     horizontalalignment="center",
                     color="white" if cm_normalized[i, j] > thresh else "black",
                     fontsize=10 if clss <= 20 else 8)
+            # 対角要素（正しく分類された要素）に下線を引く
+            if i == j:
+                # 対角要素のテキストオブジェクトを取得
+                current_text = text_obj
+                # 下線を引く
+                # new_text = r'$\underline{' + str(current_text) + r'}$'
+                new_text = current_text
+                # テキストを更新
+                text_obj.set_text(new_text)
+                text_obj.set_fontweight('bold')
     
     cbar = plt.colorbar(cax) # This line includes the color bar
     cbar.ax.tick_params(labelsize=16)
@@ -221,7 +231,7 @@ def save_classification_report(logits, label, filename):
         label = label.cpu().numpy()
     
     # Classification reportを生成
-    report = classification_report(label, pred, output_dict=False)
+    report = classification_report(label, pred, output_dict=False, zero_division=0)
     
     # ファイルに保存
     with open(filename + '_classification_report.txt', 'w') as f:

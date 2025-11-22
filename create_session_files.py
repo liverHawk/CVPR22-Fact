@@ -77,16 +77,16 @@ def create_session_files(train_csv='data/CICIDS2017_improved/train.csv',
     
     # セッション0（base session）のファイルを作成
     # session_1.txtにはベースクラスのすべてのサンプルインデックスを含む
-    print(f"\nCreating session_1.txt (base session, classes 0-{base_class-1})...")
+    print(f"\nCreating session_0.txt (base session, classes 0-{base_class-1})...")
     base_indices = []
     for class_idx in range(base_class):
         base_indices.extend(class_indices[class_idx])
     
-    session_1_path = os.path.join(output_dir, 'session_1.txt')
-    with open(session_1_path, 'w') as f:
+    session_0_path = os.path.join(output_dir, 'session_0.txt')
+    with open(session_0_path, 'w') as f:
         for idx in base_indices:
             f.write(f"{idx}\n")
-    print(f"  Saved {len(base_indices)} indices to {session_1_path}")
+    print(f"  Saved {len(base_indices)} indices to {session_0_path}")
     
     # 各セッションのファイルを作成
     num_sessions = (num_classes - base_class) // way
@@ -95,7 +95,7 @@ def create_session_files(train_csv='data/CICIDS2017_improved/train.csv',
     np.random.seed(random_state)
     
     for session in range(1, num_sessions + 1):
-        session_num = session + 1  # session_2.txt, session_3.txt, ...
+        session_num = session  # session_1.txt, session_2.txt, ...
         start_class = base_class + (session - 1) * way
         end_class = min(start_class + way, num_classes)
         

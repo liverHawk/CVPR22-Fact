@@ -116,6 +116,26 @@ class MYNET(nn.Module):
             x = self.encoder.layer1(x)
             x = self.encoder.layer2(x)
         
+        elif self.args.dataset == 'CICIDS2017_improved':
+            if self.args.encoder == 'mlp':
+                # MLP encoder: execute first 2 blocks (66->512, 512->256)
+                # Each block: Linear -> BatchNorm -> ReLU -> Dropout (4 layers)
+                # First 2 blocks = 8 layers (indices 0-7)
+                for i in range(8):  # First 2 blocks: 4 layers each
+                    x = self.encoder.encoder[i](x)
+            elif self.args.encoder == 'cnn1d':
+                # CNN1D: execute conv layers (conv1, bn1, relu, conv2, bn2, relu, pool)
+                if x.dim() == 2:
+                    x = x.unsqueeze(1)  # Add channel dimension
+                x = self.encoder.conv1(x)
+                x = self.encoder.bn1(x)
+                x = F.relu(x)
+                x = self.encoder.conv2(x)
+                x = self.encoder.bn2(x)
+                x = F.relu(x)
+                x = self.encoder.pool(x)
+                x = x.view(x.size(0), -1)  # Flatten
+        
         return x
         
     
@@ -132,6 +152,21 @@ class MYNET(nn.Module):
             x = self.encoder.layer4(x)
             x = F.adaptive_avg_pool2d(x, 1)
             x = x.squeeze(-1).squeeze(-1)
+        
+        elif self.args.dataset == 'CICIDS2017_improved':
+            if self.args.encoder == 'mlp':
+                # MLP encoder: execute remaining layers (256->128, 128->128)
+                # Continue from layer 8 (after first 2 blocks)
+                # Remaining: 3rd block (4 layers) + output layer (1 layer) = 5 layers (indices 8-12)
+                for i in range(8, len(self.encoder.encoder)):
+                    x = self.encoder.encoder[i](x)
+            elif self.args.encoder == 'cnn1d':
+                # CNN1D: execute fc layers (fc1, dropout, relu, fc_embedding)
+                x = self.encoder.fc1(x)
+                x = self.encoder.dropout(x)
+                x = F.relu(x)
+                x = self.encoder.fc_embedding(x)
+                x = F.normalize(x, p=2, dim=-1)  # Normalize like in get_embedding
         
         if 'cos' in self.mode:
             x = F.linear(F.normalize(x, p=2, dim=-1), F.normalize(self.fc.weight, p=2, dim=-1))

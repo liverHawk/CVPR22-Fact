@@ -81,7 +81,9 @@ class FSCILTrainer(Trainer):
                     # train base sess
                     tl, ta = base_train(self.model, trainloader, optimizer, scheduler, epoch, args,mask)
                     # test model with all seen class
-                    tsl, tsa = test(self.model, testloader, epoch, args, session, wandb_logger=self.wandb)
+                    # 最終エポックの場合のみ混同行列を作成
+                    is_final_epoch = (epoch == args.epochs_base - 1)
+                    tsl, tsa = test(self.model, testloader, epoch, args, session, validation=not is_final_epoch, wandb_logger=self.wandb)
 
                     # save better model
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
@@ -133,7 +135,7 @@ class FSCILTrainer(Trainer):
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
                     self.model.module.mode = 'avg_cos'
-                    tsl, tsa = test(self.model, testloader, 0, args, session, wandb_logger=self.wandb)
+                    tsl, tsa = test(self.model, testloader, 0, args, session, validation=False, wandb_logger=self.wandb)
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                         print('The new best test acc of base session={:.3f}'.format(self.trlog['max_acc'][session]))
