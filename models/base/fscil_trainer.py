@@ -158,7 +158,14 @@ class FSCILTrainer(Trainer):
                     trainloader.dataset.transform = testloader.dataset.transform
                 self.model.module.update_fc(trainloader, np.unique(train_set.targets), session)
 
-                tsl, tsa = test(self.model, testloader, 0, args, session, validation=False, wandb_logger=self.wandb)
+                test_result = test(self.model, testloader, 0, args, session, validation=False, wandb_logger=self.wandb,
+                                    enable_unknown_detection=getattr(args, 'enable_unknown_detection', False),
+                                    distance_type=getattr(args, 'distance_type', 'cosine'),
+                                    distance_threshold=getattr(args, 'distance_threshold', None))
+                if isinstance(test_result, tuple) and len(test_result) == 3:
+                    tsl, tsa, _ = test_result  # unknown_statsは無視
+                else:
+                    tsl, tsa = test_result
 
                 # save model
                 self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))

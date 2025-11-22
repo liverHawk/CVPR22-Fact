@@ -69,7 +69,7 @@ def set_up_datasets(args):
     if args.dataset == 'imagenet1000':
         import dataloader.imagenet1000.ImageNet as Dataset
         args.base_class = 600
-        args.num_classes=1000
+        args.num_classes = 1000
         args.way = 50
         args.shot = 5
         args.sessions = 9
@@ -83,7 +83,7 @@ def set_up_datasets(args):
         args.num_classes = 10  # Total classes after label consolidation
         args.way = 1  # Number of new classes per session
         args.shot = 5  # Few-shot samples per class
-        args.sessions = 7  # Number of incremental sessions (5 + 1*5 = 10)
+        args.sessions = int((args.num_classes - args.base_class) / args.way) + 1  # Number of incremental sessions (5 + 1*5 = 10)
 
     args.Dataset=Dataset
     return args
@@ -96,7 +96,7 @@ def get_dataloader(args,session):
     return trainset, trainloader, testloader
 
 def get_base_dataloader(args):
-    txt_path = "data/index_list/" + args.dataset + "/session_" + str(0 + 1) + '.txt'
+    txt_path = "data/index_list/" + args.dataset + "/session_0.txt"
     class_index = np.arange(args.base_class)
     if args.dataset == 'cifar100':
 
@@ -170,6 +170,7 @@ def get_base_dataloader_meta(args):
 
 def get_new_dataloader(args,session):
     txt_path = "data/index_list/" + args.dataset + "/session_" + str(session) + '.txt'
+    print(txt_path)
     if args.dataset == 'cifar100':
         class_index = open(txt_path).read().splitlines()
         trainset = args.Dataset.CIFAR100(root=args.dataroot, train=True, download=False,

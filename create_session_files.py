@@ -67,7 +67,7 @@ def create_session_files(train_csv='data/CICIDS2017_improved/train.csv',
     for idx, label_idx in enumerate(df['label_idx']):
         class_indices[label_idx].append(idx)
     
-    print(f"\nClass distribution:")
+    print("\nClass distribution:")
     for label_idx in range(len(unique_labels)):
         count = len(class_indices[label_idx])
         print(f"  Class {label_idx} ({unique_labels[label_idx]}): {count} samples")
@@ -94,7 +94,7 @@ def create_session_files(train_csv='data/CICIDS2017_improved/train.csv',
     
     np.random.seed(random_state)
     
-    for session in range(0, num_sessions):
+    for session in range(1, num_sessions + 1):
         session_num = session  # session_2.txt, session_3.txt, ...
         start_class = base_class + (session - 1) * way
         end_class = min(start_class + way, num_classes)
