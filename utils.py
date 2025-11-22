@@ -109,20 +109,12 @@ def count_acc_taskIL(logits, label,args):
     else:
         return (pred == label).type(torch.FloatTensor).mean().item()
 
-def confmatrix(logits,label,filename,label_names=None):
-    """
-    Confusion matrixを生成して保存
+def confmatrix(logits,label,filename):
     
-    Args:
-        logits: 予測ロジット
-        label: 真のラベル
-        filename: 保存ファイル名
-        label_names: ラベル名のリスト（Noneの場合は数値ラベルを使用）
-    """
-    font={'family':'FreeSerif','size':18}
+    font={'family':'DejaVu Serif','size':18}
     matplotlib.rc('font',**font)
-    matplotlib.rcParams.update({'font.family':'FreeSerif','font.size':18})
-    plt.rcParams["font.family"]="FreeSerif"
+    matplotlib.rcParams.update({'font.family':'DejaVu Serif','font.size':18})
+    plt.rcParams["font.family"]="DejaVu Serif"
 
     pred = torch.argmax(logits, dim=1)
     # 正規化された混同行列（割合）
