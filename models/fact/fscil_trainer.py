@@ -2,6 +2,7 @@ from .base import Trainer
 # import os.path as osp
 import torch.nn as nn
 from copy import deepcopy
+from tqdm import tqdm
 
 from .helper import base_train, test, replace_base_fc
 from utils import ensure_path, save_list_to_txt, count_acc, count_acc_topk, torch, time, np, os, Averager, confmatrix
@@ -18,7 +19,7 @@ class FSCILTrainer(Trainer):
 
         self.model = MYNET(self.args, mode=self.args.base_mode)
         self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
-        self.model = self.model.cuda()
+        self.model = self.model.to(args.device)
         self.wandb.watch(self.model)
 
         if self.args.model_dir is not None:
@@ -76,7 +77,7 @@ class FSCILTrainer(Trainer):
         for i in range(args.num_classes - args.base_class):
             picked_dummy = np.random.choice(args.base_class, masknum, replace=False)
             mask[:, i + args.base_class][picked_dummy] = 1
-        mask = torch.tensor(mask).cuda()
+        mask = torch.tensor(mask).to(self.args.device)
 
         for session in range(args.start_session, args.sessions):
             train_set, trainloader, testloader = self.get_dataloader(session)
@@ -92,6 +93,16 @@ class FSCILTrainer(Trainer):
                     tl, ta = base_train(
                         self.model, trainloader, optimizer, scheduler, epoch, args, mask
                     )
+                    args.comet.log_metrics(
+                        dic={
+                            "train/base": {
+                                "loss": tl,
+                                "acc": ta,
+                            }
+                        },
+                        step=epoch
+                    )
+
                     # test model with all seen class
                     # 最終エポックの場合のみ混同行列を作成
                     is_final_epoch = epoch == args.epochs_base - 1
@@ -103,6 +114,15 @@ class FSCILTrainer(Trainer):
                         session,
                         validation=not is_final_epoch,
                         wandb_logger=self.wandb,
+                    )
+                    args.comet.log_metrics(
+                        dic={
+                            "test/base": {
+                                "loss": tsl,
+                                "acc": tsa,
+                            }
+                        },
+                        step=epoch
                     )
 
                     # save better model
@@ -194,6 +214,15 @@ class FSCILTrainer(Trainer):
                         validation=False,
                         wandb_logger=self.wandb,
                     )
+                    args.comet.log_metrics(
+                        dic={
+                            "test": {
+                                "loss": tsl,
+                                "acc": tsa,
+                            }
+                        },
+                        step=session
+                    )
                     if (tsa * 100) >= self.trlog["max_acc"][session]:
                         self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
                         print(
@@ -226,6 +255,7 @@ class FSCILTrainer(Trainer):
 
                 # tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
                 # tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
+                print("Evaluating the updated model...")
                 tsl, tsa = self.test_intergrate(
                     self.model,
                     testloader,
@@ -234,6 +264,15 @@ class FSCILTrainer(Trainer):
                     session,
                     validation=False,
                     wandb_logger=self.wandb,
+                )
+                args.comet.log_metrics(
+                    dic={
+                        "test": {
+                            "loss": tsl,
+                            "acc": tsa,
+                        }
+                    },
+                    step=session
                 )
 
                 # save model
@@ -314,8 +353,9 @@ class FSCILTrainer(Trainer):
         # softmaxed_proj_matrix = F.softmax(proj_matrix, dim=1)
 
         with torch.no_grad():
-            for i, batch in enumerate(testloader, 1):
-                data, test_label = [_.cuda() for _ in batch]
+            pbar = tqdm(testloader)
+            for i, batch in enumerate(pbar, 1):
+                data, test_label = [_.to(self.args.device) for _ in batch]
 
                 emb = model.module.encode(data)
 
@@ -346,6 +386,7 @@ class FSCILTrainer(Trainer):
             vl = vl.item()
             va = va.item()
             va5 = va5.item()
+            pbar.close()
             print(
                 "epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}".format(
                     epoch + 1, vl, va, va5

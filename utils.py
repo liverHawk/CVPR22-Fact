@@ -115,6 +115,36 @@ def count_acc_taskIL(logits, label, args):
         return (pred == label).type(torch.FloatTensor).mean().item()
 
 
+# def cal_macro_recall(logits, labels, num_classes):
+#     """
+#     マクロリコールを計算する関数
+
+#     Args:
+#         logits (torch.Tensor): モデルの出力ロジット (バッチサイズ x クラス数)
+#         label (torch.Tensor): 真のラベル (バッチサイズ)
+#         num_classes (int): クラス数
+
+#     Returns:
+#         float: マクロリコール
+#     """
+#     preds = torch.argmax(logits, dim=1)
+    
+#     # クラスごとのTPとFNを計算
+#     recall_per_class = []
+#     for class_idx in range(num_classes):
+#         # 現在のクラスに対するマスク
+#         true_positive = ((preds == class_idx) & (labels == class_idx)).sum().item()
+#         false_negative = ((preds != class_idx) & (labels == class_idx)).sum().item()
+
+#         # リコールを計算（ゼロ除算を防ぐ）
+#         recall = true_positive / (true_positive + false_negative) if (true_positive + false_negative) > 0 else 0.0
+#         recall_per_class.append(recall)
+
+#     # マクロリコールを計算
+#     macro_recall = sum(recall_per_class) / num_classes
+#     return macro_recall
+
+
 def confmatrix(logits, label, filename, label_names=None):
     font = {"family": "DejaVu Serif", "size": 18}
     matplotlib.rc("font", **font)

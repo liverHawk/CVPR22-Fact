@@ -112,12 +112,12 @@ class MYNET(nn.Module):
 
     def update_fc(self, dataloader, class_list, session):
         for batch in dataloader:
-            data, label = [_.cuda() for _ in batch]
+            data, label = [_.to(self.args.device) for _ in batch]
             data = self.encode(data).detach()
 
         if self.args.not_data_init:
             new_fc = nn.Parameter(
-                torch.rand(len(class_list), self.num_features, device="cuda"),
+                torch.rand(len(class_list), self.num_features, device=self.args.device),
                 requires_grad=True,
             )
             nn.init.kaiming_uniform_(new_fc, a=math.sqrt(5))

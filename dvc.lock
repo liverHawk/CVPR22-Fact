@@ -10,28 +10,28 @@ stages:
       nfiles: 5
     - path: split_cicids2017.py
       hash: md5
-      md5: 7f6d3ffab4ff0417849de24d083e78f2
-      size: 6997
+      md5: 33968c6051945eac90b902e51b59bb6f
+      size: 6893
     outs:
     - path: data/test.csv
       hash: md5
-      md5: ed41889327bd3b6465575239fd8b5311
-      size: 230415072
+      md5: 0d914aec4877e38ddd409917cc4b6747
+      size: 230461774
     - path: data/train.csv
       hash: md5
-      md5: 3c4880896b08cab0f3f076d1ab537b71
-      size: 921564131
+      md5: a21b9dcf6cd38b389e944bce1a684aee
+      size: 921749408
   create_session_files:
     cmd: uv run create_session_files.py
     deps:
     - path: create_session_files.py
       hash: md5
-      md5: 557ad28b631c0e2e60beeef614983d23
-      size: 8523
+      md5: 215309e5feaf491084abee85d1512b08
+      size: 8537
     - path: data/train.csv
       hash: md5
-      md5: 3c4880896b08cab0f3f076d1ab537b71
-      size: 921564131
+      md5: a21b9dcf6cd38b389e944bce1a684aee
+      size: 921749408
     outs:
     - path: data/class_indices.json
       hash: md5
@@ -56,16 +56,16 @@ stages:
       nfiles: 7
     - path: data/test.csv
       hash: md5
-      md5: ed41889327bd3b6465575239fd8b5311
-      size: 230415072
+      md5: 0d914aec4877e38ddd409917cc4b6747
+      size: 230461774
     - path: data/train.csv
       hash: md5
-      md5: 3c4880896b08cab0f3f076d1ab537b71
-      size: 921564131
+      md5: a21b9dcf6cd38b389e944bce1a684aee
+      size: 921749408
     - path: train.py
       hash: md5
-      md5: 4cd5f24f515da04518b2f057a3df8f5d
-      size: 10256
+      md5: ec385b7f07d4758266b5eb71015b329d
+      size: 11761
     params:
       params.yaml:
         train:
@@ -75,7 +75,7 @@ stages:
           encoder: cnn1d
           base_mode: ft_cos
           new_mode: avg_cos
-          epochs_base: 10
+          epochs_base: 1
           epochs_new: 100
           batch_size_base: 128
           test_batch_size: 100
@@ -84,12 +84,8 @@ stages:
           lr_new: 0.1
           schedule: Milestone
           milestones:
-          - 50
-          - 100
-          - 150
-          - 200
-          - 250
-          - 300
+          - 60
+          - 70
           step: 20
           decay: 0.0005
           momentum: 0.9
@@ -118,6 +114,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: fc6cf1a81a66d01c920b996bafd8d861.dir
-      size: 38844017
+      md5: baac79eb429439fc8c9bed6e37d2a04f.dir
+      size: 38615831
       nfiles: 23

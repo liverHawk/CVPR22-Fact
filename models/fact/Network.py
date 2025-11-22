@@ -1,11 +1,10 @@
-import argparse
 import math
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from models.resnet18_encoder import *
-from models.resnet20_cifar import *
+from models.resnet18_encoder import resnet18
+from models.resnet20_cifar import resnet20
 from models.mlp_encoder import mlp_encoder
 from models.cnn1d_encoder import cnn1d_encoder
 
@@ -221,12 +220,12 @@ class MYNET(nn.Module):
 
     def update_fc(self, dataloader, class_list, session):
         for batch in dataloader:
-            data, label = [_.cuda() for _ in batch]
+            data, label = [_.to(self.args.device) for _ in batch]
             data = self.encode(data).detach()
 
         if self.args.not_data_init:
             new_fc = nn.Parameter(
-                torch.rand(len(class_list), self.num_features, device="cuda"),
+                torch.rand(len(class_list), self.num_features, device=self.args.device),
                 requires_grad=True,
             )
             nn.init.kaiming_uniform_(new_fc, a=math.sqrt(5))

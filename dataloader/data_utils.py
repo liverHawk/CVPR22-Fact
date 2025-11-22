@@ -163,14 +163,14 @@ def get_base_dataloader(args):
         batch_size=args.batch_size_base,
         shuffle=True,
         num_workers=8,
-        pin_memory=True,
+        pin_memory=args.pin_memory,
     )
     testloader = torch.utils.data.DataLoader(
         dataset=testset,
         batch_size=args.test_batch_size,
         shuffle=False,
         num_workers=8,
-        pin_memory=True,
+        pin_memory=args.pin_memory,
     )
 
     return trainset, trainloader, testloader
@@ -210,7 +210,7 @@ def get_base_dataloader_meta(args):
             root=args.dataroot, train=False, index=class_index
         )
 
-    # DataLoader(test_set, batch_sampler=sampler, num_workers=8, pin_memory=True)
+    # DataLoader(test_set, batch_sampler=sampler, num_workers=8, pin_memory=args.pin_memory)
     sampler = CategoriesSampler(
         trainset.targets,
         args.train_episode,
@@ -222,7 +222,7 @@ def get_base_dataloader_meta(args):
         dataset=trainset,
         batch_sampler=sampler,
         num_workers=args.num_workers,
-        pin_memory=True,
+        pin_memory=args.pin_memory,
     )
 
     testloader = torch.utils.data.DataLoader(
@@ -230,7 +230,7 @@ def get_base_dataloader_meta(args):
         batch_size=args.test_batch_size,
         shuffle=False,
         num_workers=args.num_workers,
-        pin_memory=True,
+        pin_memory=args.pin_memory,
     )
 
     return trainset, trainloader, testloader
@@ -271,7 +271,7 @@ def get_new_dataloader(args, session):
             batch_size=batch_size_new,
             shuffle=False,
             num_workers=args.num_workers,
-            pin_memory=True,
+            pin_memory=args.pin_memory,
         )
     else:
         trainloader = torch.utils.data.DataLoader(
@@ -279,7 +279,7 @@ def get_new_dataloader(args, session):
             batch_size=args.batch_size_new,
             shuffle=True,
             num_workers=args.num_workers,
-            pin_memory=True,
+            pin_memory=args.pin_memory,
         )
 
     # test on all encountered classes
@@ -313,7 +313,7 @@ def get_new_dataloader(args, session):
         batch_size=args.test_batch_size,
         shuffle=False,
         num_workers=args.num_workers,
-        pin_memory=True,
+        pin_memory=args.pin_memory,
     )
 
     return trainset, trainloader, testloader

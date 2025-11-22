@@ -18,7 +18,7 @@ class FSCILTrainer(Trainer):
 
         self.model = MYNET(self.args, mode=self.args.base_mode)
         self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
-        self.model = self.model.cuda()
+        self.model = self.model.to(self.args.device)
         self.wandb.watch(self.model)
 
         if self.args.model_dir is not None:
@@ -81,6 +81,15 @@ class FSCILTrainer(Trainer):
                     tl, ta = base_train(
                         self.model, trainloader, optimizer, scheduler, epoch, args
                     )
+                    args.comet.log_metrics(
+                        dic={
+                            "train/base": {
+                                "loss": tl,
+                                "acc": ta,
+                            }
+                        },
+                        step=epoch
+                    )
                     # test model with all seen class
                     tsl, tsa = test(
                         self.model,
@@ -89,6 +98,15 @@ class FSCILTrainer(Trainer):
                         args,
                         session,
                         wandb_logger=self.wandb,
+                    )
+                    args.comet.log_metrics(
+                        dic={
+                            "test/base": {
+                                "loss": tsl,
+                                "acc": tsa,
+                            }
+                        },
+                        step=epoch
                     )
 
                     # save better model
@@ -179,6 +197,15 @@ class FSCILTrainer(Trainer):
                         session,
                         wandb_logger=self.wandb,
                     )
+                    args.comet.log_metrics(
+                        dic={
+                            "test": {
+                                "loss": tsl,
+                                "acc": tsa,
+                            }
+                        },
+                        step=0
+                    )
                     if (tsa * 100) >= self.trlog["max_acc"][session]:
                         self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
                         print(
@@ -209,6 +236,15 @@ class FSCILTrainer(Trainer):
                     session,
                     validation=False,
                     wandb_logger=self.wandb,
+                )
+                args.comet.log_metrics(
+                    dic={
+                        "test": {
+                            "loss": tsl,
+                            "acc": tsa,
+                        }
+                    },
+                    step=session
                 )
 
                 # save model

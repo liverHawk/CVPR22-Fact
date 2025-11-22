@@ -13,7 +13,7 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args):
     # standard classification for pretrain
     tqdm_gen = tqdm(trainloader)
     for i, batch in enumerate(tqdm_gen, 1):
-        data, train_label = [_.cuda() for _ in batch]
+        data, train_label = [_.to(args.device) for _ in batch]
 
         logits = model(data)
         logits = logits[:, : args.base_class]
@@ -44,7 +44,7 @@ def replace_base_fc(trainset, transform, model, args):
     model = model.eval()
 
     trainloader = torch.utils.data.DataLoader(
-        dataset=trainset, batch_size=128, num_workers=8, pin_memory=True, shuffle=False
+        dataset=trainset, batch_size=128, num_workers=8, pin_memory=args.pin_memory, shuffle=False
     )
     # Only set transform for image datasets (CICIDS2017_improved doesn't have transform attribute)
     if hasattr(trainloader.dataset, "transform") and transform is not None:
@@ -54,7 +54,7 @@ def replace_base_fc(trainset, transform, model, args):
     # data_list=[]
     with torch.no_grad():
         for i, batch in enumerate(trainloader):
-            data, label = [_.cuda() for _ in batch]
+            data, label = [_.to(args.device) for _ in batch]
             model.module.mode = "encoder"
             embedding = model(data)
 
@@ -87,8 +87,9 @@ def test(model, testloader, epoch, args, session, validation=True, wandb_logger=
     lgt = torch.tensor([])
     lbs = torch.tensor([])
     with torch.no_grad():
-        for i, batch in enumerate(testloader, 1):
-            data, test_label = [_.cuda() for _ in batch]
+        pbar = tqdm(testloader)
+        for i, batch in enumerate(pbar, 1):
+            data, test_label = [_.to(args.device) for _ in batch]
             logits = model(data)
             logits = logits[:, :test_class]
             loss = F.cross_entropy(logits, test_label)
@@ -104,6 +105,7 @@ def test(model, testloader, epoch, args, session, validation=True, wandb_logger=
         vl = vl.item()
         va = va.item()
         va5 = va5.item()
+        pbar.close()
         print(
             "epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}".format(
                 epoch + 1, vl, va, va5

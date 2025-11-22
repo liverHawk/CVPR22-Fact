@@ -1,6 +1,6 @@
 import argparse
 import comet_ml
-from utils import load_params_yaml, set_gpu, set_seed, pprint
+from utils import load_params_yaml, set_gpu, set_seed, pprint, torch
 
 MODEL_DIR = None
 DATA_DIR = "data/"
@@ -18,6 +18,7 @@ def load_defaults_from_yaml(yaml_path="params.yaml"):
         defaults = {}
 
         # 共通パラメータ
+        defaults["device"] = common_params.get("device", "cpu")
         defaults["gpu"] = str(common_params.get("gpu", 0))
         defaults["seed"] = common_params.get("seed", 1)
 
@@ -259,6 +260,12 @@ def get_command_line_parser():
         default=yaml_defaults.get("wandb_watch_freq", 100),
         help="wandb.watchのログ頻度（step単位）",
     )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default=yaml_defaults.get("device", "cpu"),
+        help="使用するデバイスを指定（\"cuda\" または \"cpu\"）",
+    )
     return parser
 
 
@@ -282,6 +289,7 @@ if __name__ == "__main__":
     
     args.comet = comet_ml.start(project_name="NIDS on FACT")
     args.num_gpu = set_gpu(args)
+    args.pin_memory = True if not torch.mps.is_available() else False
 
     if args.project not in ["base", "fact"]:
         raise ValueError("Invalid project name: %s" % (args.project))
@@ -292,4 +300,6 @@ if __name__ == "__main__":
         from models.fact.fscil_trainer import FSCILTrainer
         trainer = FSCILTrainer(args)
 
+    args.comet.log_parameters(parameters=args.__dict__)
+    # args.comet.log_metrics
     trainer.train()

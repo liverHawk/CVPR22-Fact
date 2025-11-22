@@ -15,6 +15,7 @@ paths:
 common:
   gpu: 0
   seed: 1
+  device: cpu  # 使用するデバイスを指定（"cuda" または "cpu"）
 
 # train.py用のパラメータ
 train:
@@ -24,7 +25,7 @@ train:
   encoder: "cnn1d"
   base_mode: "ft_cos"
   new_mode: "avg_cos"
-  epochs_base: 10
+  epochs_base: 1
   epochs_new: 100
   batch_size_base: 128
   test_batch_size: 100
@@ -34,7 +35,7 @@ train:
   lr_base: 0.005
   lr_new: 0.1
   schedule: "Milestone"  # Step, Milestone, Cosine
-  milestones: [50, 100, 150, 200, 250, 300]
+  milestones: [60, 70]
   step: 20
   decay: 0.0005
   momentum: 0.9
