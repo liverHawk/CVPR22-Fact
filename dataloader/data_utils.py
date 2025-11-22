@@ -80,11 +80,11 @@ def set_up_datasets(args):
         # CICIDS2017_improved has 10 classes after preprocessing (label consolidation)
         # Following research_data_drl preprocessing: labels are consolidated
         # Configuration: base_class + (way * sessions) = num_classes
-        args.base_class = 5  # Base classes (BENIGN + major attack types)
+        args.base_class = 4  # Base classes (BENIGN + major attack types)
         args.num_classes = 10  # Total classes after label consolidation
         args.way = 1  # Number of new classes per session
         args.shot = 5  # Few-shot samples per class
-        args.sessions = 5  # Number of incremental sessions (5 + 1*5 = 10)
+        args.sessions = 7  # Number of incremental sessions (5 + 1*5 = 10)
 
     args.Dataset=Dataset
     return args
@@ -172,7 +172,7 @@ def get_base_dataloader_meta(args):
     return trainset, trainloader, testloader
 
 def get_new_dataloader(args,session):
-    txt_path = "data/index_list/" + args.dataset + "/session_" + str(session + 1) + '.txt'
+    txt_path = "data/index_list/" + args.dataset + "/session_" + str(session) + '.txt'
     if args.dataset == 'cifar100':
         class_index = open(txt_path).read().splitlines()
         trainset = args.Dataset.CIFAR100(root=args.dataroot, train=True, download=False,

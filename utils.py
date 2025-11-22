@@ -184,10 +184,10 @@ def confmatrix(logits,label,filename,label_names=None):
         filename: 保存ファイル名
         label_names: ラベル名のリスト（Noneの場合は数値ラベルを使用）
     """
-    font={'family':'FreeSerif','size':18}
+    font={'family':'Arial','size':18}
     matplotlib.rc('font',**font)
-    matplotlib.rcParams.update({'font.family':'FreeSerif','font.size':18})
-    plt.rcParams["font.family"]="FreeSerif"
+    matplotlib.rcParams.update({'font.family':'Arial','font.size':18})
+    plt.rcParams["font.family"]="Arial"
 
     pred = torch.argmax(logits, dim=1)
     # 正規化された混同行列（割合）

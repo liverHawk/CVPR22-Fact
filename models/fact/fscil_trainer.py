@@ -17,7 +17,7 @@ class FSCILTrainer(Trainer):
 
         self.model = MYNET(self.args, mode=self.args.base_mode)
         self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
-        self.model = self.model.cuda()
+        self.model = self.model.to(self.args.device)
         self.wandb.watch(self.model)
 
         if self.args.model_dir is not None:
@@ -64,7 +64,7 @@ class FSCILTrainer(Trainer):
         for i in range(args.num_classes-args.base_class):
             picked_dummy=np.random.choice(args.base_class,masknum,replace=False)
             mask[:,i+args.base_class][picked_dummy]=1
-        mask=torch.tensor(mask).cuda()
+        mask=torch.tensor(mask).to(self.args.device)
 
 
 
@@ -138,6 +138,9 @@ class FSCILTrainer(Trainer):
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                         print('The new best test acc of base session={:.3f}'.format(self.trlog['max_acc'][session]))
 
+                # ベースセッションでも混同行列を保存
+                test(self.model, testloader, 0, args, session, validation=False, wandb_logger=self.wandb)
+
                 #save dummy classifiers
                 self.dummy_classifiers=deepcopy(self.model.module.fc.weight.detach())
                 
@@ -208,7 +211,7 @@ class FSCILTrainer(Trainer):
 
         with torch.no_grad():
             for i, batch in enumerate(testloader, 1):
-                data, test_label = [_.cuda() for _ in batch]
+                data, test_label = [_.to(self.args.device) for _ in batch]
                 
                 emb=model.module.encode(data)
             

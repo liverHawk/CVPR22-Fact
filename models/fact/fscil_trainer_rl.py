@@ -267,6 +267,17 @@ class FSCILTrainerRL(Trainer):
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                         print(f'The new best test acc of base session={self.trlog["max_acc"][session]:.3f}')
 
+                # ベースセッションのテスト結果でも混同行列を保存
+                test(
+                    self.model,
+                    testloader,
+                    0,
+                    args,
+                    session,
+                    validation=False,
+                    wandb_logger=self.wandb
+                )
+
                 # Dummy classifiers保存
                 from utils import get_model_module
                 model_module = get_model_module(self.model)

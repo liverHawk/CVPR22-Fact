@@ -17,7 +17,7 @@ class FSCILTrainer(Trainer):
 
         self.model = MYNET(self.args, mode=self.args.base_mode)
         self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
-        self.model = self.model.cuda()
+        self.model = self.model.to(self.args.device)
         self.wandb.watch(self.model)
 
         if self.args.model_dir is not None:

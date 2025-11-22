@@ -1,83 +1,154 @@
+# FACT + DQN Few-Shot Class Incremental Learning
 
-# Forward Compatible Few-Shot Class-Incremental Learning  (FACT)
+Forward-Compatible Few-Shot Class-Incremental Learning (FACT, CVPR 2022) をベースに、DQN を用いた強化学習でクラス選択方針を学習する研究用実装です。ベースセッションでは FACT をそのまま再現し、インクリメンタルセッションでは DQN による行動選択と FACT の損失を組み合わせることで、低ショット・逐次クラス追加シナリオに対応します。
 
-The code repository for "Forward Compatible Few-Shot Class-Incremental Learning
-" [[paper]](https://arxiv.org/abs/2203.06953) (CVPR22) in PyTorch. If you use any content of this repo for your work, please cite the following bib entry:
+## 目標とアーキテクチャ
 
-    @inproceedings{zhou2022forward,
-    title={Forward Compatible Few-Shot Class-Incremental Learning},
-    author={Zhou, Da-Wei and Wang, Fu-Yun and Ye, Han-Jia and Ma, Liang and Pu, Shiliang and Zhan, De-Chuan},
-    booktitle={CVPR},
-    year={2022}
-    }
+- **Base Session (session 0)**: 大量の既知クラスで FACT を学習し、エンコーダ＋コサイン分類器を獲得。
+- **Incremental Sessions (session 1+)**: ごく少数の新クラスを逐次追加し、FACT の前方互換性を保ちつつ、DQN がクラス決定ポリシーを改善。
+- **強化学習統合**: Replay Buffer、Target Network、ε-greedy を備えた標準的な DQN を FACT ヘッドに接続。
+- **報酬設計**: Simple / Distance / FACT Loss の 3 種類（`models/fact/rl_components.py` の `RewardCalculator` を参照）。
 
-## Forward Compatible Few-Shot Class-Incremental Learning
+## セットアップ
 
+```bash
+# 依存関係のインストール（uv + pyproject.toml）
+make install
 
-Novel classes frequently arise in our dynamically changing world, e.g., new users in the authentication system, and a machine learning model should recognize new classes without forgetting old ones. This scenario becomes more challenging when new class instances are insufficient, which is called few-shot class-incremental learning (FSCIL). Current methods handle incremental learning retrospectively by making the updated model similar to the old one. By contrast, we suggest learning prospectively to prepare for future updates, and propose ForwArd Compatible Training (FACT) for FSCIL. Forward compatibility requires future new classes to be easily incorporated into the current model based on the current stage data, and we seek to realize it by reserving embedding space for future new classes. In detail, we assign virtual prototypes to squeeze the embedding of known classes and reserve for new ones. Besides, we forecast possible new classes and prepare for the updating process. The virtual prototypes allow the model to accept possible updates in the future, which act as proxies scattered among embedding space to build a stronger classifier during inference. FACT efficiently incorporates new classes with forward compatibility and meanwhile resists forgetting of old ones. Extensive experiments on benchmark and large scale datasets validate FACT's state-of-the-art performance.
+# プロジェクトの同期
+uv sync
+```
 
-<img src='imgs/teaser.png' width='900' height='494'>
+PyTorch などの主要依存は `pyproject.toml`/`uv.lock` に定義されています。必要に応じて `PYTHONPATH` にリポジトリ直下を追加してください。
 
-## Results
-<img src='imgs/result.png' width='900' height='563'>
+## データセット
 
-Please refer to our [paper](https://arxiv.org/abs/2203.06953) for detailed values.
+`data/` 以下に CSV や画像データ、`data/index_list/<dataset>/session_*.txt` に各セッションで使用するクラスインデックスが格納されています。  
+現状の実装は以下のデータセットを想定しています。
 
-## Prerequisites
+- `CICIDS2017_improved`（デフォルト、表形式データ）
+- `cifar100`, `cub200`, `mini_imagenet`（画像データ：dataloader/* に前処理実装あり）
 
-The following packages are required to run the scripts:
+必要に応じて `-dataroot` で外部パスを指定してください。
 
-- [PyTorch-1.4 and torchvision](https://pytorch.org)
+## 典型的な実行コマンド
 
-- tqdm
+### FACT（標準 FSCIL）
 
-## Dataset
-We provide the source code on three benchmark datasets, i.e., CIFAR100, CUB200 and miniImageNet. Please follow the guidelines in [CEC](https://github.com/icoz69/CEC-CVPR2021) to prepare them.
+```bash
+python train.py \
+    -project fact \
+    -dataset CICIDS2017_improved \
+    -encoder mlp \
+    -epochs_base 100 \
+    -lr_base 0.001 \
+    -schedule Cosine \
+    -batch_size_base 128 \
+    -temperature 16 \
+    -balance 1.0 \
+    -loss_iter 50 \
+    --use_wandb \
+    --wandb_project fact-cicids2017
+```
 
-The split of ImageNet100/1000 is availabel at [Google Drive](https://drive.google.com/drive/folders/1IBjVEmwmLBdABTaD6cDbrdHMXfHHtFvU?usp=sharing).
+### FACT + DQN（強化学習付き）
 
-## Code Structures
-There are four parts in the code.
- - `models`: It contains the backbone network and training protocols for the experiment.
- - `data`: Images and splits for the data sets.
-- `dataloader`: Dataloader of different datasets.
- - `checkpoint`: The weights and logs of the experiment.
- 
-## Training scripts
+```bash
+python train.py \
+    -project fact_rl \
+    -dataset CICIDS2017_improved \
+    -encoder mlp \
+    -epochs_base 100 \
+    -lr_base 0.001 \
+    -schedule Cosine \
+    -batch_size_base 128 \
+    -temperature 16 \
+    -balance 1.0 \
+    -loss_iter 50 \
+    --rl_reward_type simple \
+    --rl_buffer_size 50000 \
+    --rl_batch_size 64 \
+    --rl_lr 0.001 \
+    --rl_gamma 0.99 \
+    --rl_num_updates 1000 \
+    --use_wandb \
+    --wandb_project fact-rl-cicids2017
+```
 
-- Train CIFAR100
+`-encoder` は `mlp`（CICIDS）または `cnn1d` を指定できます。画像データセット向けには `models/resnet18_encoder.py`/`resnet20_cifar.py` を参照してください。
 
-  ```
-  python train.py -projec fact -dataset cifar100  -base_mode "ft_cos" -new_mode "avg_cos" -gamma 0.1 -lr_base 0.1 -lr_new 0.1 -decay 0.0005 -epochs_base 600 -schedule Cosine -gpu 0,1,2,3 -temperature 16 -batch_size_base 256   -balance 0.001 -loss_iter 0 -alpha 0.5 >>CIFAR-FACT.txt
-  ```
-  
-- Train CUB200
-    ```
-    python train.py -project fact -dataset cub200 -base_mode 'ft_cos' -new_mode 'avg_cos' -gamma 0.25 -lr_base 0.005 -lr_new 0.1 -decay 0.0005 -epochs_base 400 -schedule Milestone -milestones 50 100 150 200 250 300 -gpu '3,2,1,0' -temperature 16 -dataroot YOURDATAROOT -batch_size_base 256 -balance 0.01 -loss_iter 0  >>CUB-FACT.txt 
-    ```
+## 強化学習オプション
 
-- Train miniImageNet
-    ```
-    python train.py -project fact -dataset mini_imagenet -base_mode 'ft_cos' -new_mode 'avg_cos' -gamma 0.1 -lr_base 0.1 -lr_new 0.1 -decay 0.0005 -epochs_base 1000 -schedule Cosine  -gpu 1,2,3,0 -temperature 16 -dataroot YOURDATAROOT -alpha 0.5 -balance 0.01 -loss_iter 150 -eta 0.1 >>MINI-FACT.txt  
-    ```
+- `--rl_reward_type simple`  
+  正解で `reward_correct`（既定 +1.0）、不正解で `reward_incorrect`（既定 -1.0）。
+- `--rl_reward_type distance`  
+  埋め込みとクラスプロトタイプのコサイン類似度を利用。正解時は `reward_correct * similarity(target)`、不正解時は `reward_incorrect * (1 - similarity(target) + similarity(action))`。
+- `--rl_reward_type fact_loss`  
+  FACT のクロスエントロピー損失を報酬へ変換。正解時は `reward_correct * exp(-loss)`、不正解時は `reward_incorrect * (1 + loss)`。
 
-Remember to change `YOURDATAROOT` into your own data root, or you will encounter errors.
+その他主要ハイパーパラメータ:
 
-Using the definitely same scripts above, you are supposed to reproduce the results in [CIFAR-FACT.txt](https://github.com/zhoudw-zdw/CVPR22-Fact/blob/main/imgs/CIFAR-FACT.txt), [CUB-FACT.txt](https://github.com/zhoudw-zdw/CVPR22-Fact/blob/main/imgs/CUB-FACT.txt), and [MINI-FACT.txt](https://github.com/zhoudw-zdw/CVPR22-Fact/blob/main/imgs/MINI-FACT.txt).
+| 引数 | 既定値 | 説明 |
+| --- | --- | --- |
+| `--rl_buffer_size` | 50000 | Replay Buffer の容量 |
+| `--rl_batch_size` | 64 | DQN 更新バッチサイズ |
+| `--rl_lr` | 1e-3 | DQN ヘッドの学習率 |
+| `--rl_gamma` | 0.99 | 割引率 |
+| `--rl_epsilon_start/end/decay` | 1.0 / 0.05 / 5000 | ε-greedy のスケジュール（`rl_components.exponential_decay` を使用） |
+| `--rl_num_updates` | 1000 | 各セッションでの DQN 更新回数 |
+| `--rl_target_update` | 500 | Target network を同期するステップ間隔 |
+| `--rl_virtual_classes` | 0 | FACT 前方互換性のための仮想クラス数 |
 
- 
-## Acknowledgment
-We thank the following repos providing helpful components/functions in our work.
+## Makefile レシピ
 
-- [Awesome Few-Shot Class-Incremental Learning](https://github.com/zhoudw-zdw/Awesome-Few-Shot-Class-Incremental-Learning)
+反復実験向けに代表的なターゲットを用意しています。GPU ID は `DEVICE` 変数で制御します。
 
-- [PyCIL: A Python Toolbox for Class-Incremental Learning](https://github.com/G-U-N/PyCIL)
+```bash
+# CIFAR100 で FACT（README 準拠のハイパラ）
+make train_fact_cifar DEVICE=0 DATAROOT=/path/to/cifar
 
-- [Proser](https://github.com/zhoudw-zdw/CVPR21-Proser)
+# CUB200 / miniImageNet も同様（train_fact_cub / train_fact_mini）
 
-- [CEC](https://github.com/icoz69/CEC-CVPR2021)
+# FACT + DQN を CICIDS2017_improved で実行
+make train_fact_rl DEVICE=0
 
+# 速いデバッグ用（エポック短縮）
+make train_fact_rl_debug DEVICE=0
+```
 
+ハイパーパラメータは `Makefile` 冒頭の `FACT_*_EXTRA` 変数で確認できます。
 
-## Contact 
-If there are any questions, please feel free to contact with the author:  Da-Wei Zhou (zhoudw@lamda.nju.edu.cn). Enjoy the code.
+## ログと成果物
+
+- `checkpoint/<dataset>/<project>/...` に各セッションのモデル、`results.txt`、混同行列 (`session*_rl_confusion_matrix.png`) などを保存。
+- `--use_wandb` 時は Weights & Biases に学習カーブを送信（`--wandb_project`, `--wandb_entity`, `--wandb_group` 等を適宜設定）。
+- `-debug` フラグでデータ件数やエポック数を減らし、素早く実行可能。
+
+## 典型的なワークフロー
+
+1. **Base session**: FACT で既知クラスを学習し、エンコーダとプロトタイプを保存。
+2. **Incremental session**: 新クラスデータを読み込み、ε-greedy に従いサンプルを選択→DQN で行動価値を更新→FACT の損失でエンコーダ互換性を維持。
+3. **評価**: 各セッション終了後に全クラスで Few-Shot テストを実施。
+
+## プロジェクト構成（抜粋）
+
+```
+.
+├── train.py                   # エントリポイント（FACT/FACT+RL切り替え）
+├── models/
+│   ├── base/                  # FACT (CVPR22) オリジナル実装
+│   ├── fact/                  # 強化学習版トレーナ、ヘルパー、Network
+│   │   ├── fscil_trainer_rl.py
+│   │   ├── rl_components.py   # Replay Buffer, DQN Head, RewardCalculator
+│   │   └── rl_trainer_helper.py
+│   ├── resnet18_encoder.py
+│   ├── resnet20_cifar.py
+│   └── mlp_encoder.py / cnn1d_encoder.py
+├── dataloader/                # データセット別ローダ
+└── checkpoint/                # 学習済み重み／解析結果
+```
+
+## 参考文献
+
+- FACT: Forward-Compatible Few-Shot Class-Incremental Learning (CVPR 2022)
+- Deep Q-Network (DQN) for Reinforcement Learning
