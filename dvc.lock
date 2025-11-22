@@ -1,0 +1,74 @@
+schema: '2.0'
+stages:
+  prepare_data:
+    cmd: uv run split_cicids2017.py
+    deps:
+    - path: data/CICIDS2017_improved
+      hash: md5
+      md5: 97448ae36a9acd7110a7c6dafed93e84.dir
+      size: 1152270765
+      nfiles: 5
+    - path: split_cicids2017.py
+      hash: md5
+      md5: 7f6d3ffab4ff0417849de24d083e78f2
+      size: 6997
+    outs:
+    - path: data/test.csv
+      hash: md5
+      md5: ed41889327bd3b6465575239fd8b5311
+      size: 230415072
+    - path: data/train.csv
+      hash: md5
+      md5: 3c4880896b08cab0f3f076d1ab537b71
+      size: 921564131
+  create_session_files:
+    cmd: uv run create_session_files.py
+    deps:
+    - path: create_session_files.py
+      hash: md5
+      md5: 557ad28b631c0e2e60beeef614983d23
+      size: 8523
+    - path: data/train.csv
+      hash: md5
+      md5: 3c4880896b08cab0f3f076d1ab537b71
+      size: 921564131
+    outs:
+    - path: data/class_indices.json
+      hash: md5
+      md5: f29c90244e31c52ede125a0dcb127cdf
+      size: 27448722
+    - path: data/column_names.txt
+      hash: md5
+      md5: 40d60946b24722a772c88cd61ea6895d
+      size: 1410
+    - path: data/index_list/CICIDS2017_improved
+      hash: md5
+      md5: 88f4fb9338cc080025a73e92fba982d4.dir
+      size: 10932192
+      nfiles: 7
+  train:
+    cmd: uv run train.py
+    deps:
+    - path: data/index_list/CICIDS2017_improved
+      hash: md5
+      md5: 88f4fb9338cc080025a73e92fba982d4.dir
+      size: 10932192
+      nfiles: 7
+    - path: data/test.csv
+      hash: md5
+      md5: ed41889327bd3b6465575239fd8b5311
+      size: 230415072
+    - path: data/train.csv
+      hash: md5
+      md5: 3c4880896b08cab0f3f076d1ab537b71
+      size: 921564131
+    - path: train.py
+      hash: md5
+      md5: 4cd5f24f515da04518b2f057a3df8f5d
+      size: 10256
+    outs:
+    - path: checkpoint/CICIDS2017_improved
+      hash: md5
+      md5: 0ad98cd45d2158760fd84afc52a81463.dir
+      size: 9327421
+      nfiles: 23

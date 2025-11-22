@@ -284,7 +284,8 @@ class CICIDS2017_improved(Dataset):
         - root/CICIDS2017_improved/train.csv (or train.parquet)
         - root/CICIDS2017_improved/test.csv (or test.parquet)
         """
-        data_dir = os.path.join(root, 'CICIDS2017_improved')
+        # data_dir = os.path.join(root, 'CICIDS2017_improved')
+        data_dir = root
         
         # Try to load CSV or parquet files
         train_file = os.path.join(data_dir, 'train.csv')

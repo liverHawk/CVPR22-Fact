@@ -98,6 +98,7 @@ def load_and_split_cicids2017(data_dir='data/CICIDS2017_improved',
     print(f"\nTest label distribution:\n{test_df[label_col].value_counts()}")
     
     # 保存
+    output_dir = os.path.dirname(output_dir)
     os.makedirs(output_dir, exist_ok=True)
     
     train_path = os.path.join(output_dir, 'train.csv')

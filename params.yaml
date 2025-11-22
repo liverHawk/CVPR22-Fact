@@ -77,7 +77,7 @@ split_cicids:
 
 # create_session_files.py用のパラメータ
 create_sessions:
-  train_csv: "data/CICIDS2017_improved/train.csv"
+  train_csv: "data/train.csv"
   output_dir: "data/index_list/CICIDS2017_improved"
   base_class: 4
   num_classes: 10

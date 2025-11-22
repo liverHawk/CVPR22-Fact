@@ -8,7 +8,7 @@ import os
 import pandas as pd
 import numpy as np
 from collections import defaultdict
-
+import json
 
 def create_session_files(train_csv='data/CICIDS2017_improved/train.csv',
                          output_dir='data/index_list/CICIDS2017_improved',
@@ -67,10 +67,18 @@ def create_session_files(train_csv='data/CICIDS2017_improved/train.csv',
     for idx, label_idx in enumerate(df['label_idx']):
         class_indices[label_idx].append(idx)
     
-    print(f"\nClass distribution:")
+    print("\nClass distribution:")
     for label_idx in range(len(unique_labels)):
         count = len(class_indices[label_idx])
         print(f"  Class {label_idx} ({unique_labels[label_idx]}): {count} samples")
+    
+    with open("data/class_indices.json", "w") as f:
+        json.dump(class_indices, f, indent=4)
+    
+    with open("data/column_names.txt", "w") as f:
+        columns = df.columns.tolist()
+        for column in columns:
+            f.write(f"{column}\n")
     
     # 出力ディレクトリを作成
     os.makedirs(output_dir, exist_ok=True)
