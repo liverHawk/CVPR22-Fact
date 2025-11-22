@@ -1,0 +1,5 @@
+[core]
+    remote = azure
+['remote "azure"']
+    url = azure://cvpr22-fact
+    account_name = dvc2test
