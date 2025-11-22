@@ -1,9 +1,7 @@
-/checkpoint
-/confusion_analysis
-/forward_compatibility_test
-/test_analysis
-/data/*
-
 __pycache__
+checkpoint_legacy
 
-!/data/index_list
+data/cifar-100-python*
+data/CICIDS2017_improved
+
+wandb

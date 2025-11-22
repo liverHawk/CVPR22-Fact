@@ -1,0 +1,31 @@
+# schema: https://raw.githubusercontent.com/iterative/dvcyaml-schema/master/schema.json
+
+stages:
+  prepare_data:
+    cmd: uv run split_cicids2017.py
+    deps:
+      - data/CICIDS2017_improved
+      - split_cicids2017.py
+    outs:
+      - data/train.csv
+      - data/test.csv
+  
+  create_session_files:
+    cmd: uv run create_session_files.py
+    deps:
+      - data/train.csv
+      - create_session_files.py
+    outs:
+      - data/index_list/CICIDS2017_improved
+      - data/class_indices.json
+      - data/column_names.txt
+  
+  train:
+    cmd: uv run train.py
+    deps:
+      - data/train.csv
+      - data/test.csv
+      - data/index_list/CICIDS2017_improved
+      - train.py
+    outs:
+      - checkpoint/CICIDS2017_improved

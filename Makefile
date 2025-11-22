@@ -1,300 +1,198 @@
-# CICIDS2017 Dataset Training and Evaluation Makefile
-# Supports both base and fact models
+SHELL := /usr/bin/env bash
+.DEFAULT_GOAL := help
 
-# Default values
-DATASET := cicids2017_improved
-DATAROOT := data
-EPOCHS_BASE := 1
-EPOCHS_NEW := 1
-SESSIONS := 7
-START_SESSION := 0
-BATCH_SIZE_BASE := 128
-BATCH_SIZE_NEW := 16
-TEST_BATCH_SIZE := 100
-LR_BASE := 0.1
-LR_NEW := 0.1
-MAX_SAMPLES := 1000
-DEBUG := false
+PROJECT_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+PYTHON := uv run python
 
-# Model-specific settings
-BASE_MODEL_DIR := checkpoint/$(DATASET)/base
-FACT_MODEL_DIR := checkpoint/$(DATASET)/fact
+DATA_DIR ?= $(PROJECT_ROOT)/data
+CHECKPOINT_DIR ?= $(PROJECT_ROOT)/checkpoint
+CICIDS_DIR ?= $(DATA_DIR)/CICIDS2017_improved
+CICIDS_INDEX_DIR ?= $(DATA_DIR)/index_list/CICIDS2017_improved
+CUB_DATAROOT ?= $(DATA_DIR)/cub200
+MINI_IMAGENET_ROOT ?= $(DATA_DIR)/mini_imagenet
 
-# Output directories
-BASE_OUTPUT := confusion_analysis/$(DATASET)_base
-FACT_OUTPUT := confusion_analysis/$(DATASET)_fact
-COMPARISON_OUTPUT := base_fact_comparison/$(DATASET)
+GPU ?= 0
+SEED ?= 1
 
-# Colors for output
-RED := \033[0;31m
-GREEN := \033[0;32m
-YELLOW := \033[1;33m
-BLUE := \033[0;34m
-NC := \033[0m # No Color
+TRAIN_PROJECT ?= fact
+TRAIN_DATASET ?= CICIDS2017_improved
+TRAIN_ENCODER ?= mlp
+TRAIN_BASE_MODE ?= ft_cos
+TRAIN_NEW_MODE ?= avg_cos
+TRAIN_BATCH_SIZE ?= 128
+TRAIN_TEST_BATCH_SIZE ?= 100
+TRAIN_EPOCHS_BASE ?= 100
+TRAIN_EPOCHS_NEW ?= 100
+TRAIN_START_SESSION ?= 0
+TRAIN_EXTRA ?=
 
-.PHONY: help train-base train-fact eval-base eval-fact compare-base-fact clean clean-checkpoints clean-analysis
+FACT_CIFAR_EXTRA ?= -gamma 0.1 -lr_base 0.1 -lr_new 0.1 -decay 0.0005 -epochs_base 600 -schedule Cosine -temperature 16 -batch_size_base 256 -balance 0.001 -loss_iter 0 -alpha 0.5 -gpu $(GPU)
+FACT_CUB_EXTRA ?= -gamma 0.25 -lr_base 0.005 -lr_new 0.1 -decay 0.0005 -epochs_base 400 -schedule Milestone -milestones 50 100 150 200 250 300 -temperature 16 -batch_size_base 256 -balance 0.01 -loss_iter 0 -gpu $(GPU)
+FACT_MINI_EXTRA ?= -gamma 0.1 -lr_base 0.1 -lr_new 0.1 -decay 0.0005 -epochs_base 1000 -schedule Cosine -temperature 16 -alpha 0.5 -balance 0.01 -loss_iter 150 -eta 0.1 -gpu $(GPU)
 
-# Default target
-help:
-	@echo "$(BLUE)CICIDS2017 Dataset Training and Evaluation Makefile$(NC)"
+WAND_ENABLE ?= 0
+WAND_PROJECT ?= origin-fact
+WAND_ENTITY ?=
+WAND_GROUP ?=
+WAND_RUN_NAME ?=
+WAND_TAGS ?=
+WAND_MODE ?= online
+WAND_WATCH ?= gradients
+WAND_WATCH_FREQ ?= 100
+
+ifeq ($(WAND_ENABLE),1)
+  WAND_ARGS := --use_wandb --wandb_mode $(WAND_MODE) --wandb_watch $(WAND_WATCH) --wandb_watch_freq $(WAND_WATCH_FREQ)
+  ifneq ($(strip $(WAND_PROJECT)),)
+    WAND_ARGS += --wandb_project $(WAND_PROJECT)
+  endif
+  ifneq ($(strip $(WAND_ENTITY)),)
+    WAND_ARGS += --wandb_entity $(WAND_ENTITY)
+  endif
+  ifneq ($(strip $(WAND_GROUP)),)
+    WAND_ARGS += --wandb_group $(WAND_GROUP)
+  endif
+  ifneq ($(strip $(WAND_RUN_NAME)),)
+    WAND_ARGS += --wandb_run_name $(WAND_RUN_NAME)
+  endif
+  ifneq ($(strip $(WAND_TAGS)),)
+    WAND_ARGS += --wandb_tags $(WAND_TAGS)
+  endif
+else
+  WAND_ARGS :=
+endif
+
+SPLIT_TEST_SIZE ?= 0.2
+CICIDS_STRATIFY ?= 1
+SESSION_BASE_CLASS ?= 15
+SESSION_NUM_CLASSES ?= 27
+SESSION_WAY ?= 2
+SESSION_SHOT ?= 5
+
+WILDCARD := $(if $(filter 1,$(CICIDS_STRATIFY)),,--no_stratify)
+
+.PHONY: help setup train train_fact_cifar train_fact_cub train_fact_mini train_debug \
+	create_cicids_sessions split_cicids clean_pycache clean_checkpoints show_paths
+
+help: ## 利用可能なターゲット一覧を表示
+	@echo "Usage: make <target> [VAR=value]..."
 	@echo ""
-	@echo "$(YELLOW)Available targets:$(NC)"
-	@echo "  $(GREEN)train-base$(NC)     - Train base model"
-	@echo "  $(GREEN)train-fact$(NC)     - Train fact model"
-	@echo "  $(GREEN)eval-base$(NC)      - Evaluate base model with confusion analysis"
-	@echo "  $(GREEN)eval-fact$(NC)      - Evaluate fact model with confusion analysis"
-	@echo "  $(GREEN)train-all$(NC)      - Train both base and fact models"
-	@echo "  $(GREEN)eval-all$(NC)       - Evaluate both base and fact models"
-	@echo "  $(GREEN)compare-base-fact$(NC) - Compare base and fact models side by side"
-	@echo "  $(GREEN)compare-base-fact-separate$(NC) - Compare base and fact models separately (recommended)"
-	@echo "  $(GREEN)clean$(NC)          - Clean all generated files"
-	@echo "  $(GREEN)clean-checkpoints$(NC) - Clean only checkpoint files"
-	@echo "  $(GREEN)clean-analysis$(NC) - Clean only analysis files"
-	@echo ""
-	@echo "$(YELLOW)Configuration variables:$(NC)"
-	@echo "  DATASET=$(DATASET)"
-	@echo "  DATAROOT=$(DATAROOT)"
-	@echo "  EPOCHS_BASE=$(EPOCHS_BASE)"
-	@echo "  EPOCHS_NEW=$(EPOCHS_NEW)"
-	@echo "  MAX_SAMPLES=$(MAX_SAMPLES)"
-	@echo "  DEBUG=$(DEBUG)"
-	@echo ""
-	@echo "$(YELLOW)Usage examples:$(NC)"
-	@echo "  make train-base                    # Train base model with default settings"
-	@echo "  make train-fact EPOCHS_BASE=3     # Train fact model with 3 base epochs"
-	@echo "  make eval-base                     # Evaluate base model"
-	@echo "  make compare-base-fact             # Compare base and fact models"
-	@echo "  make compare-base-fact-separate    # Compare base and fact models separately"
-	@echo "  make train-all MAX_SAMPLES=3          # Train both models with 3 max samples"
-	@echo "  make clean                         # Clean all files"
+	@echo "主要ターゲット:"
+	@grep -E '^[a-zA-Z0-9_-]+:.*##' $(MAKEFILE_LIST) | sed -e 's/:.*##/: ##/' | column -t -s '##'
 
-# Training targets
-train-base:
-	@echo "$(BLUE)Training base model for $(DATASET)...$(NC)"
-	@mkdir -p $(BASE_MODEL_DIR)
-	@echo "$(YELLOW)Note: 'Model file not found' message is normal for new training$(NC)"
-	uv run python train.py \
-		-dataset $(DATASET) \
-		-dataroot $(DATAROOT) \
-		-epochs_base $(EPOCHS_BASE) \
-		-epochs_new $(EPOCHS_NEW) \
-		-start_session $(START_SESSION) \
-		-project base \
-		-model base \
-		-max_samples $(MAX_SAMPLES) \
-		$(if $(filter true,$(DEBUG)),-debug)
-	@echo "$(GREEN)Base model training completed!$(NC)"
+setup: ## uvの依存関係を同期
+	cd $(PROJECT_ROOT) && uv sync
 
-train-fact:
-	@echo "$(BLUE)Training fact model for $(DATASET)...$(NC)"
-	@mkdir -p $(FACT_MODEL_DIR)
-	@echo "$(YELLOW)Note: 'Model file not found' message is normal for new training$(NC)"
-	uv run python train.py \
-		-dataset $(DATASET) \
-		-dataroot $(DATAROOT) \
-		-epochs_base $(EPOCHS_BASE) \
-		-epochs_new $(EPOCHS_NEW) \
-		-start_session $(START_SESSION) \
-		-model fact \
+train: ## 変数で指定した設定でtrain.pyを実行
+	cd $(PROJECT_ROOT) && \
+	$(PYTHON) train.py \
+		-project $(TRAIN_PROJECT) \
+		-dataset $(TRAIN_DATASET) \
+		-dataroot $(DATA_DIR) \
+		-encoder $(TRAIN_ENCODER) \
+		-base_mode $(TRAIN_BASE_MODE) \
+		-new_mode $(TRAIN_NEW_MODE) \
+		-epochs_base $(TRAIN_EPOCHS_BASE) \
+		-epochs_new $(TRAIN_EPOCHS_NEW) \
+		-batch_size_base $(TRAIN_BATCH_SIZE) \
+		-test_batch_size $(TRAIN_TEST_BATCH_SIZE) \
+		-start_session $(TRAIN_START_SESSION) \
+		-gpu $(GPU) \
+		-seed $(SEED) \
+		$(TRAIN_EXTRA) \
+		$(WAND_ARGS)
+
+train_fact_cifar: ## README準拠のFACT+CIFAR100レシピ
+	cd $(PROJECT_ROOT) && \
+	$(PYTHON) train.py \
 		-project fact \
-		-max_samples $(MAX_SAMPLES) \
-		$(if $(filter true,$(DEBUG)),-debug)
-	@echo "$(GREEN)Fact model training completed!$(NC)"
+		-dataset cifar100 \
+		-base_mode ft_cos \
+		-new_mode avg_cos \
+		-dataroot $(DATA_DIR) \
+		$(FACT_CIFAR_EXTRA) \
+		$(TRAIN_EXTRA) \
+		$(WAND_ARGS)
 
-# Evaluation targets
-eval-base:
-	@echo "$(BLUE)Evaluating base model for $(DATASET)...$(NC)"
-	@if [ ! -d "$(BASE_MODEL_DIR)" ]; then \
-		echo "$(RED)Error: Base model checkpoint directory not found: $(BASE_MODEL_DIR)$(NC)"; \
-		echo "$(YELLOW)Please run 'make train-base' first.$(NC)"; \
-		exit 1; \
-	fi
-	@mkdir -p $(BASE_OUTPUT)
-	@BASE_CHECKPOINT_DIR=$$(find $(BASE_MODEL_DIR) -name "session0_max_acc.pth" -exec dirname {} \; | head -1); \
-	if [ -z "$$BASE_CHECKPOINT_DIR" ]; then \
-		echo "$(RED)Error: No base model checkpoint found in $(BASE_MODEL_DIR)$(NC)"; \
-		exit 1; \
-	fi; \
-	echo "$(YELLOW)Using checkpoint directory: $$BASE_CHECKPOINT_DIR$(NC)"; \
-	uv run python run_confusion_analysis.py \
-		-dataset $(DATASET) \
-		-dataroot $(DATAROOT) \
-		-checkpoint_dir "$$BASE_CHECKPOINT_DIR" \
-		-output_dir $(BASE_OUTPUT) \
-		-sessions $$(seq 0 $$(($(SESSIONS)-1))) \
-		-batch_size_base $(BATCH_SIZE_BASE) \
-		-batch_size_new $(BATCH_SIZE_NEW) \
-		-test_batch_size $(TEST_BATCH_SIZE)
-	@echo "$(GREEN)Base model evaluation completed! Results saved to $(BASE_OUTPUT)$(NC)"
+train_fact_cub: ## README準拠のFACT+CUB200レシピ（CUB_DATAROOTを指定）
+	cd $(PROJECT_ROOT) && \
+	$(PYTHON) train.py \
+		-project fact \
+		-dataset cub200 \
+		-base_mode ft_cos \
+		-new_mode avg_cos \
+		-dataroot $(CUB_DATAROOT) \
+		$(FACT_CUB_EXTRA) \
+		$(TRAIN_EXTRA) \
+		$(WAND_ARGS)
 
-eval-fact:
-	@echo "$(BLUE)Evaluating fact model for $(DATASET)...$(NC)"
-	@if [ ! -d "$(FACT_MODEL_DIR)" ]; then \
-		echo "$(RED)Error: Fact model checkpoint directory not found: $(FACT_MODEL_DIR)$(NC)"; \
-		echo "$(YELLOW)Please run 'make train-fact' first.$(NC)"; \
-		exit 1; \
-	fi
-	@mkdir -p $(FACT_OUTPUT)
-	@FACT_CHECKPOINT_DIR=$$(find $(FACT_MODEL_DIR) -name "session0_max_acc.pth" -exec dirname {} \; | head -1); \
-	if [ -z "$$FACT_CHECKPOINT_DIR" ]; then \
-		echo "$(RED)Error: No fact model checkpoint found in $(FACT_MODEL_DIR)$(NC)"; \
-		exit 1; \
-	fi; \
-	echo "$(YELLOW)Using checkpoint directory: $$FACT_CHECKPOINT_DIR$(NC)"; \
-	uv run python run_confusion_analysis.py \
-		-dataset $(DATASET) \
-		-dataroot $(DATAROOT) \
-		-checkpoint_dir "$$FACT_CHECKPOINT_DIR" \
-		-output_dir $(FACT_OUTPUT) \
-		-sessions $$(seq 0 $$(($(SESSIONS)-1))) \
-		-batch_size_base $(BATCH_SIZE_BASE) \
-		-batch_size_new $(BATCH_SIZE_NEW) \
-		-test_batch_size $(TEST_BATCH_SIZE)
-	@echo "$(GREEN)Fact model evaluation completed! Results saved to $(FACT_OUTPUT)$(NC)"
+train_fact_mini: ## README準拠のFACT+miniImageNetレシピ（MINI_IMAGENET_ROOTを指定）
+	cd $(PROJECT_ROOT) && \
+	$(PYTHON) train.py \
+		-project fact \
+		-dataset mini_imagenet \
+		-base_mode ft_cos \
+		-new_mode avg_cos \
+		-dataroot $(MINI_IMAGENET_ROOT) \
+		$(FACT_MINI_EXTRA) \
+		$(TRAIN_EXTRA) \
+		$(WAND_ARGS)
 
-# Combined targets
-train-all: train-base train-fact
-	@echo "$(GREEN)All models training completed!$(NC)"
+train_debug: ## 64バッチ・10epochで素早く動作確認
+	cd $(PROJECT_ROOT) && \
+	$(PYTHON) train.py \
+		-project $(TRAIN_PROJECT) \
+		-dataset $(TRAIN_DATASET) \
+		-dataroot $(DATA_DIR) \
+		-epochs_base 10 \
+		-epochs_new 5 \
+		-batch_size_base 64 \
+		-test_batch_size 64 \
+		-gpu $(GPU) \
+		-debug \
+		$(TRAIN_EXTRA) \
+		$(WAND_ARGS)
 
-eval-all: eval-base eval-fact
-	@echo "$(GREEN)All models evaluation completed!$(NC)"
+split_cicids: ## CICIDS2017_improvedをtrain/testに分割
+	cd $(PROJECT_ROOT) && \
+	$(PYTHON) split_cicids2017.py \
+		--data_dir $(CICIDS_DIR) \
+		--output_dir $(CICIDS_DIR) \
+		--test_size $(SPLIT_TEST_SIZE) \
+		--random_state $(SEED) \
+		$(WILDCARD)
 
-# Comparison target
-compare-base-fact:
-	@echo "$(BLUE)Comparing base and fact models for $(DATASET)...$(NC)"
-	@if [ ! -d "$(BASE_MODEL_DIR)" ] || [ ! -d "$(FACT_MODEL_DIR)" ]; then \
-		echo "$(RED)Error: Both base and fact model checkpoint directories are required$(NC)"; \
-		echo "$(YELLOW)Please run 'make train-all' first.$(NC)"; \
-		exit 1; \
-	fi
-	@mkdir -p $(COMPARISON_OUTPUT)
-	@BASE_CHECKPOINT_DIR=$$(find $(BASE_MODEL_DIR) -name "session0_max_acc.pth" -exec dirname {} \; | head -1); \
-	FACT_CHECKPOINT_DIR=$$(find $(FACT_MODEL_DIR) -name "session0_max_acc.pth" -exec dirname {} \; | head -1); \
-	if [ -z "$$BASE_CHECKPOINT_DIR" ] || [ -z "$$FACT_CHECKPOINT_DIR" ]; then \
-		echo "$(RED)Error: Checkpoint files not found$(NC)"; \
-		echo "$(YELLOW)Base: $$BASE_CHECKPOINT_DIR$(NC)"; \
-		echo "$(YELLOW)Fact: $$FACT_CHECKPOINT_DIR$(NC)"; \
-		exit 1; \
-	fi; \
-	echo "$(YELLOW)Using base checkpoint: $$BASE_CHECKPOINT_DIR$(NC)"; \
-	echo "$(YELLOW)Using fact checkpoint: $$FACT_CHECKPOINT_DIR$(NC)"; \
-	uv run python compare_base_fact.py \
-		-dataset $(DATASET) \
-		-dataroot $(DATAROOT) \
-		-base_checkpoint_dir "$$BASE_CHECKPOINT_DIR" \
-		-fact_checkpoint_dir "$$FACT_CHECKPOINT_DIR" \
-		-output_dir $(COMPARISON_OUTPUT) \
-		-sessions $$(seq 0 $$(($(SESSIONS)-1))) \
-		-batch_size_base $(BATCH_SIZE_BASE) \
-		-batch_size_new $(BATCH_SIZE_NEW) \
-		-test_batch_size $(TEST_BATCH_SIZE) \
-		-max_samples $(MAX_SAMPLES) \
-		$(if $(filter true,$(DEBUG)),-debug)
-	@echo "$(GREEN)Base vs FACT comparison completed! Results saved to $(COMPARISON_OUTPUT)$(NC)"
+create_cicids_sessions: ## CICIDS2017_improvedのセッションTXTを生成
+	cd $(PROJECT_ROOT) && \
+	$(PYTHON) create_session_files.py \
+		--train_csv $(CICIDS_DIR)/train.csv \
+		--output_dir $(CICIDS_INDEX_DIR) \
+		--base_class $(SESSION_BASE_CLASS) \
+		--num_classes $(SESSION_NUM_CLASSES) \
+		--way $(SESSION_WAY) \
+		--shot $(SESSION_SHOT) \
+		--random_state $(SEED)
 
-# Separate evaluation comparison target (recommended)
-compare-base-fact-separate:
-	@echo "$(BLUE)Comparing base and fact models separately for $(DATASET)...$(NC)"
-	@if [ ! -d "$(BASE_MODEL_DIR)" ] || [ ! -d "$(FACT_MODEL_DIR)" ]; then \
-		echo "$(RED)Error: Both base and fact model checkpoint directories are required$(NC)"; \
-		echo "$(YELLOW)Please run 'make train-all' first.$(NC)"; \
-		exit 1; \
-	fi
-	@mkdir -p $(COMPARISON_OUTPUT)_separate
-	@BASE_CHECKPOINT_DIR=$$(find $(BASE_MODEL_DIR) -name "session0_max_acc.pth" -exec dirname {} \; | head -1); \
-	FACT_CHECKPOINT_DIR=$$(find $(FACT_MODEL_DIR) -name "session0_max_acc.pth" -exec dirname {} \; | head -1); \
-	if [ -z "$$BASE_CHECKPOINT_DIR" ] || [ -z "$$FACT_CHECKPOINT_DIR" ]; then \
-		echo "$(RED)Error: Checkpoint files not found$(NC)"; \
-		echo "$(YELLOW)Base: $$BASE_CHECKPOINT_DIR$(NC)"; \
-		echo "$(YELLOW)Fact: $$FACT_CHECKPOINT_DIR$(NC)"; \
-		exit 1; \
-	fi; \
-	echo "$(YELLOW)Using base checkpoint: $$BASE_CHECKPOINT_DIR$(NC)"; \
-	echo "$(YELLOW)Using fact checkpoint: $$FACT_CHECKPOINT_DIR$(NC)"; \
-	uv run python compare_base_fact_separate.py \
-		-dataset $(DATASET) \
-		-dataroot $(DATAROOT) \
-		-base_checkpoint_dir "$$BASE_CHECKPOINT_DIR" \
-		-fact_checkpoint_dir "$$FACT_CHECKPOINT_DIR" \
-		-output_dir $(COMPARISON_OUTPUT)_separate \
-		-sessions $$(seq 0 $$(($(SESSIONS)-1))) \
-		-batch_size_base $(BATCH_SIZE_BASE) \
-		-batch_size_new $(BATCH_SIZE_NEW) \
-		-test_batch_size $(TEST_BATCH_SIZE) \
-		-max_samples $(MAX_SAMPLES) \
-		$(if $(filter true,$(DEBUG)),-debug)
-	@echo "$(GREEN)Base vs FACT separate comparison completed! Results saved to $(COMPARISON_OUTPUT)_separate$(NC)"
+clean_pycache: ## __pycache__と*.pycを削除
+	cd $(PROJECT_ROOT) && \
+	find . -name '__pycache__' -type d -prune -exec rm -rf {} + && \
+	find . -name '*.pyc' -delete
 
-# Quick training (debug mode with fewer epochs)
-quick-base:
-	@echo "$(BLUE)Quick training base model (debug mode)...$(NC)"
-	@$(MAKE) train-base EPOCHS_BASE=1 EPOCHS_NEW=1 SESSIONS=3 DEBUG=true
-
-quick-fact:
-	@echo "$(BLUE)Quick training fact model (debug mode)...$(NC)"
-	@$(MAKE) train-fact EPOCHS_BASE=1 EPOCHS_NEW=1 SESSIONS=3 DEBUG=true
-
-quick-all: quick-base quick-fact
-	@echo "$(GREEN)Quick training completed!$(NC)"
-
-# Clean targets
-clean-checkpoints:
-	@echo "$(YELLOW)Cleaning checkpoint files...$(NC)"
-	@rm -rf checkpoint/$(DATASET)
-	@echo "$(GREEN)Checkpoint files cleaned!$(NC)"
-
-clean-analysis:
-	@echo "$(YELLOW)Cleaning analysis files...$(NC)"
-	@rm -rf confusion_analysis/$(DATASET)_*
-	@rm -rf base_fact_comparison/$(DATASET)
-	@echo "$(GREEN)Analysis files cleaned!$(NC)"
-
-clean: clean-checkpoints clean-analysis
-	@echo "$(GREEN)All generated files cleaned!$(NC)"
-
-# Status check
-status:
-	@echo "$(BLUE)Status check for $(DATASET):$(NC)"
-	@echo ""
-	@echo "$(YELLOW)Checkpoint directories:$(NC)"
-	@if [ -d "$(BASE_MODEL_DIR)" ]; then \
-		echo "$(GREEN)✓ Base model: $(BASE_MODEL_DIR)$(NC)"; \
-		echo "  Sessions available: $$(find $(BASE_MODEL_DIR) -name "session*_max_acc.pth" | wc -l)"; \
+clean_checkpoints: ## checkpointディレクトリを削除（要注意）
+	@if [ -d "$(CHECKPOINT_DIR)" ]; then \
+		read -r -p "Remove $(CHECKPOINT_DIR)? [y/N] " ans && \
+		if [[ $$ans =~ ^[Yy]$$ ]]; then rm -rf "$(CHECKPOINT_DIR)"; else echo "skipped"; fi; \
 	else \
-		echo "$(RED)✗ Base model: Not found$(NC)"; \
-	fi
-	@if [ -d "$(FACT_MODEL_DIR)" ]; then \
-		echo "$(GREEN)✓ Fact model: $(FACT_MODEL_DIR)$(NC)"; \
-		echo "  Sessions available: $$(find $(FACT_MODEL_DIR) -name "session*_max_acc.pth" | wc -l)"; \
-	else \
-		echo "$(RED)✗ Fact model: Not found$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(YELLOW)Analysis directories:$(NC)"
-	@if [ -d "$(BASE_OUTPUT)" ]; then \
-		echo "$(GREEN)✓ Base analysis: $(BASE_OUTPUT)$(NC)"; \
-	else \
-		echo "$(RED)✗ Base analysis: Not found$(NC)"; \
-	fi
-	@if [ -d "$(FACT_OUTPUT)" ]; then \
-		echo "$(GREEN)✓ Fact analysis: $(FACT_OUTPUT)$(NC)"; \
-	else \
-		echo "$(RED)✗ Fact analysis: Not found$(NC)"; \
-	fi
-	@if [ -d "$(COMPARISON_OUTPUT)" ]; then \
-		echo "$(GREEN)✓ Comparison analysis: $(COMPARISON_OUTPUT)$(NC)"; \
-	else \
-		echo "$(RED)✗ Comparison analysis: Not found$(NC)"; \
+		echo "checkpoint directory not found"; \
 	fi
 
-# Development helpers
-dev-setup:
-	@echo "$(BLUE)Setting up development environment...$(NC)"
-	@uv sync
-	@echo "$(GREEN)Development environment ready!$(NC)"
+show_paths: ## 主要パスと変数を表示
+	@echo "PROJECT_ROOT      = $(PROJECT_ROOT)"
+	@echo "DATA_DIR          = $(DATA_DIR)"
+	@echo "CHECKPOINT_DIR    = $(CHECKPOINT_DIR)"
+	@echo "CICIDS_DIR        = $(CICIDS_DIR)"
+	@echo "CICIDS_INDEX_DIR  = $(CICIDS_INDEX_DIR)"
+	@echo "CUB_DATAROOT      = $(CUB_DATAROOT)"
+	@echo "MINI_IMAGENET_ROOT= $(MINI_IMAGENET_ROOT)"
+	@echo "GPU               = $(GPU)"
+	@echo "SEED              = $(SEED)"
 
-# Test data loading
-test-data:
-	@echo "$(BLUE)Testing data loading for $(DATASET)...$(NC)"
-	@uv run python -c "import sys; sys.path.append('.'); from dataloader.cicids2017_improved.cicids2017_improved import CICIDS2017Improved; import numpy as np; dataset = CICIDS2017Improved(root='$(DATAROOT)', train=True, index='data/index_list/$(DATASET)/session_0.txt', max_samples=100); print(f'Dataset size: {len(dataset)}'); print(f'Unique classes: {np.unique(dataset.targets)}'); print('Data loading test passed!')"
-	@echo "$(GREEN)Data loading test completed!$(NC)"

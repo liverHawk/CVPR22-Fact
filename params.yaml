@@ -1,60 +1,128 @@
-# Central configuration file for the project.
-# Edit values here to change experiment settings across scripts.
+# パラメータ設定ファイル
+# Makefileのデフォルト値に基づいて設定
 
-project:
-  name: CVPR22-Fact
-  seed: 42
-  device: cuda  # change to cpu if needed
+# パス設定
+paths:
+  project_root: "."  # プロジェクトルート（相対パス）
+  data_dir: "data"
+  checkpoint_dir: "checkpoint"
+  cicids_dir: "data/CICIDS2017_improved"
+  cicids_index_dir: "data/index_list/CICIDS2017_improved"
+  cub_dataroot: "data/cub200"
+  mini_imagenet_root: "data/mini_imagenet"
 
-data:
-  root: data/CICIDS2017_improved
-  dataset: cicids2017_improved
-  train_dir: data/CICIDS2017_improved/train
-  test_dir: data/CICIDS2017_improved/test
-  index_list_dir: index_list/cicids2017_improved
-  batch_size: 128
-  num_workers: 4
+# 共通設定
+common:
+  gpu: 0
+  seed: 1
 
-augment:
-  autoaugment: true
-  policy: DEFAULT  # placeholder; dataloader code can read this value
-  random_erase: false
-
-model:
-  backbone: resnet18
-  pretrained: false
-  num_classes: 100
-
-training:
-  epochs: 200
-  optimizer: sgd
-  lr: 0.1
+# train.py用のパラメータ
+train:
+  project: "fact"
+  dataset: "CICIDS2017_improved"
+  dataroot: "data"  # paths.data_dirと統合可能だが、互換性のため残す
+  encoder: "mlp"
+  base_mode: "ft_cos"
+  new_mode: "avg_cos"
+  epochs_base: 1
+  epochs_new: 100
+  batch_size_base: 128
+  test_batch_size: 100
+  start_session: 0
+  
+  # 学習率とスケジューラ
+  lr_base: 0.005
+  lr_new: 0.1
+  schedule: "Milestone"  # Step, Milestone, Cosine
+  milestones: [50, 100, 150, 200, 250, 300]
+  step: 20
+  decay: 0.0005
   momentum: 0.9
-  weight_decay: 5e-4
-  scheduler: step
-  step_size: 60
-  gamma: 0.1
+  gamma: 0.25
+  
+  # FACT固有のパラメータ
+  temperature: 16
+  balance: 0.01
+  loss_iter: 0
+  alpha: 2.0
+  eta: 0.1
+  
+  # その他
+  batch_size_new: 0  # 0の場合は利用可能なすべての訓練画像を使用
+  not_data_init: false
+  set_no_val: false
+  num_workers: 8
+  debug: false
+  model_dir: null
+  
+  # wandb設定
+  wandb:
+    use_wandb: false
+    project: "origin-fact"
+    entity: ""
+    group: ""
+    run_name: ""
+    tags: []
+    mode: "online"  # online, offline, disabled
+    watch: "gradients"  # gradients, parameters, all, none
+    watch_freq: 100
 
-checkpoint:
-  base_dir: checkpoint/cicids2017_improved
-  base_subdir: base
-  fact_subdir: fact
-  resume: null  # path to checkpoint to resume from, or null
-  save_best_only: true
+# split_cicids2017.py用のパラメータ
+split_cicids:
+  data_dir: "data/CICIDS2017_improved"
+  output_dir: "data/CICIDS2017_improved"
+  test_size: 0.2
+  random_state: 1  # common.seedと統合可能
+  stratify: true
 
-fact:
-  sessions: 7
-  base_classes: 50
-  novel_per_session: 5
-  n_way: 5
-  k_shot: 5
+# create_session_files.py用のパラメータ
+create_sessions:
+  train_csv: "data/train.csv"
+  output_dir: "data/index_list/CICIDS2017_improved"
+  base_class: 4
+  num_classes: 10
+  way: 1
+  shot: 5
+  random_state: 1  # common.seedと統合可能
 
-logging:
-  save_dir: debug/checkpoint
-  log_interval: 100
-  verbose: true
+# データセット別の特別な設定（MakefileのFACT_*_EXTRAに対応）
+dataset_presets:
+  cifar100:
+    gamma: 0.1
+    lr_base: 0.1
+    lr_new: 0.1
+    decay: 0.0005
+    epochs_base: 600
+    schedule: "Cosine"
+    temperature: 16
+    batch_size_base: 256
+    balance: 0.001
+    loss_iter: 0
+    alpha: 0.5
+  
+  cub200:
+    gamma: 0.25
+    lr_base: 0.005
+    lr_new: 0.1
+    decay: 0.0005
+    epochs_base: 1
+    schedule: "Milestone"
+    milestones: [60, 70]
+    temperature: 16
+    batch_size_base: 256
+    balance: 0.01
+    loss_iter: 0
+  
+  mini_imagenet:
+    gamma: 0.1
+    lr_base: 0.1
+    lr_new: 0.1
+    decay: 0.0005
+    epochs_base: 1000
+    schedule: "Cosine"
+    temperature: 16
+    alpha: 0.5
+    balance: 0.01
+    loss_iter: 150
+    eta: 0.1
 
-# Optional experiment / run-level overrides can be added under `run:` by scripts
-# run:
-#   name: my_experiment
-#   notes: "something about this run"

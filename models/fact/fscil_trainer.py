@@ -24,13 +24,13 @@ class FSCILTrainer(Trainer):
         print(f"Using device: {self.device}")
 
         self.model = MYNET(self.args, mode=self.args.base_mode)
-        if torch.cuda.is_available():
-            self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
-        self.model = self.model.to(self.device)
+        self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
+        self.model = self.model.cuda()
+        self.wandb.watch(self.model)
 
         if self.args.model_dir is not None and os.path.exists(self.args.model_dir):
             print('Loading init parameters from: %s' % self.args.model_dir)
-            self.best_model_dict = torch.load(self.args.model_dir)['params']
+            self.best_model_dict = torch.load(self.args.model_dir, weights_only=False)['params']
             
         else:
             if self.args.model_dir is not None:
@@ -91,7 +91,9 @@ class FSCILTrainer(Trainer):
                     # train base sess
                     tl, ta = base_train(self.model, trainloader, optimizer, scheduler, epoch, args, mask, self.device)
                     # test model with all seen class
-                    tsl, tsa = test(self.model, testloader, epoch, args, session, device=self.device)
+                    # 最終エポックの場合のみ混同行列を作成
+                    is_final_epoch = (epoch == args.epochs_base - 1)
+                    tsl, tsa = test(self.model, testloader, epoch, args, session, validation=not is_final_epoch, wandb_logger=self.wandb)
 
                     # save better model
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
@@ -114,6 +116,16 @@ class FSCILTrainer(Trainer):
                     result_list.append(
                         'epoch:%03d,lr:%.4f,training_loss:%.5f,training_acc:%.5f,test_loss:%.5f,test_acc:%.5f' % (
                             epoch, lrc, tl, ta, tsl, tsa))
+                    self.global_step += 1
+                    self.wandb.log_metrics({
+                        'session': session,
+                        'epoch': epoch,
+                        'lr': lrc,
+                        'train/loss': tl,
+                        'train/acc': ta,
+                        'test/loss': tsl,
+                        'test/acc': tsa,
+                    }, step=self.global_step)
                     print('This epoch takes %d seconds' % (time.time() - start_time),
                           '\nstill need around %.2f mins to finish this session' % (
                                   (time.time() - start_time) * (args.epochs_base - epoch) / 60))
@@ -124,18 +136,16 @@ class FSCILTrainer(Trainer):
 
                 if not args.not_data_init:
                     self.model.load_state_dict(self.best_model_dict)
-                    self.model = replace_base_fc(train_set, testloader.dataset.transform, self.model, args, self.device)
+                    # For CICIDS2017_improved (tabular data), transform is not needed
+                    transform = getattr(testloader.dataset, 'transform', None) if args.dataset != 'CICIDS2017_improved' else None
+                    self.model = replace_base_fc(train_set, transform, self.model, args)
                     best_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
                     print('Replace the fc with average embedding, and save it to :%s' % best_model_dir)
                     self.best_model_dict = deepcopy(self.model.state_dict())
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
-                    # Handle both DataParallel and single GPU/CPU models
-                    if hasattr(self.model, 'module'):
-                        self.model.module.mode = 'avg_cos'
-                    else:
-                        self.model.mode = 'avg_cos'
-                    tsl, tsa = test(self.model, testloader, 0, args, session, device=self.device)
+                    self.model.module.mode = 'avg_cos'
+                    tsl, tsa = test(self.model, testloader, 0, args, session, validation=False, wandb_logger=self.wandb)
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                         print('The new best test acc of base session={:.3f}'.format(self.trlog['max_acc'][session]))
@@ -160,16 +170,14 @@ class FSCILTrainer(Trainer):
                 else:
                     self.model.mode = self.args.new_mode
                 self.model.eval()
-                trainloader.dataset.transform = testloader.dataset.transform
-                # Handle both DataParallel and single GPU/CPU models
-                if hasattr(self.model, 'module'):
-                    self.model.module.update_fc(trainloader, np.unique(train_set.targets), session)
-                else:
-                    self.model.update_fc(trainloader, np.unique(train_set.targets), session)
+                # Only set transform for image datasets (CICIDS2017_improved doesn't have transform attribute)
+                if hasattr(trainloader.dataset, 'transform') and hasattr(testloader.dataset, 'transform'):
+                    trainloader.dataset.transform = testloader.dataset.transform
+                self.model.module.update_fc(trainloader, np.unique(train_set.targets), session)
 
-                #tsl, tsa = test(self.model, testloader, 0, args, session, validation=False, device=self.device)
-                #tsl, tsa = test_withfc(self.model, testloader, 0, args, session, validation=False, device=self.device)
-                tsl, tsa = self.test_intergrate(self.model, testloader, 0,args, session,validation=True)
+                #tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
+                #tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
+                tsl, tsa = self.test_intergrate(self.model, testloader, 0,args, session,validation=False, wandb_logger=self.wandb)
                 
                 # save model
                 self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
@@ -180,6 +188,13 @@ class FSCILTrainer(Trainer):
                 print('  test acc={:.3f}'.format(self.trlog['max_acc'][session]))
 
                 result_list.append('Session {}, test Acc {:.3f}\n'.format(session, self.trlog['max_acc'][session]))
+                self.global_step += 1
+                self.wandb.log_metrics({
+                    'session': session,
+                    'epoch': 0,
+                    'test/loss': tsl,
+                    'test/acc': tsa,
+                }, step=self.global_step)
 
         result_list.append('Base Session Best Epoch {}\n'.format(self.trlog['max_acc_epoch']))
         result_list.append(self.trlog['max_acc'])
@@ -190,9 +205,14 @@ class FSCILTrainer(Trainer):
         total_time = (t_end_time - t_start_time) / 60
         print('Base Session Best epoch:', self.trlog['max_acc_epoch'])
         print('Total time used %.2f mins' % total_time)
+        summary_payload = {f'session_{idx}_best_acc': acc for idx, acc in enumerate(self.trlog['max_acc'])}
+        summary_payload['base_best_epoch'] = self.trlog['max_acc_epoch']
+        summary_payload['total_time_min'] = total_time
+        self.wandb.set_summary(**summary_payload)
+        self.finalize()
 
 
-    def test_intergrate(self, model, testloader, epoch,args, session,validation=True):
+    def test_intergrate(self, model, testloader, epoch,args, session,validation=True, wandb_logger=None):
         test_class = args.base_class + session * args.way
         model = model.eval()
         vl = Averager()
@@ -223,7 +243,7 @@ class FSCILTrainer(Trainer):
                     emb=model.encode(data)
             
                 proj=torch.mm(F.normalize(emb,p=2,dim=-1),torch.transpose(self.dummy_classifiers,1,0))
-                # Use min of 40 and actual number of classes to avoid out of range error
+                # Adjust k based on actual dimension (for datasets with fewer classes like CICIDS2017_improved)
                 k = min(40, proj.size(1))
                 topk, indices = torch.topk(proj, k)
                 res = (torch.zeros_like(proj))
@@ -262,15 +282,28 @@ class FSCILTrainer(Trainer):
             va5= va5.item()
             print('epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}'.format(epoch+1, vl, va,va5))
 
+            lgt=lgt.view(-1,test_class)
+            lbs=lbs.view(-1)
+            if validation is not True:
+                save_model_dir = os.path.join(args.save_path, 'session' + str(session) + 'confusion_matrix')
+                # ラベル名を取得（CICIDS2017_improvedの場合）
+                label_names = None
+                if args.dataset == 'CICIDS2017_improved' and hasattr(testloader.dataset, 'label_encoder'):
+                    label_names = list(testloader.dataset.label_encoder.classes_)
+                cm=confmatrix(lgt,lbs,save_model_dir, label_names=label_names)
+                perclassacc=cm.diagonal()
+                seenac=np.mean(perclassacc[:args.base_class])
+                unseenac=np.mean(perclassacc[args.base_class:])
+                print('Seen Acc:',seenac, 'Unseen ACC:', unseenac)
+                # Classification reportを保存
+                from utils import save_classification_report
+                save_classification_report(lgt, lbs, save_model_dir)
+                if wandb_logger is not None:
+                    wandb_logger.log_image(f'session_{session}_confusion_matrix', save_model_dir + '.png')
             
         return vl, va
 
     def set_save_path(self):
-        # Simple path structure: checkpoint/dataset/model_type/
-        self.args.save_path = os.path.join('checkpoint', self.args.dataset, self.args.project)
-        
-        if self.args.debug:
-            self.args.save_path = os.path.join('debug', self.args.save_path)
-            
+        self.args.save_path = os.path.join("checkpoint", self.args.dataset)
         ensure_path(self.args.save_path)
         return None

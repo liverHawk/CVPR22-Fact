@@ -1,10 +1,13 @@
+import argparse
 import math
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from models.resnet18_encoder import resnet18
-from models.resnet20_cifar import resnet20
+from models.resnet18_encoder import *
+from models.resnet20_cifar import *
+from models.mlp_encoder import mlp_encoder
+from models.cnn1d_encoder import cnn1d_encoder
 
 
 class MYNET(nn.Module):
@@ -23,20 +26,15 @@ class MYNET(nn.Module):
         if self.args.dataset == 'cub200':
             self.encoder = resnet18(True, args)  # pretrained=True follow TOPIC, models for cub is imagenet pre-trained. https://github.com/xyutao/fscil/issues/11#issuecomment-687548790
             self.num_features = 512
-        if self.args.dataset == 'cicids2017_improved':
-            # For tabular data, create a simple MLP encoder
-            self.encoder = nn.Sequential(
-                nn.Linear(89, 128),  # 89 input features (actual number from dataset)
-                nn.ReLU(),
-                nn.Dropout(0.2),
-                nn.Linear(128, 256),
-                nn.ReLU(),
-                nn.Dropout(0.2),
-                nn.Linear(256, 512),
-                nn.ReLU(),
-                nn.Dropout(0.2)
-            )
-            self.num_features = 512
+        if self.args.dataset == 'CICIDS2017_improved':
+            if self.args.encoder == 'mlp':
+                self.encoder = mlp_encoder(input_dim=66, hidden_dims=[512, 256, 128], output_dim=128, dropout=0.1)
+                self.num_features = 128
+            elif self.args.encoder == 'cnn1d':
+                self.encoder = cnn1d_encoder(num_features=66, num_classes=self.args.num_classes, config={'conv1_out': 64, 'conv2_out': 128, 'kernel_size': 3, 'pool_size': 2, 'fc1_dim': 256, 'embedding_dim': 128, 'dropout': 0.5})
+                self.num_features = 128
+            else:
+                raise ValueError(f'Unknown encoder: {self.args.encoder}. Available encoders: mlp, cnn1d')
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
         
@@ -81,12 +79,22 @@ class MYNET(nn.Module):
         return x
 
     def encode(self, x):
-        x = self.encoder(x)
-        if self.args.dataset == 'cicids2017_improved':
-            # For tabular data, no pooling needed
+        if self.args.dataset == 'CICIDS2017_improved':
+            # For tabular data
+            if self.args.encoder == 'cnn1d':
+                # CNN1D expects [batch_size, channels, sequence_length]
+                # Reshape from [batch_size, num_features] to [batch_size, 1, num_features]
+                if x.dim() == 2:
+                    x = x.unsqueeze(1)  # Add channel dimension
+                # Use get_embedding to get normalized embedding
+                x = self.encoder.get_embedding(x)
+            else:
+                # MLP encoder directly outputs features
+                x = self.encoder(x)
             return x
         else:
-            # For image data, apply pooling
+            # For image data, use ResNet encoder
+            x = self.encoder(x)
             x = F.adaptive_avg_pool2d(x, 1)
             x = x.squeeze(-1).squeeze(-1)
             return x
@@ -108,14 +116,25 @@ class MYNET(nn.Module):
             x = self.encoder.layer1(x)
             x = self.encoder.layer2(x)
         
-        elif self.args.dataset == 'cicids2017_improved':
-            # For tabular data, apply first part of MLP
-            x = self.encoder[0](x)  # Linear(69, 128)
-            x = self.encoder[1](x)  # ReLU
-            x = self.encoder[2](x)  # Dropout
-            x = self.encoder[3](x)  # Linear(128, 256)
-            x = self.encoder[4](x)  # ReLU
-            x = self.encoder[5](x)  # Dropout
+        elif self.args.dataset == 'CICIDS2017_improved':
+            if self.args.encoder == 'mlp':
+                # MLP encoder: execute first 2 blocks (66->512, 512->256)
+                # Each block: Linear -> BatchNorm -> ReLU -> Dropout (4 layers)
+                # First 2 blocks = 8 layers (indices 0-7)
+                for i in range(8):  # First 2 blocks: 4 layers each
+                    x = self.encoder.encoder[i](x)
+            elif self.args.encoder == 'cnn1d':
+                # CNN1D: execute conv layers (conv1, bn1, relu, conv2, bn2, relu, pool)
+                if x.dim() == 2:
+                    x = x.unsqueeze(1)  # Add channel dimension
+                x = self.encoder.conv1(x)
+                x = self.encoder.bn1(x)
+                x = F.relu(x)
+                x = self.encoder.conv2(x)
+                x = self.encoder.bn2(x)
+                x = F.relu(x)
+                x = self.encoder.pool(x)
+                x = x.view(x.size(0), -1)  # Flatten
         
         return x
         
@@ -134,11 +153,20 @@ class MYNET(nn.Module):
             x = F.adaptive_avg_pool2d(x, 1)
             x = x.squeeze(-1).squeeze(-1)
         
-        elif self.args.dataset == 'cicids2017_improved':
-            # For tabular data, apply final part of MLP
-            x = self.encoder[6](x)  # Linear(256, 512)
-            x = self.encoder[7](x)  # ReLU
-            x = self.encoder[8](x)  # Dropout
+        elif self.args.dataset == 'CICIDS2017_improved':
+            if self.args.encoder == 'mlp':
+                # MLP encoder: execute remaining layers (256->128, 128->128)
+                # Continue from layer 8 (after first 2 blocks)
+                # Remaining: 3rd block (4 layers) + output layer (1 layer) = 5 layers (indices 8-12)
+                for i in range(8, len(self.encoder.encoder)):
+                    x = self.encoder.encoder[i](x)
+            elif self.args.encoder == 'cnn1d':
+                # CNN1D: execute fc layers (fc1, dropout, relu, fc_embedding)
+                x = self.encoder.fc1(x)
+                x = self.encoder.dropout(x)
+                x = F.relu(x)
+                x = self.encoder.fc_embedding(x)
+                x = F.normalize(x, p=2, dim=-1)  # Normalize like in get_embedding
         
         if 'cos' in self.mode:
             x = F.linear(F.normalize(x, p=2, dim=-1), F.normalize(self.fc.weight, p=2, dim=-1))

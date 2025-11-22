@@ -1,7 +1,11 @@
 import abc
 from dataloader.data_utils import set_up_datasets
 
-from utils import Averager, Timer
+from utils import (
+    ensure_path,
+    Averager, Timer, count_acc,
+    WandbLogger,
+)
 
 
 class Trainer(object, metaclass=abc.ABCMeta):
@@ -11,6 +15,8 @@ class Trainer(object, metaclass=abc.ABCMeta):
         self.dt, self.ft = Averager(), Averager()
         self.bt, self.ot = Averager(), Averager()
         self.timer = Timer()
+        self.global_step = 0
+        self.wandb = WandbLogger(self.args)
 
         # train statistics
         self.trlog = {}
@@ -27,3 +33,7 @@ class Trainer(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def train(self):
         pass
+
+    def finalize(self):
+        if hasattr(self, 'wandb') and self.wandb is not None:
+            self.wandb.finish()

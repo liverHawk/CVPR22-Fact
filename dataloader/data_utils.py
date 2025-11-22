@@ -81,6 +81,17 @@ def set_up_datasets(args):
         args.shot = 5  # 各クラスのサンプル数
         args.sessions = 7  # セッション数 (base + 6 incremental sessions)
 
+    if args.dataset == 'CICIDS2017_improved':
+        import dataloader.cicids2017.cicids2017 as Dataset
+        # CICIDS2017_improved has 10 classes after preprocessing (label consolidation)
+        # Following research_data_drl preprocessing: labels are consolidated
+        # Configuration: base_class + (way * sessions) = num_classes
+        args.base_class = 4  # Base classes (BENIGN + major attack types)
+        args.num_classes = 10  # Total classes after label consolidation
+        args.way = 1  # Number of new classes per session
+        args.shot = 5  # Few-shot samples per class
+        args.sessions = 7  # Number of incremental sessions (5 + 1*5 = 10)
+
     args.Dataset=Dataset
     return args
 
@@ -142,10 +153,34 @@ def get_base_dataloader(args):
     else:
         raise ValueError(f"Dataset {args.dataset} not supported")
 
-    trainloader = torch.utils.data.DataLoader(
-        dataset=trainset, batch_size=args.batch_size_base, shuffle=True,
-        num_workers=8, pin_memory=True
-    )
+        trainset = args.Dataset.CIFAR100(root=args.dataroot, train=True, download=True,
+                                         index=class_index, base_sess=True)
+        testset = args.Dataset.CIFAR100(root=args.dataroot, train=False, download=False,
+                                        index=class_index, base_sess=True)
+
+    if args.dataset == 'cub200':
+        trainset = args.Dataset.CUB200(root=args.dataroot, train=True,
+                                       index=class_index, base_sess=True)
+        testset = args.Dataset.CUB200(root=args.dataroot, train=False, index=class_index)
+
+    if args.dataset == 'mini_imagenet':
+        trainset = args.Dataset.MiniImageNet(root=args.dataroot, train=True,
+                                             index=class_index, base_sess=True)
+        testset = args.Dataset.MiniImageNet(root=args.dataroot, train=False, index=class_index)
+
+    if args.dataset == 'imagenet100' or args.dataset == 'imagenet1000':
+        trainset = args.Dataset.ImageNet(root=args.dataroot, train=True,
+                                             index=class_index, base_sess=True)
+        testset = args.Dataset.ImageNet(root=args.dataroot, train=False, index=class_index)
+
+    if args.dataset == 'CICIDS2017_improved':
+        trainset = args.Dataset.CICIDS2017_improved(root=args.dataroot, train=True,
+                                                     index=class_index, base_sess=True)
+        testset = args.Dataset.CICIDS2017_improved(root=args.dataroot, train=False,
+                                                    index=class_index, base_sess=True)
+
+    trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=args.batch_size_base, shuffle=True,
+                                              num_workers=8, pin_memory=True)
     testloader = torch.utils.data.DataLoader(
         dataset=testset, batch_size=args.test_batch_size, shuffle=False,
         num_workers=8, pin_memory=True
@@ -158,32 +193,20 @@ def get_new_dataloader(args,session):
     txt_path = "data/index_list/" + args.dataset + "/session_" + str(session) + '.txt'
     if args.dataset == 'cifar100':
         class_index = open(txt_path).read().splitlines()
-        trainset = args.Dataset.CIFAR100(
-            root=args.dataroot, train=True, download=False,
-            index=class_index, base_sess=False
-        )
-    elif args.dataset == 'cub200':
-        trainset = args.Dataset.CUB200(
-            root=args.dataroot, train=True,
-            index_path=txt_path
-        )
-    elif args.dataset == 'mini_imagenet':
-        trainset = args.Dataset.MiniImageNet(
-            root=args.dataroot, train=True,
-            index_path=txt_path
-        )
-    elif args.dataset == 'imagenet100' or args.dataset == 'imagenet1000':
-        trainset = args.Dataset.ImageNet(
-            root=args.dataroot, train=True,
-            index_path=txt_path
-        )
-    elif args.dataset == 'cicids2017_improved':
-        trainset = args.Dataset.CICIDS2017Improved(
-            root=args.dataroot, train=True, max_samples=getattr(args, 'max_samples', None),
-            index=txt_path
-        )
-    else:
-        raise ValueError(f"Dataset {args.dataset} not supported")
+        trainset = args.Dataset.CIFAR100(root=args.dataroot, train=True, download=False,
+                                         index=class_index, base_sess=False)
+    if args.dataset == 'cub200':
+        trainset = args.Dataset.CUB200(root=args.dataroot, train=True,
+                                       index_path=txt_path)
+    if args.dataset == 'mini_imagenet':
+        trainset = args.Dataset.MiniImageNet(root=args.dataroot, train=True,
+                                       index_path=txt_path)
+    if args.dataset == 'imagenet100' or args.dataset == 'imagenet1000':
+        trainset = args.Dataset.ImageNet(root=args.dataroot, train=True,
+                                       index_path=txt_path)
+    if args.dataset == 'CICIDS2017_improved':
+        trainset = args.Dataset.CICIDS2017_improved(root=args.dataroot, train=True,
+                                                    index_path=txt_path)
 
     if args.batch_size_new == 0:
         batch_size_new = trainset.__len__()
@@ -206,29 +229,17 @@ def get_new_dataloader(args,session):
             index=class_new, base_sess=False
         )
     if args.dataset == 'cub200':
-        testset = args.Dataset.CUB200(
-            root=args.dataroot, train=False,
-            index=class_new
-        )
-    elif args.dataset == 'mini_imagenet':
-        testset = args.Dataset.MiniImageNet(
-            root=args.dataroot, train=False,
-            index=class_new
-        )
-    elif args.dataset == 'imagenet100' or args.dataset == 'imagenet1000':
-        testset = args.Dataset.ImageNet(
-            root=args.dataroot, train=False,
-            index=class_new
-        )
-    elif args.dataset == 'cicids2017_improved':
-        # For testing, include all classes seen so far (base classes + new classes)
-        all_classes = list(range(args.base_class + session * args.way))
-        testset = args.Dataset.CICIDS2017Improved(
-            root=args.dataroot, train=False, max_samples=getattr(args, 'max_samples', None),
-            index=all_classes
-        )
-    else:
-        raise ValueError(f"Dataset {args.dataset} not supported")
+        testset = args.Dataset.CUB200(root=args.dataroot, train=False,
+                                      index=class_new)
+    if args.dataset == 'mini_imagenet':
+        testset = args.Dataset.MiniImageNet(root=args.dataroot, train=False,
+                                      index=class_new)
+    if args.dataset == 'imagenet100' or args.dataset == 'imagenet1000':
+        testset = args.Dataset.ImageNet(root=args.dataroot, train=False,
+                                      index=class_new)
+    if args.dataset == 'CICIDS2017_improved':
+        testset = args.Dataset.CICIDS2017_improved(root=args.dataroot, train=False,
+                                                   index=class_new, base_sess=False)
 
     testloader = torch.utils.data.DataLoader(
         dataset=testset, batch_size=args.test_batch_size, shuffle=False,

@@ -56,7 +56,9 @@ def replace_base_fc(trainset, transform, model, args):
 
     trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=128,
                                               num_workers=8, pin_memory=True, shuffle=False)
-    trainloader.dataset.transform = transform
+    # Only set transform for image datasets (CICIDS2017_improved doesn't have transform attribute)
+    if hasattr(trainloader.dataset, 'transform') and transform is not None:
+        trainloader.dataset.transform = transform
     embedding_list = []
     label_list = []
     # data_list=[]
@@ -95,7 +97,7 @@ def replace_base_fc(trainset, transform, model, args):
 
 
 
-def test(model, testloader, epoch,args, session,validation=True):
+def test(model, testloader, epoch,args, session,validation=True, wandb_logger=None):
     test_class = args.base_class + session * args.way
     model = model.eval()
     vl = Averager()
@@ -129,9 +131,18 @@ def test(model, testloader, epoch,args, session,validation=True):
         lbs=lbs.view(-1)
         if validation is not True:
             save_model_dir = os.path.join(args.save_path, 'session' + str(session) + 'confusion_matrix')
-            cm=confmatrix(lgt,lbs,save_model_dir)
+            # ラベル名を取得（CICIDS2017_improvedの場合）
+            label_names = None
+            if args.dataset == 'CICIDS2017_improved' and hasattr(testloader.dataset, 'label_encoder'):
+                label_names = list(testloader.dataset.label_encoder.classes_)
+            cm=confmatrix(lgt,lbs,save_model_dir, label_names=label_names)
             perclassacc=cm.diagonal()
             seenac=np.mean(perclassacc[:args.base_class])
             unseenac=np.mean(perclassacc[args.base_class:])
             print('Seen Acc:',seenac, 'Unseen ACC:', unseenac)
+            # Classification reportを保存
+            from utils import save_classification_report
+            save_classification_report(lgt, lbs, save_model_dir)
+            if wandb_logger is not None:
+                wandb_logger.log_image(f'session_{session}_confusion_matrix', save_model_dir + '.png')
     return vl, va
