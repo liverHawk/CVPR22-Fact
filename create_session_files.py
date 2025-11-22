@@ -132,21 +132,54 @@ def create_session_files(train_csv='data/CICIDS2017_improved/train.csv',
 
 if __name__ == '__main__':
     import argparse
+    import sys
+    import os
+    
+    # utilsモジュールをインポート（パスを追加）
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try:
+        from utils import load_params_yaml
+    except ImportError:
+        def load_params_yaml(yaml_path='params.yaml'):
+            return {}
+    
+    # params.yamlからデフォルト値を読み込む
+    try:
+        params = load_params_yaml('params.yaml')
+        session_params = params.get('create_sessions', {})
+        common_params = params.get('common', {})
+        
+        default_train_csv = session_params.get('train_csv', 'data/CICIDS2017_improved/train.csv')
+        default_output_dir = session_params.get('output_dir', 'data/index_list/CICIDS2017_improved')
+        default_base_class = session_params.get('base_class', 15)
+        default_num_classes = session_params.get('num_classes', 27)
+        default_way = session_params.get('way', 2)
+        default_shot = session_params.get('shot', 5)
+        default_random_state = session_params.get('random_state', common_params.get('seed', 42))
+    except Exception as e:
+        print(f"Warning: Failed to load params.yaml: {e}, using hardcoded defaults")
+        default_train_csv = 'data/CICIDS2017_improved/train.csv'
+        default_output_dir = 'data/index_list/CICIDS2017_improved'
+        default_base_class = 15
+        default_num_classes = 27
+        default_way = 2
+        default_shot = 5
+        default_random_state = 42
     
     parser = argparse.ArgumentParser(description='Create session files for CICIDS2017_improved')
-    parser.add_argument('--train_csv', type=str, default='data/CICIDS2017_improved/train.csv',
+    parser.add_argument('--train_csv', type=str, default=default_train_csv,
                         help='Training CSV file path')
-    parser.add_argument('--output_dir', type=str, default='data/index_list/CICIDS2017_improved',
+    parser.add_argument('--output_dir', type=str, default=default_output_dir,
                         help='Output directory for session files')
-    parser.add_argument('--base_class', type=int, default=15,
+    parser.add_argument('--base_class', type=int, default=default_base_class,
                         help='Number of base classes')
-    parser.add_argument('--num_classes', type=int, default=27,
+    parser.add_argument('--num_classes', type=int, default=default_num_classes,
                         help='Total number of classes')
-    parser.add_argument('--way', type=int, default=2,
+    parser.add_argument('--way', type=int, default=default_way,
                         help='Number of new classes per session')
-    parser.add_argument('--shot', type=int, default=5,
+    parser.add_argument('--shot', type=int, default=default_shot,
                         help='Number of samples per class (few-shot)')
-    parser.add_argument('--random_state', type=int, default=42,
+    parser.add_argument('--random_state', type=int, default=default_random_state,
                         help='Random seed')
     
     args = parser.parse_args()

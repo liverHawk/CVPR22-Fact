@@ -8,6 +8,10 @@ from typing import Any, Dict, Optional
 from sklearn.metrics import confusion_matrix, classification_report
 import matplotlib.pyplot as plt 
 import matplotlib
+try:
+    import yaml
+except ImportError:
+    yaml = None
 _utils_pp = pprint.PrettyPrinter()
 
 
@@ -198,7 +202,7 @@ def confmatrix(logits,label,filename,label_names=None):
                 current_text = text_obj
                 # 下線を引く
                 # new_text = r'$\underline{' + str(current_text) + r'}$'
-                new_text = current_text
+                new_text = current_text[2]
                 # テキストを更新
                 text_obj.set_text(new_text)
                 text_obj.set_fontweight('bold')
@@ -329,5 +333,28 @@ def save_list_to_txt(name, input_list):
     for item in input_list:
         f.write(str(item) + '\n')
     f.close()
+
+
+def load_params_yaml(yaml_path='params.yaml'):
+    """
+    params.yamlファイルを読み込む
+    
+    Args:
+        yaml_path: YAMLファイルのパス
+        
+    Returns:
+        dict: パラメータの辞書
+    """
+    if yaml is None:
+        raise ImportError("PyYAMLが必要です。`uv add pyyaml`でインストールしてください。")
+    
+    if not os.path.exists(yaml_path):
+        print(f"Warning: {yaml_path} not found, returning empty dict")
+        return {}
+    
+    with open(yaml_path, 'r', encoding='utf-8') as f:
+        params = yaml.safe_load(f)
+    
+    return params if params else {}
 
 

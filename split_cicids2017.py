@@ -117,26 +117,58 @@ def load_and_split_cicids2017(data_dir='data/CICIDS2017_improved',
 
 if __name__ == '__main__':
     import argparse
+    import sys
+    import os
+    
+    # utilsモジュールをインポート（パスを追加）
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try:
+        from utils import load_params_yaml
+    except ImportError:
+        def load_params_yaml(yaml_path='params.yaml'):
+            return {}
+    
+    # params.yamlからデフォルト値を読み込む
+    try:
+        params = load_params_yaml('params.yaml')
+        split_params = params.get('split_cicids', {})
+        common_params = params.get('common', {})
+        
+        default_data_dir = split_params.get('data_dir', 'data/CICIDS2017_improved')
+        default_output_dir = split_params.get('output_dir', 'data/CICIDS2017_improved')
+        default_test_size = split_params.get('test_size', 0.2)
+        default_random_state = split_params.get('random_state', common_params.get('seed', 42))
+        default_stratify = split_params.get('stratify', True)
+    except Exception as e:
+        print(f"Warning: Failed to load params.yaml: {e}, using hardcoded defaults")
+        default_data_dir = 'data/CICIDS2017_improved'
+        default_output_dir = 'data/CICIDS2017_improved'
+        default_test_size = 0.2
+        default_random_state = 42
+        default_stratify = True
     
     parser = argparse.ArgumentParser(description='Split CICIDS2017_improved dataset into train/test')
-    parser.add_argument('--data_dir', type=str, default='data/CICIDS2017_improved',
+    parser.add_argument('--data_dir', type=str, default=default_data_dir,
                         help='Input data directory')
-    parser.add_argument('--output_dir', type=str, default='data/CICIDS2017_improved',
+    parser.add_argument('--output_dir', type=str, default=default_output_dir,
                         help='Output directory')
-    parser.add_argument('--test_size', type=float, default=0.2,
+    parser.add_argument('--test_size', type=float, default=default_test_size,
                         help='Test set size ratio (default: 0.2)')
-    parser.add_argument('--random_state', type=int, default=42,
+    parser.add_argument('--random_state', type=int, default=default_random_state,
                         help='Random seed (default: 42)')
     parser.add_argument('--no_stratify', action='store_true',
                         help='Disable stratified sampling')
     
     args = parser.parse_args()
     
+    # YAMLからstratify設定を読み込む（コマンドライン引数で上書き可能）
+    stratify_by_label = default_stratify if not args.no_stratify else False
+    
     train_df, test_df = load_and_split_cicids2017(
         data_dir=args.data_dir,
         output_dir=args.output_dir,
         test_size=args.test_size,
         random_state=args.random_state,
-        stratify_by_label=not args.no_stratify
+        stratify_by_label=stratify_by_label
     )
 
