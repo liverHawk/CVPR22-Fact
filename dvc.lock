@@ -66,9 +66,58 @@ stages:
       hash: md5
       md5: 4cd5f24f515da04518b2f057a3df8f5d
       size: 10256
+    params:
+      params.yaml:
+        train:
+          project: fact
+          dataset: CICIDS2017_improved
+          dataroot: data
+          encoder: mlp
+          base_mode: ft_cos
+          new_mode: avg_cos
+          epochs_base: 10
+          epochs_new: 100
+          batch_size_base: 128
+          test_batch_size: 100
+          start_session: 0
+          lr_base: 0.005
+          lr_new: 0.1
+          schedule: Milestone
+          milestones:
+          - 50
+          - 100
+          - 150
+          - 200
+          - 250
+          - 300
+          step: 20
+          decay: 0.0005
+          momentum: 0.9
+          gamma: 0.25
+          temperature: 16
+          balance: 0.01
+          loss_iter: 0
+          alpha: 2.0
+          eta: 0.1
+          batch_size_new: 0
+          not_data_init: false
+          set_no_val: false
+          num_workers: 8
+          debug: false
+          model_dir:
+          wandb:
+            use_wandb: false
+            project: origin-fact
+            entity: ''
+            group: ''
+            run_name: ''
+            tags: []
+            mode: online
+            watch: gradients
+            watch_freq: 100
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: 0ad98cd45d2158760fd84afc52a81463.dir
-      size: 9327421
+      md5: c677b8f05574d879c18d135ac445f9af.dir
+      size: 9297398
       nfiles: 23

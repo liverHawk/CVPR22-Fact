@@ -24,7 +24,7 @@ train:
   encoder: "mlp"
   base_mode: "ft_cos"
   new_mode: "avg_cos"
-  epochs_base: 1
+  epochs_base: 10
   epochs_new: 100
   batch_size_base: 128
   test_batch_size: 100

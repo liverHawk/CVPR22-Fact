@@ -27,5 +27,7 @@ stages:
       - data/test.csv
       - data/index_list/CICIDS2017_improved
       - train.py
+    params:
+      - train
     outs:
       - checkpoint/CICIDS2017_improved
