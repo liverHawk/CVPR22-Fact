@@ -1,5 +1,7 @@
 [core]
     remote = azure
+[studio]
+    offline = true
 ['remote "azure"']
     url = azure://cvpr22-fact
     account_name = dvc2test
