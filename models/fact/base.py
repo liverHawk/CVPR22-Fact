@@ -1,11 +1,13 @@
 import abc
-import torch
-import os.path as osp
-from dataloader.data_utils import *
+# import torch
+# import os.path as osp
+from dataloader.data_utils import set_up_datasets
 
 from utils import (
-    ensure_path,
-    Averager, Timer, count_acc,
+    # ensure_path,
+    Averager,
+    Timer,
+    # count_acc,
     WandbLogger,
 )
 
@@ -22,20 +24,19 @@ class Trainer(object, metaclass=abc.ABCMeta):
 
         # train statistics
         self.trlog = {}
-        self.trlog['train_loss'] = []
-        self.trlog['val_loss'] = []
-        self.trlog['test_loss'] = []
-        self.trlog['train_acc'] = []
-        self.trlog['val_acc'] = []
-        self.trlog['test_acc'] = []
-        self.trlog['max_acc_epoch'] = 0
-        self.trlog['max_acc'] = [0.0] * args.sessions
-
+        self.trlog["train_loss"] = []
+        self.trlog["val_loss"] = []
+        self.trlog["test_loss"] = []
+        self.trlog["train_acc"] = []
+        self.trlog["val_acc"] = []
+        self.trlog["test_acc"] = []
+        self.trlog["max_acc_epoch"] = 0
+        self.trlog["max_acc"] = [0.0] * args.sessions
 
     @abc.abstractmethod
     def train(self):
         pass
 
     def finalize(self):
-        if hasattr(self, 'wandb') and self.wandb is not None:
+        if hasattr(self, "wandb") and self.wandb is not None:
             self.wandb.finish()

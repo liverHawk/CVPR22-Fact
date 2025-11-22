@@ -17,10 +17,20 @@ class CNN1D(nn.Module):
         embedding_dim = 128
         dropout = 0.5
 
-        self.conv1 = nn.Conv1d(in_channels=1, out_channels=conv1_out, kernel_size=kernel_size, padding=kernel_size//2)
+        self.conv1 = nn.Conv1d(
+            in_channels=1,
+            out_channels=conv1_out,
+            kernel_size=kernel_size,
+            padding=kernel_size // 2,
+        )
         self.bn1 = nn.BatchNorm1d(conv1_out)
 
-        self.conv2 = nn.Conv1d(in_channels=conv1_out, out_channels=conv2_out, kernel_size=kernel_size, padding=kernel_size//2)
+        self.conv2 = nn.Conv1d(
+            in_channels=conv1_out,
+            out_channels=conv2_out,
+            kernel_size=kernel_size,
+            padding=kernel_size // 2,
+        )
         self.bn2 = nn.BatchNorm1d(conv2_out)
 
         self.pool = nn.MaxPool1d(kernel_size=pool_size)
@@ -38,11 +48,11 @@ class CNN1D(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = F.relu(x)
-        
+
         x = self.conv2(x)
         x = self.bn2(x)
         x = F.relu(x)
-        
+
         x = self.pool(x)
 
         x = x.view(x.size(0), -1)
@@ -60,7 +70,7 @@ class CNN1D(nn.Module):
             return embedding_normalized, logits
         else:
             return logits
-    
+
     def get_embedding(self, x):
         embedding, _ = self.forward(x, return_logits=True)
         return embedding

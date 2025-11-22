@@ -1,4 +1,5 @@
 """FACT 風の前方互換性を取り入れた DQN 分類スクリプト."""
+
 from __future__ import annotations
 
 import argparse
@@ -261,7 +262,11 @@ class DQNAgent:
 
     def update(self, batch: ClassificationBatch) -> Tuple[float, float]:
         logits = self.q_net(batch.states)
-        q_values = logits[:, : self.num_actions].gather(1, batch.actions.unsqueeze(1)).squeeze(1)
+        q_values = (
+            logits[:, : self.num_actions]
+            .gather(1, batch.actions.unsqueeze(1))
+            .squeeze(1)
+        )
         with torch.no_grad():
             next_logits = self.target_net(batch.next_states)
             next_q = next_logits[:, : self.num_actions].max(1).values
@@ -482,5 +487,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-

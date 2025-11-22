@@ -1,11 +1,11 @@
 import os
-import os.path as osp
+# import os.path as osp
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.model_selection import train_test_split
+# from sklearn.model_selection import train_test_split
 
 
 class CICIDS2017_improved(Dataset):
@@ -14,22 +14,33 @@ class CICIDS2017_improved(Dataset):
     This dataset contains network traffic features for intrusion detection.
     """
 
-    def __init__(self, root='data/', train=True,
-                 index_path=None, index=None, base_sess=None, autoaug=1):
+    def __init__(
+        self,
+        root="data/",
+        train=True,
+        index_path=None,
+        index=None,
+        base_sess=None,
+        autoaug=1,
+    ):
         self.root = os.path.expanduser(root)
         self.train = train
         self.autoaug = autoaug
-        
+
         # Load and preprocess data
         self._pre_operate(self.root)
-        
+
         # Select data based on index or index_path
         if base_sess:
-            self.data, self.targets = self.SelectfromClasses(self.data, self.targets, index)
+            self.data, self.targets = self.SelectfromClasses(
+                self.data, self.targets, index
+            )
         else:
             if index_path is not None:
                 # For new sessions, index_path contains data indices
-                self.data, self.targets = self.SelectfromTxt(self.data2label, index_path)
+                self.data, self.targets = self.SelectfromTxt(
+                    self.data2label, index_path
+                )
             elif index is not None:
                 # If index is provided directly (list of class indices or data indices)
                 if isinstance(index, list) and len(index) > 0:
@@ -40,18 +51,31 @@ class CICIDS2017_improved(Dataset):
                         try:
                             class_indices = [int(i) for i in index]
                             # If all indices are within valid class range, treat as class indices
-                            if all(0 <= idx < len(np.unique(self.targets)) for idx in class_indices):
-                                self.data, self.targets = self.SelectfromClasses(self.data, self.targets, class_indices)
+                            if all(
+                                0 <= idx < len(np.unique(self.targets))
+                                for idx in class_indices
+                            ):
+                                self.data, self.targets = self.SelectfromClasses(
+                                    self.data, self.targets, class_indices
+                                )
                             else:
                                 # Otherwise treat as data indices
-                                self.data, self.targets = self.SelectfromDataIndices(self.data, self.targets, class_indices)
-                        except:
-                            self.data, self.targets = self.SelectfromClasses(self.data, self.targets, index)
+                                self.data, self.targets = self.SelectfromDataIndices(
+                                    self.data, self.targets, class_indices
+                                )
+                        except Exception:
+                            self.data, self.targets = self.SelectfromClasses(
+                                self.data, self.targets, index
+                            )
                     else:
-                        self.data, self.targets = self.SelectfromClasses(self.data, self.targets, index)
+                        self.data, self.targets = self.SelectfromClasses(
+                            self.data, self.targets, index
+                        )
                 else:
-                    self.data, self.targets = self.SelectfromClasses(self.data, self.targets, index)
-        
+                    self.data, self.targets = self.SelectfromClasses(
+                        self.data, self.targets, index
+                    )
+
         # Convert to numpy arrays if needed
         if isinstance(self.data, list):
             self.data = np.array(self.data)
@@ -87,7 +111,7 @@ class CICIDS2017_improved(Dataset):
             "ICMP Type",
             "Total TCP Flow Time",
         ]
-    
+
     def _get_column_rename_dict(self):
         """
         Column rename mapping from CICIDS2017 to BASE format.
@@ -160,7 +184,7 @@ class CICIDS2017_improved(Dataset):
             "Idle Max",
             "Idle Min",
         ]
-        
+
         base_cols = [
             "Destination Port",
             "Protocol",
@@ -227,11 +251,11 @@ class CICIDS2017_improved(Dataset):
             "Idle Mean",
             "Idle Std",
             "Idle Max",
-            "Idle Min"
+            "Idle Min",
         ]
-        
+
         return dict(zip(cicids2017_cols, base_cols))
-    
+
     def _fast_process(self, df):
         """
         Fast preprocessing: drop columns and handle missing/infinite values.
@@ -241,23 +265,23 @@ class CICIDS2017_improved(Dataset):
         delete_cols = self._get_delete_columns()
         existing_delete_cols = [col for col in delete_cols if col in df.columns]
         df = df.drop(existing_delete_cols, axis=1)
-        
+
         # Drop 'Attempted Category' column if exists
-        if 'Attempted Category' in df.columns:
-            df = df.drop(columns=['Attempted Category'])
-        
+        if "Attempted Category" in df.columns:
+            df = df.drop(columns=["Attempted Category"])
+
         # Replace infinite values with NaN and drop NaN rows
         df = df.replace([np.inf, -np.inf], np.nan).dropna()
-        
+
         return df
-    
+
     def _column_adjustment(self, df):
         """
         Adjust labels and rename columns according to research_data_drl preprocessing.
         """
         # Label consolidation
         labels = df["Label"].unique()
-        
+
         for label in labels:
             if "Attempted" in label:
                 df.loc[df["Label"] == label, "Label"] = "BENIGN"
@@ -267,15 +291,15 @@ class CICIDS2017_improved(Dataset):
                 df.loc[df["Label"] == label, "Label"] = "Infiltration"
             if "DoS" in label and label != "DDoS":
                 df.loc[df["Label"] == label, "Label"] = "DoS"
-        
+
         # Rename columns
         rename_dict = self._get_column_rename_dict()
         # Only rename columns that exist in the dataframe
         existing_rename_dict = {k: v for k, v in rename_dict.items() if k in df.columns}
         df = df.rename(columns=existing_rename_dict)
-        
+
         return df
-    
+
     def _pre_operate(self, root):
         """
         Load and preprocess CICIDS2017_improved dataset.
@@ -286,68 +310,68 @@ class CICIDS2017_improved(Dataset):
         """
         # data_dir = os.path.join(root, 'CICIDS2017_improved')
         data_dir = root
-        
+
         # Try to load CSV or parquet files
-        train_file = os.path.join(data_dir, 'train.csv')
-        test_file = os.path.join(data_dir, 'test.csv')
-        
+        train_file = os.path.join(data_dir, "train.csv")
+        test_file = os.path.join(data_dir, "test.csv")
+
         if not os.path.exists(train_file):
-            train_file = os.path.join(data_dir, 'train.parquet')
-            test_file = os.path.join(data_dir, 'test.parquet')
-        
+            train_file = os.path.join(data_dir, "train.parquet")
+            test_file = os.path.join(data_dir, "test.parquet")
+
         if not os.path.exists(train_file):
             raise FileNotFoundError(
                 f"CICIDS2017_improved dataset not found in {data_dir}. "
                 "Please ensure train.csv/test.csv or train.parquet/test.parquet exist."
             )
-        
+
         # Load data
-        if train_file.endswith('.csv'):
+        if train_file.endswith(".csv"):
             train_df = pd.read_csv(train_file)
             test_df = pd.read_csv(test_file)
         else:
             train_df = pd.read_parquet(train_file)
             test_df = pd.read_parquet(test_file)
-        
+
         # Fast preprocessing: drop columns and handle missing/infinite values
         train_df = self._fast_process(train_df)
         test_df = self._fast_process(test_df)
-        
+
         # Column adjustment: label consolidation and column renaming
         train_df = self._column_adjustment(train_df)
         test_df = self._column_adjustment(test_df)
-        
+
         # Separate features and labels
-        if 'Label' not in train_df.columns:
+        if "Label" not in train_df.columns:
             raise ValueError("'Label' column not found in dataset")
-        label_col = 'Label'
-        
+        label_col = "Label"
+
         # Encode labels
         le = LabelEncoder()
         all_labels = pd.concat([train_df[label_col], test_df[label_col]], axis=0)
         le.fit(all_labels)
-        
+
         # Split features and labels
         feature_cols = [col for col in train_df.columns if col != label_col]
-        
+
         train_features = train_df[feature_cols].values
         train_labels = le.transform(train_df[label_col].values)
-        
+
         test_features = test_df[feature_cols].values
         test_labels = le.transform(test_df[label_col].values)
-        
+
         # Normalize features
         scaler = StandardScaler()
         train_features = scaler.fit_transform(train_features)
         test_features = scaler.transform(test_features)
-        
+
         # Store scaler and label encoder for later use
         self.scaler = scaler
         self.label_encoder = le
-        
+
         # Create data2label mapping for index-based selection
         self.data2label = {}
-        
+
         if self.train:
             self.data = train_features
             self.targets = train_labels
@@ -365,18 +389,18 @@ class CICIDS2017_improved(Dataset):
         """
         if not os.path.exists(index_path):
             raise FileNotFoundError(f"Index file not found: {index_path}")
-        
-        with open(index_path, 'r') as f:
+
+        with open(index_path, "r") as f:
             indices = [int(line.strip()) for line in f.readlines()]
-        
+
         data_tmp = []
         targets_tmp = []
-        
+
         for idx in indices:
             if idx < len(self.data):
                 data_tmp.append(self.data[idx])
                 targets_tmp.append(self.targets[idx])
-        
+
         return np.array(data_tmp), np.array(targets_tmp)
 
     def SelectfromClasses(self, data, targets, index):
@@ -385,7 +409,7 @@ class CICIDS2017_improved(Dataset):
         """
         data_tmp = []
         targets_tmp = []
-        
+
         for class_idx in index:
             ind_cl = np.where(class_idx == targets)[0]
             if len(data_tmp) == 0:
@@ -394,7 +418,7 @@ class CICIDS2017_improved(Dataset):
             else:
                 data_tmp = np.vstack((data_tmp, data[ind_cl]))
                 targets_tmp = np.hstack((targets_tmp, targets[ind_cl]))
-        
+
         return data_tmp, targets_tmp
 
     def SelectfromDataIndices(self, data, targets, indices):
@@ -403,12 +427,12 @@ class CICIDS2017_improved(Dataset):
         """
         data_tmp = []
         targets_tmp = []
-        
+
         for idx in indices:
             if 0 <= idx < len(data):
                 data_tmp.append(data[idx])
                 targets_tmp.append(targets[idx])
-        
+
         return np.array(data_tmp), np.array(targets_tmp)
 
     def __len__(self):
@@ -420,10 +444,9 @@ class CICIDS2017_improved(Dataset):
         """
         features = self.data[idx]
         label = self.targets[idx]
-        
+
         # Convert to tensor
         features = torch.FloatTensor(features)
         label = torch.LongTensor([label])[0]
-        
-        return features, label
 
+        return features, label

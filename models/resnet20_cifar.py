@@ -1,11 +1,14 @@
 import torch.nn as nn
-import math
-import torch.utils.model_zoo as model_zoo
+# import math
+# import torch.utils.model_zoo as model_zoo
+
 
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=1, bias=False)
+    return nn.Conv2d(
+        in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False
+    )
+
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -40,13 +43,12 @@ class BasicBlock(nn.Module):
 
         return out
 
-class ResNet(nn.Module):
 
+class ResNet(nn.Module):
     def __init__(self, block, layers, num_classes=10):
         self.inplanes = 16
         super(ResNet, self).__init__()
-        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1,
-                               bias=False)
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = nn.ReLU(inplace=True)
         self.layer1 = self._make_layer(block, 16, layers[0])
@@ -56,7 +58,7 @@ class ResNet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
@@ -65,8 +67,13 @@ class ResNet(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion,
-                          kernel_size=1, stride=stride, bias=False),
+                nn.Conv2d(
+                    self.inplanes,
+                    planes * block.expansion,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
                 nn.BatchNorm2d(planes * block.expansion),
             )
 
@@ -74,7 +81,7 @@ class ResNet(nn.Module):
         layers.append(block(self.inplanes, planes, stride, downsample))
         self.inplanes = planes * block.expansion
         if last_phase:
-            for i in range(1, blocks-1):
+            for i in range(1, blocks - 1):
                 layers.append(block(self.inplanes, planes))
             layers.append(block(self.inplanes, planes, last=True))
         else:
@@ -97,6 +104,7 @@ class ResNet(nn.Module):
         # x = self.fc(x)
 
         return x
+
 
 def resnet20(**kwargs):
     n = 3
