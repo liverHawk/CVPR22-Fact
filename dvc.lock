@@ -72,7 +72,7 @@ stages:
           project: fact
           dataset: CICIDS2017_improved
           dataroot: data
-          encoder: mlp
+          encoder: cnn1d
           base_mode: ft_cos
           new_mode: avg_cos
           epochs_base: 10
@@ -118,6 +118,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: c677b8f05574d879c18d135ac445f9af.dir
-      size: 9297398
+      md5: fc6cf1a81a66d01c920b996bafd8d861.dir
+      size: 38844017
       nfiles: 23
