@@ -198,13 +198,12 @@ def confmatrix(logits,label,filename,label_names=None):
                     fontsize=10 if clss <= 20 else 8)
             # 対角要素（正しく分類された要素）に下線を引く
             if i == j:
-                # 対角要素のテキストオブジェクトを取得
-                current_text = text_obj
-                # 下線を引く
+                # # 対角要素のテキストオブジェクトを取得
+                # current_text = text_obj
+                # # 下線を引く
                 # new_text = r'$\underline{' + str(current_text) + r'}$'
-                new_text = current_text[2]
-                # テキストを更新
-                text_obj.set_text(new_text)
+                # # テキストを更新
+                # text_obj.set_text(new_text)
                 text_obj.set_fontweight('bold')
     
     cbar = plt.colorbar(cax) # This line includes the color bar
