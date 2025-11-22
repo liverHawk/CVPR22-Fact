@@ -1,0 +1,87 @@
+# DVC Parameters Configuration
+# このファイルのパラメータは dvc.yaml でテンプレート変数として使用されます
+
+# データ分割パラメータ
+split:
+  data_dir: data/CICIDS2017_improved
+  output_dir: data/CICIDS2017_improved
+  test_size: 0.2
+  random_state: 42
+  stratify_by_label: true
+
+# セッションファイル作成パラメータ
+create_session:
+  train_csv: data/CICIDS2017_improved/train.csv
+  output_dir: data/index_list/CICIDS2017_improved
+  base_class: 4
+  num_classes: 10
+  way: 1
+  shot: 5
+  random_state: 42
+
+# 訓練パラメータ
+train:
+  project: fact_rl
+  dataset: CICIDS2017_improved
+  dataroot: data/
+  encoder: mlp
+  
+  # ベースセッション訓練パラメータ
+  epochs_base: 1
+  lr_base: 0.001
+  schedule: Cosine
+  step: 20
+  milestones: [60, 70]
+  decay: 0.0005
+  momentum: 0.9
+  gamma: 0.1
+  temperature: 16.0
+  batch_size_base: 128
+  batch_size_new: 0
+  test_batch_size: 100
+  base_mode: ft_cos
+  new_mode: avg_cos
+  
+  # FACTパラメータ
+  balance: 1.0
+  loss_iter: 50
+  alpha: 2.0
+  eta: 0.1
+  not_data_init: false
+  
+  # セッション設定
+  start_session: 0
+  set_no_val: false
+  
+  # 訓練環境
+  gpu: cpu
+  num_workers: 8
+  seed: 1
+  debug: false
+  
+  # WandB設定
+  use_wandb: true
+  wandb_project: fact-rl-cicids2017
+  wandb_entity: null  # あなたのWandBユーザー名またはチーム名を設定してください
+  wandb_group: null
+  wandb_run_name: null
+  wandb_tags: null
+  wandb_mode: offline  # 権限エラーを回避するため offline に変更（後で wandb sync でアップロード可能）
+  wandb_watch: gradients
+  wandb_watch_freq: 100
+  
+  # 強化学習パラメータ（fact_rlプロジェクト用）
+  rl_reward_type: simple
+  rl_buffer_size: 50000
+  rl_batch_size: 64
+  rl_lr: 0.001
+  rl_gamma: 0.99
+  rl_epsilon_start: 1.0
+  rl_epsilon_end: 0.05
+  rl_epsilon_decay: 5000.0
+  rl_num_updates: 1000
+  rl_target_update: 500
+  rl_virtual_classes: 0
+  rl_reward_correct: 1.0
+  rl_reward_incorrect: -1.0
+

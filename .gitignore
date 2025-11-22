@@ -3,3 +3,4 @@ data/*
 !data/index_list/*
 checkpoint/*
 wandb
+/checkpoint

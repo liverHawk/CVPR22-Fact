@@ -1,0 +1,161 @@
+schema: '2.0'
+stages:
+  split:
+    cmd: uv run python split_cicids2017.py --data_dir data/CICIDS2017_improved 
+      --output_dir data/CICIDS2017_improved --test_size 0.2 --random_state 42
+    deps:
+    - path: data/CICIDS2017_improved/friday.csv
+      hash: md5
+      md5: 7be19ef0498792c2d571745b0b26bd3d
+      size: 285188226
+    - path: data/CICIDS2017_improved/monday.csv
+      hash: md5
+      md5: 970ac311bb290c762c293d545acaaaa2
+      size: 207875155
+    - path: data/CICIDS2017_improved/thursday.csv
+      hash: md5
+      md5: 7dd4ed6edf5968d396af8a9066aa4e39
+      size: 189519159
+    - path: data/CICIDS2017_improved/tuesday.csv
+      hash: md5
+      md5: d067bdf5f6b6be5580cc7c4c62c8f92d
+      size: 178397720
+    - path: data/CICIDS2017_improved/wednesday.csv
+      hash: md5
+      md5: 67a2f5a133d77f179f194994dd5ca157
+      size: 291290505
+    - path: split_cicids2017.py
+      hash: md5
+      md5: 32a9e201d870553d1549544b9c3cb087
+      size: 5499
+    params:
+      params.yaml:
+        split.data_dir: data/CICIDS2017_improved
+        split.output_dir: data/CICIDS2017_improved
+        split.random_state: 42
+        split.test_size: 0.2
+    outs:
+    - path: data/CICIDS2017_improved/test.csv
+      hash: md5
+      md5: 50d5970e3747d9b455e126c165b9819e
+      size: 230438357
+    - path: data/CICIDS2017_improved/train.csv
+      hash: md5
+      md5: 2e7ed8106df94ed7780daba60c4649d2
+      size: 921772825
+  create_session:
+    cmd: uv run python create_session_files.py --train_csv 
+      data/CICIDS2017_improved/train.csv --output_dir 
+      data/index_list/CICIDS2017_improved --base_class 4 --num_classes 10 --way 
+      1 --shot 5 --random_state 42
+    deps:
+    - path: create_session_files.py
+      hash: md5
+      md5: 778de72c797499d2aea172f54fecb5d3
+      size: 7568
+    - path: data/CICIDS2017_improved/train.csv
+      hash: md5
+      md5: 2e7ed8106df94ed7780daba60c4649d2
+      size: 921772825
+    params:
+      params.yaml:
+        create_session.base_class: 4
+        create_session.num_classes: 10
+        create_session.output_dir: data/index_list/CICIDS2017_improved
+        create_session.random_state: 42
+        create_session.shot: 5
+        create_session.train_csv: data/CICIDS2017_improved/train.csv
+        create_session.way: 1
+    outs:
+    - path: data/index_list/CICIDS2017_improved
+      hash: md5
+      md5: 500d9bd6b6d456b6acb64a567f27a3f8.dir
+      size: 10932240
+      nfiles: 7
+  train:
+    cmd: bash scripts/train_wrapper.sh fact_rl CICIDS2017_improved data/ mlp 1 
+      0.001 Cosine 20 0.0005 0.9 0.1 16.0 128 0 100 ft_cos avg_cos 1.0 50 2.0 
+      0.1 0 cpu 8 1 false false false true fact-rl-cicids2017 None None None 
+      None offline gradients 100 simple 50000 64 0.001 0.99 1.0 0.05 5000.0 1000
+      500 0 1.0 -1.0
+    deps:
+    - path: data/CICIDS2017_improved/test.csv
+      hash: md5
+      md5: 50d5970e3747d9b455e126c165b9819e
+      size: 230438357
+    - path: data/CICIDS2017_improved/train.csv
+      hash: md5
+      md5: 2e7ed8106df94ed7780daba60c4649d2
+      size: 921772825
+    - path: data/index_list/CICIDS2017_improved
+      hash: md5
+      md5: 500d9bd6b6d456b6acb64a567f27a3f8.dir
+      size: 10932240
+      nfiles: 7
+    - path: scripts/train_wrapper.sh
+      hash: md5
+      md5: e0f7234939b55c0db524cd8b1164d61d
+      size: 1952
+      isexec: true
+    - path: train.py
+      hash: md5
+      md5: e27bcad50b3b0180860a1042dece5b1c
+      size: 6410
+    params:
+      params.yaml:
+        train.alpha: 2.0
+        train.balance: 1.0
+        train.base_mode: ft_cos
+        train.batch_size_base: 128
+        train.batch_size_new: 0
+        train.dataroot: data/
+        train.dataset: CICIDS2017_improved
+        train.debug: false
+        train.decay: 0.0005
+        train.encoder: mlp
+        train.epochs_base: 1
+        train.eta: 0.1
+        train.gamma: 0.1
+        train.gpu: cpu
+        train.loss_iter: 50
+        train.lr_base: 0.001
+        train.momentum: 0.9
+        train.new_mode: avg_cos
+        train.not_data_init: false
+        train.num_workers: 8
+        train.project: fact_rl
+        train.rl_batch_size: 64
+        train.rl_buffer_size: 50000
+        train.rl_epsilon_decay: 5000.0
+        train.rl_epsilon_end: 0.05
+        train.rl_epsilon_start: 1.0
+        train.rl_gamma: 0.99
+        train.rl_lr: 0.001
+        train.rl_num_updates: 1000
+        train.rl_reward_correct: 1.0
+        train.rl_reward_incorrect: -1.0
+        train.rl_reward_type: simple
+        train.rl_target_update: 500
+        train.rl_virtual_classes: 0
+        train.schedule: Cosine
+        train.seed: 1
+        train.set_no_val: false
+        train.start_session: 0
+        train.step: 20
+        train.temperature: 16.0
+        train.test_batch_size: 100
+        train.use_wandb: true
+        train.wandb_entity:
+        train.wandb_group:
+        train.wandb_mode: offline
+        train.wandb_project: fact-rl-cicids2017
+        train.wandb_run_name:
+        train.wandb_tags:
+        train.wandb_watch: gradients
+        train.wandb_watch_freq: 100
+    outs:
+    - path: checkpoint
+      hash: md5
+      md5: 37b27e64555a1bc149f95ae196221345.dir
+      size: 8985220
+      nfiles: 23

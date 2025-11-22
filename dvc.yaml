@@ -1,0 +1,118 @@
+# DVC Pipeline Configuration
+# split -> create_session -> train の順で実行されるパイプライン
+
+stages:
+  split:
+    cmd: >-
+      uv run python split_cicids2017.py
+      --data_dir ${split.data_dir}
+      --output_dir ${split.output_dir}
+      --test_size ${split.test_size}
+      --random_state ${split.random_state}
+    deps:
+      - split_cicids2017.py
+      - data/CICIDS2017_improved/monday.csv
+      - data/CICIDS2017_improved/tuesday.csv
+      - data/CICIDS2017_improved/wednesday.csv
+      - data/CICIDS2017_improved/thursday.csv
+      - data/CICIDS2017_improved/friday.csv
+    outs:
+      - data/CICIDS2017_improved/train.csv
+      - data/CICIDS2017_improved/test.csv
+    params:
+      - split.data_dir
+      - split.output_dir
+      - split.test_size
+      - split.random_state
+
+  create_session:
+    cmd: >-
+      uv run python create_session_files.py
+      --train_csv ${create_session.train_csv}
+      --output_dir ${create_session.output_dir}
+      --base_class ${create_session.base_class}
+      --num_classes ${create_session.num_classes}
+      --way ${create_session.way}
+      --shot ${create_session.shot}
+      --random_state ${create_session.random_state}
+    deps:
+      - create_session_files.py
+      - data/CICIDS2017_improved/train.csv
+    outs:
+      - data/index_list/CICIDS2017_improved
+    params:
+      - create_session.train_csv
+      - create_session.output_dir
+      - create_session.base_class
+      - create_session.num_classes
+      - create_session.way
+      - create_session.shot
+      - create_session.random_state
+
+  train:
+    cmd: uv run train.py
+    deps:
+      - train.py
+      - scripts/train_wrapper.sh
+      - data/CICIDS2017_improved/train.csv
+      - data/CICIDS2017_improved/test.csv
+      - data/index_list/CICIDS2017_improved
+    outs:
+      - checkpoint
+    # plots:
+    #   - checkpoint/*/session*_confusion_matrix.png:
+    #       x: actual
+    #       y: predicted
+    #       template: confusion
+    params:
+      - train.project
+      - train.dataset
+      - train.dataroot
+      - train.encoder
+      - train.epochs_base
+      - train.lr_base
+      - train.schedule
+      - train.step
+      - train.decay
+      - train.momentum
+      - train.gamma
+      - train.temperature
+      - train.batch_size_base
+      - train.batch_size_new
+      - train.test_batch_size
+      - train.base_mode
+      - train.new_mode
+      - train.balance
+      - train.loss_iter
+      - train.alpha
+      - train.eta
+      - train.start_session
+      - train.gpu
+      - train.num_workers
+      - train.seed
+      - train.not_data_init
+      - train.set_no_val
+      - train.debug
+      - train.use_wandb
+      - train.wandb_project
+      - train.wandb_entity
+      - train.wandb_group
+      - train.wandb_run_name
+      - train.wandb_tags
+      - train.wandb_mode
+      - train.wandb_watch
+      - train.wandb_watch_freq
+      - train.rl_reward_type
+      - train.rl_buffer_size
+      - train.rl_batch_size
+      - train.rl_lr
+      - train.rl_gamma
+      - train.rl_epsilon_start
+      - train.rl_epsilon_end
+      - train.rl_epsilon_decay
+      - train.rl_num_updates
+      - train.rl_target_update
+      - train.rl_virtual_classes
+      - train.rl_reward_correct
+      - train.rl_reward_incorrect
+
