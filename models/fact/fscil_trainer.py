@@ -115,6 +115,7 @@ class FSCILTrainer(Trainer):
                         session,
                         validation=not is_final_epoch,
                         wandb_logger=self.wandb,
+                        name="train"
                     )
                     args.comet.log_metrics(
                         dic={
@@ -214,6 +215,7 @@ class FSCILTrainer(Trainer):
                         session,
                         validation=False,
                         wandb_logger=self.wandb,
+                        name="session"
                     )
                     args.comet.log_metrics(
                         dic={
@@ -265,6 +267,7 @@ class FSCILTrainer(Trainer):
                     session,
                     validation=False,
                     wandb_logger=self.wandb,
+                    name="session"
                 )
                 args.comet.log_metrics(
                     dic={
@@ -331,6 +334,7 @@ class FSCILTrainer(Trainer):
         session,
         validation=True,
         wandb_logger=None,
+        name=None,
     ):
         test_class = args.base_class + session * args.way
         model = model.eval()
@@ -406,7 +410,7 @@ class FSCILTrainer(Trainer):
                     testloader.dataset, "label_encoder"
                 ):
                     label_names = list(testloader.dataset.label_encoder.classes_)
-                cm = confmatrix(lgt, lbs, save_model_dir, args, label_names=label_names)
+                cm = confmatrix(lgt, lbs, save_model_dir, args, label_names=label_names, name=name, step=session)
                 perclassacc = cm.diagonal()
                 seenac = np.mean(perclassacc[: args.base_class])
                 unseenac = np.mean(perclassacc[args.base_class :])

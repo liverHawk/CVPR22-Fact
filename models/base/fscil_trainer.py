@@ -99,6 +99,7 @@ class FSCILTrainer(Trainer):
                         args,
                         session,
                         wandb_logger=self.wandb,
+                        name="train"
                     )
                     args.comet.log_metrics(
                         dic={
@@ -197,6 +198,7 @@ class FSCILTrainer(Trainer):
                         args,
                         session,
                         wandb_logger=self.wandb,
+                        name="session"
                     )
                     args.comet.log_metrics(
                         dic={
@@ -237,6 +239,7 @@ class FSCILTrainer(Trainer):
                     session,
                     validation=False,
                     wandb_logger=self.wandb,
+                    name="session"
                 )
                 args.comet.log_metrics(
                     dic={

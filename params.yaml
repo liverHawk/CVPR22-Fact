@@ -22,7 +22,7 @@ train:
   project: fact
   dataset: CICIDS2017_improved
   dataroot: data    # paths.data_dirと統合可能だが、互換性のため残す
-  encoder: mlp
+  encoder: cnn1d
   base_mode: ft_cos
   new_mode: avg_cos
   epochs_base: 1

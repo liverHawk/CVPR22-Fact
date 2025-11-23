@@ -121,7 +121,7 @@ def replace_base_fc(trainset, transform, model, args):
     return model
 
 
-def test(model, testloader, epoch, args, session, validation=True, wandb_logger=None):
+def test(model, testloader, epoch, args, session, validation=True, wandb_logger=None, name=None):
     test_class = args.base_class + session * args.way
     model = model.eval()
     vl = Averager()
@@ -157,7 +157,7 @@ def test(model, testloader, epoch, args, session, validation=True, wandb_logger=
                 testloader.dataset, "label_encoder"
             ):
                 label_names = list(testloader.dataset.label_encoder.classes_)
-            cm = confmatrix(lgt, lbs, save_model_dir, args, label_names=label_names)
+            cm = confmatrix(lgt, lbs, save_model_dir, args, label_names=label_names, name=name, step=session)
             perclassacc = cm.diagonal()
             seenac = np.mean(perclassacc[: args.base_class])
             unseenac = np.mean(perclassacc[args.base_class :])
@@ -207,7 +207,7 @@ def test_withfc(model, testloader, epoch, args, session, validation=True):
                 testloader.dataset, "label_encoder"
             ):
                 label_names = list(testloader.dataset.label_encoder.classes_)
-            cm = confmatrix(lgt, lbs, save_model_dir, args, label_names=label_names)
+            cm = confmatrix(lgt, lbs, save_model_dir, args, label_names=label_names, step=session)
             perclassacc = cm.diagonal()
             seenac = np.mean(perclassacc[: args.base_class])
             unseenac = np.mean(perclassacc[args.base_class :])
