@@ -81,11 +81,11 @@ stages:
           encoder: cnn1d
           epochs_base: 1
           epochs_new: 1000
-          eta: 0.1
+          eta: 0.2
           gamma: 0.25
           loss_iter: 0
           lr_base: 0.005
-          lr_new: 0.5
+          lr_new: 0.01
           milestones:
           - 60
           - 70
@@ -114,6 +114,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: bf3d982c3c65b03fc5172807576f6b97.dir
-      size: 38856409
+      md5: 45f72758a50663871b6531d68cc7cdce.dir
+      size: 38854686
       nfiles: 23
