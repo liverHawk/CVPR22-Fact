@@ -406,7 +406,7 @@ class FSCILTrainer(Trainer):
                     testloader.dataset, "label_encoder"
                 ):
                     label_names = list(testloader.dataset.label_encoder.classes_)
-                cm = confmatrix(lgt, lbs, save_model_dir, label_names=label_names)
+                cm = confmatrix(lgt, lbs, save_model_dir, args, label_names=label_names)
                 perclassacc = cm.diagonal()
                 seenac = np.mean(perclassacc[: args.base_class])
                 unseenac = np.mean(perclassacc[args.base_class :])

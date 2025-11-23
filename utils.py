@@ -145,13 +145,14 @@ def count_acc_taskIL(logits, label, args):
 #     return macro_recall
 
 
-def confmatrix(logits, label, filename, label_names=None):
+def confmatrix(logits, label, filename, args, label_names=None):
     font = {"family": "DejaVu Serif", "size": 18}
     matplotlib.rc("font", **font)
     matplotlib.rcParams.update({"font.family": "DejaVu Serif", "font.size": 18})
     plt.rcParams["font.family"] = "DejaVu Serif"
 
     pred = torch.argmax(logits, dim=1)
+    args.comet.log_confusion_matrix(label, pred)
     # 正規化された混同行列（割合）
     cm_normalized = confusion_matrix(label, pred, normalize="true")
     # 生の混同行列（カウント）
