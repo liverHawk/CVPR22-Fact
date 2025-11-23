@@ -17,7 +17,8 @@ class FSCILTrainer(Trainer):
         self.args = set_up_datasets(self.args)
 
         self.model = MYNET(self.args, mode=self.args.base_mode)
-        self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
+        if args.device != "cpu":
+            self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
         self.model = self.model.to(self.args.device)
         self.wandb.watch(self.model)
 

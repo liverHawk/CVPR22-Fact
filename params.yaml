@@ -3,83 +3,85 @@
 
 # パス設定
 paths:
-  project_root: "."  # プロジェクトルート（相対パス）
-  data_dir: "data"
-  checkpoint_dir: "checkpoint"
-  cicids_dir: "data/CICIDS2017_improved"
-  cicids_index_dir: "data/index_list/CICIDS2017_improved"
-  cub_dataroot: "data/cub200"
-  mini_imagenet_root: "data/mini_imagenet"
+  project_root: .    # プロジェクトルート（相対パス）
+  data_dir: data
+  checkpoint_dir: checkpoint
+  cicids_dir: data/CICIDS2017_improved
+  cicids_index_dir: data/index_list/CICIDS2017_improved
+  cub_dataroot: data/cub200
+  mini_imagenet_root: data/mini_imagenet
 
 # 共通設定
 common:
   gpu: 0
   seed: 1
-  device: cpu  # 使用するデバイスを指定（"cuda" または "cpu"）
+  device: cuda  # 使用するデバイスを指定（"cuda" または "cpu"）
 
 # train.py用のパラメータ
 train:
-  project: "fact"
-  dataset: "CICIDS2017_improved"
-  dataroot: "data"  # paths.data_dirと統合可能だが、互換性のため残す
-  encoder: "cnn1d"
-  base_mode: "ft_cos"
-  new_mode: "avg_cos"
+  project: fact
+  dataset: CICIDS2017_improved
+  dataroot: data    # paths.data_dirと統合可能だが、互換性のため残す
+  encoder: mlp
+  base_mode: ft_cos
+  new_mode: avg_cos
   epochs_base: 1
   epochs_new: 100
   batch_size_base: 128
   test_batch_size: 100
   start_session: 0
-  
+
   # 学習率とスケジューラ
   lr_base: 0.005
   lr_new: 0.1
-  schedule: "Milestone"  # Step, Milestone, Cosine
-  milestones: [60, 70]
+  schedule: Cosine       # Step, Milestone, Cosine
+  milestones:
+  - 60
+  - 70
   step: 20
   decay: 0.0005
   momentum: 0.9
   gamma: 0.25
-  
+
   # FACT固有のパラメータ
   temperature: 16
   balance: 0.01
   loss_iter: 0
   alpha: 2.0
   eta: 0.1
-  
+
   # その他
   batch_size_new: 0  # 0の場合は利用可能なすべての訓練画像を使用
   not_data_init: false
   set_no_val: false
   num_workers: 8
   debug: false
-  model_dir: null
-  
+  model_dir:
+
   # wandb設定
   wandb:
     use_wandb: false
-    project: "origin-fact"
-    entity: ""
-    group: ""
-    run_name: ""
+    project: origin-fact
+    entity: ''
+    group: ''
+    run_name: ''
     tags: []
-    mode: "online"  # online, offline, disabled
-    watch: "gradients"  # gradients, parameters, all, none
+    mode: online    # online, offline, disabled
+    watch: gradients    # gradients, parameters, all, none
     watch_freq: 100
 
 # split_cicids2017.py用のパラメータ
 split_cicids:
-  data_dir: "data/CICIDS2017_improved"
-  output_dir: "data/CICIDS2017_improved"
+  data_dir: data/CICIDS2017_improved
+  output_dir: data/CICIDS2017_improved
   test_size: 0.2
   random_state: 1  # common.seedと統合可能
   stratify: true
 
 # create_session_files.py用のパラメータ
 create_sessions:
-  train_csv: "data/train.csv"
-  output_dir: "data/index_list/CICIDS2017_improved"
+  train_csv: data/train.csv
+  output_dir: data/index_list/CICIDS2017_improved
   base_class: 4
   num_classes: 10
   way: 1
@@ -94,33 +96,35 @@ dataset_presets:
     lr_new: 0.1
     decay: 0.0005
     epochs_base: 600
-    schedule: "Cosine"
+    schedule: Cosine
     temperature: 16
     batch_size_base: 256
     balance: 0.001
     loss_iter: 0
     alpha: 0.5
-  
+
   cub200:
     gamma: 0.25
     lr_base: 0.005
     lr_new: 0.1
     decay: 0.0005
     epochs_base: 1
-    schedule: "Milestone"
-    milestones: [60, 70]
+    schedule: Milestone
+    milestones:
+    - 60
+    - 70
     temperature: 16
     batch_size_base: 256
     balance: 0.01
     loss_iter: 0
-  
+
   mini_imagenet:
     gamma: 0.1
     lr_base: 0.1
     lr_new: 0.1
     decay: 0.0005
     epochs_base: 1000
-    schedule: "Cosine"
+    schedule: Cosine
     temperature: 16
     alpha: 0.5
     balance: 0.01

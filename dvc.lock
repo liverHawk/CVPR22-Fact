@@ -15,12 +15,12 @@ stages:
     outs:
     - path: data/test.csv
       hash: md5
-      md5: 0d914aec4877e38ddd409917cc4b6747
-      size: 230461774
+      md5: ed41889327bd3b6465575239fd8b5311
+      size: 230415072
     - path: data/train.csv
       hash: md5
-      md5: a21b9dcf6cd38b389e944bce1a684aee
-      size: 921749408
+      md5: 3c4880896b08cab0f3f076d1ab537b71
+      size: 921564131
   create_session_files:
     cmd: uv run create_session_files.py
     deps:
@@ -30,8 +30,8 @@ stages:
       size: 8537
     - path: data/train.csv
       hash: md5
-      md5: a21b9dcf6cd38b389e944bce1a684aee
-      size: 921749408
+      md5: 3c4880896b08cab0f3f076d1ab537b71
+      size: 921564131
     outs:
     - path: data/class_indices.json
       hash: md5
@@ -56,12 +56,12 @@ stages:
       nfiles: 7
     - path: data/test.csv
       hash: md5
-      md5: 0d914aec4877e38ddd409917cc4b6747
-      size: 230461774
+      md5: ed41889327bd3b6465575239fd8b5311
+      size: 230415072
     - path: data/train.csv
       hash: md5
-      md5: a21b9dcf6cd38b389e944bce1a684aee
-      size: 921749408
+      md5: 3c4880896b08cab0f3f076d1ab537b71
+      size: 921564131
     - path: train.py
       hash: md5
       md5: ec385b7f07d4758266b5eb71015b329d
@@ -72,7 +72,7 @@ stages:
           project: fact
           dataset: CICIDS2017_improved
           dataroot: data
-          encoder: cnn1d
+          encoder: mlp
           base_mode: ft_cos
           new_mode: avg_cos
           epochs_base: 1
@@ -82,7 +82,7 @@ stages:
           start_session: 0
           lr_base: 0.005
           lr_new: 0.1
-          schedule: Milestone
+          schedule: Cosine
           milestones:
           - 60
           - 70
@@ -114,6 +114,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: baac79eb429439fc8c9bed6e37d2a04f.dir
-      size: 38615831
+      md5: 273c641b6262859ff7346a243c52fda4.dir
+      size: 9323319
       nfiles: 23
