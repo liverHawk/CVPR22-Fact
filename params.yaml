@@ -34,7 +34,7 @@ train:
   # 学習率とスケジューラ
   lr_base: 0.005
   lr_new: 0.1
-  schedule: Cosine       # Step, Milestone, Cosine
+  schedule: Milestone       # Step, Milestone, Cosine
   milestones:
   - 60
   - 70

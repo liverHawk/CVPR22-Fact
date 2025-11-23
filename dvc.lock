@@ -82,7 +82,7 @@ stages:
           start_session: 0
           lr_base: 0.005
           lr_new: 0.1
-          schedule: Cosine
+          schedule: Milestone
           milestones:
           - 60
           - 70
@@ -114,6 +114,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: 273c641b6262859ff7346a243c52fda4.dir
-      size: 9323319
+      md5: 7073d2b75d378fcc6a78e95fa54217d1.dir
+      size: 9323322
       nfiles: 23
