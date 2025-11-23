@@ -85,7 +85,7 @@ stages:
           gamma: 0.25
           loss_iter: 0
           lr_base: 0.005
-          lr_new: 0.1
+          lr_new: 0.2
           milestones:
           - 60
           - 70
@@ -114,6 +114,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: 4385dca2b497995b280427888faf1605.dir
+      md5: 543f9a7d0aa85e12a35181fb81fbb9c5.dir
       size: 38856409
       nfiles: 23
