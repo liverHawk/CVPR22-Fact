@@ -1,133 +1,108 @@
-# パラメータ設定ファイル
-# Makefileのデフォルト値に基づいて設定
-
-# パス設定
+common:
+  device: cuda
+  gpu: 0
+  seed: 1
+create_sessions:
+  base_class: 4
+  num_classes: 10
+  output_dir: data/index_list/CICIDS2017_improved
+  random_state: 1
+  shot: 5
+  train_csv: data/train.csv
+  way: 1
+dataset_presets:
+  cifar100:
+    alpha: 0.5
+    balance: 0.001
+    batch_size_base: 256
+    decay: 0.0005
+    epochs_base: 600
+    gamma: 0.1
+    loss_iter: 0
+    lr_base: 0.1
+    lr_new: 0.1
+    schedule: Cosine
+    temperature: 16
+  cub200:
+    balance: 0.01
+    batch_size_base: 256
+    decay: 0.0005
+    epochs_base: 1
+    gamma: 0.25
+    loss_iter: 0
+    lr_base: 0.005
+    lr_new: 0.1
+    milestones:
+    - 60
+    - 70
+    schedule: Milestone
+    temperature: 16
+  mini_imagenet:
+    alpha: 0.5
+    balance: 0.01
+    decay: 0.0005
+    epochs_base: 1000
+    eta: 0.1
+    gamma: 0.1
+    loss_iter: 150
+    lr_base: 0.1
+    lr_new: 0.1
+    schedule: Cosine
+    temperature: 16
 paths:
-  project_root: .    # プロジェクトルート（相対パス）
-  data_dir: data
   checkpoint_dir: checkpoint
   cicids_dir: data/CICIDS2017_improved
   cicids_index_dir: data/index_list/CICIDS2017_improved
   cub_dataroot: data/cub200
+  data_dir: data
   mini_imagenet_root: data/mini_imagenet
-
-# 共通設定
-common:
-  gpu: 0
-  seed: 1
-  device: cuda  # 使用するデバイスを指定（"cuda" または "cpu"）
-
-# train.py用のパラメータ
-train:
-  project: fact
-  dataset: CICIDS2017_improved
-  dataroot: data    # paths.data_dirと統合可能だが、互換性のため残す
-  encoder: cnn1d
-  base_mode: ft_cos
-  new_mode: avg_cos
-  epochs_base: 1
-  epochs_new: 100
-  batch_size_base: 128
-  test_batch_size: 100
-  start_session: 0
-
-  # 学習率とスケジューラ
-  lr_base: 0.005
-  lr_new: 0.1
-  schedule: Milestone       # Step, Milestone, Cosine
-  milestones:
-  - 60
-  - 70
-  step: 20
-  decay: 0.0005
-  momentum: 0.9
-  gamma: 0.25
-
-  # FACT固有のパラメータ
-  temperature: 16
-  balance: 0.01
-  loss_iter: 0
-  alpha: 2.0
-  eta: 0.1
-
-  # その他
-  batch_size_new: 0  # 0の場合は利用可能なすべての訓練画像を使用
-  not_data_init: false
-  set_no_val: false
-  num_workers: 8
-  debug: false
-  model_dir:
-
-  # wandb設定
-  wandb:
-    use_wandb: false
-    project: origin-fact
-    entity: ''
-    group: ''
-    run_name: ''
-    tags: []
-    mode: online    # online, offline, disabled
-    watch: gradients    # gradients, parameters, all, none
-    watch_freq: 100
-
-# split_cicids2017.py用のパラメータ
+  project_root: .
 split_cicids:
   data_dir: data/CICIDS2017_improved
   output_dir: data/CICIDS2017_improved
-  test_size: 0.2
-  random_state: 1  # common.seedと統合可能
+  random_state: 1
   stratify: true
-
-# create_session_files.py用のパラメータ
-create_sessions:
-  train_csv: data/train.csv
-  output_dir: data/index_list/CICIDS2017_improved
-  base_class: 4
-  num_classes: 10
-  way: 1
-  shot: 5
-  random_state: 1  # common.seedと統合可能
-
-# データセット別の特別な設定（MakefileのFACT_*_EXTRAに対応）
-dataset_presets:
-  cifar100:
-    gamma: 0.1
-    lr_base: 0.1
-    lr_new: 0.1
-    decay: 0.0005
-    epochs_base: 600
-    schedule: Cosine
-    temperature: 16
-    batch_size_base: 256
-    balance: 0.001
-    loss_iter: 0
-    alpha: 0.5
-
-  cub200:
-    gamma: 0.25
-    lr_base: 0.005
-    lr_new: 0.1
-    decay: 0.0005
-    epochs_base: 1
-    schedule: Milestone
-    milestones:
-    - 60
-    - 70
-    temperature: 16
-    batch_size_base: 256
-    balance: 0.01
-    loss_iter: 0
-
-  mini_imagenet:
-    gamma: 0.1
-    lr_base: 0.1
-    lr_new: 0.1
-    decay: 0.0005
-    epochs_base: 1000
-    schedule: Cosine
-    temperature: 16
-    alpha: 0.5
-    balance: 0.01
-    loss_iter: 150
-    eta: 0.1
-
+  test_size: 0.2
+train:
+  alpha: 2.0
+  balance: 0.01
+  base_mode: ft_cos
+  batch_size_base: 128
+  batch_size_new: 0
+  dataroot: data
+  dataset: CICIDS2017_improved
+  debug: false
+  decay: 0.0005
+  encoder: cnn1d
+  epochs_base: 1
+  epochs_new: 1000
+  eta: 0.01
+  gamma: 0.25
+  loss_iter: 0
+  lr_base: 0.005
+  lr_new: 0.01
+  milestones:
+  - 60
+  - 70
+  model_dir: null
+  momentum: 0.9
+  new_mode: avg_cos
+  not_data_init: false
+  num_workers: 8
+  project: fact
+  schedule: Cosine
+  set_no_val: false
+  start_session: 0
+  step: 20
+  temperature: 16
+  test_batch_size: 100
+  wandb:
+    entity: ''
+    group: ''
+    mode: online
+    project: origin-fact
+    run_name: ''
+    tags: []
+    use_wandb: false
+    watch: gradients
+    watch_freq: 100

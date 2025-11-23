@@ -10,8 +10,8 @@ stages:
       nfiles: 5
     - path: split_cicids2017.py
       hash: md5
-      md5: 33968c6051945eac90b902e51b59bb6f
-      size: 6893
+      md5: e009407c890848ebe5e3e117a6d5b6d1
+      size: 7077
     outs:
     - path: data/test.csv
       hash: md5
@@ -26,8 +26,8 @@ stages:
     deps:
     - path: create_session_files.py
       hash: md5
-      md5: 215309e5feaf491084abee85d1512b08
-      size: 8537
+      md5: 20af13d7a235d76c7084626870f30d84
+      size: 8723
     - path: data/train.csv
       hash: md5
       md5: 3c4880896b08cab0f3f076d1ab537b71
@@ -64,56 +64,56 @@ stages:
       size: 921564131
     - path: train.py
       hash: md5
-      md5: ec385b7f07d4758266b5eb71015b329d
-      size: 11761
+      md5: e994e42749b54096b1d9be80477886e1
+      size: 12056
     params:
       params.yaml:
         train:
-          project: fact
-          dataset: CICIDS2017_improved
-          dataroot: data
-          encoder: cnn1d
+          alpha: 2.0
+          balance: 0.01
           base_mode: ft_cos
-          new_mode: avg_cos
-          epochs_base: 1
-          epochs_new: 100
           batch_size_base: 128
-          test_batch_size: 100
-          start_session: 0
+          batch_size_new: 0
+          dataroot: data
+          dataset: CICIDS2017_improved
+          debug: false
+          decay: 0.0005
+          encoder: cnn1d
+          epochs_base: 1
+          epochs_new: 1000
+          eta: 0.01
+          gamma: 0.25
+          loss_iter: 0
           lr_base: 0.005
-          lr_new: 0.1
-          schedule: Milestone
+          lr_new: 0.01
           milestones:
           - 60
           - 70
-          step: 20
-          decay: 0.0005
-          momentum: 0.9
-          gamma: 0.25
-          temperature: 16
-          balance: 0.01
-          loss_iter: 0
-          alpha: 2.0
-          eta: 0.1
-          batch_size_new: 0
-          not_data_init: false
-          set_no_val: false
-          num_workers: 8
-          debug: false
           model_dir:
+          momentum: 0.9
+          new_mode: avg_cos
+          not_data_init: false
+          num_workers: 8
+          project: fact
+          schedule: Cosine
+          set_no_val: false
+          start_session: 0
+          step: 20
+          temperature: 16
+          test_batch_size: 100
           wandb:
-            use_wandb: false
-            project: origin-fact
             entity: ''
             group: ''
+            mode: online
+            project: origin-fact
             run_name: ''
             tags: []
-            mode: online
+            use_wandb: false
             watch: gradients
             watch_freq: 100
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: 45ef1145208a3886ddda5fde9eb26106.dir
-      size: 38856366
+      md5: 9ac541725f24e4af9822ebbc5935bebb.dir
+      size: 38854768
       nfiles: 23
