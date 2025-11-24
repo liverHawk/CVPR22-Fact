@@ -76,7 +76,7 @@ train:
   encoder: cnn1d
   epochs_base: 1
   epochs_new: 1000
-  eta: 0.6
+  eta: 0.7
   gamma: 0.25
   loss_iter: 0
   lr_base: 0.005
