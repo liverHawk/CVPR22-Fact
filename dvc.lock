@@ -99,7 +99,7 @@ stages:
           set_no_val: false
           start_session: 0
           step: 20
-          temperature: 2
+          temperature: 4
           test_batch_size: 100
           wandb:
             entity: ''
@@ -114,6 +114,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: c3966bd364b70ef97f6c45f620cd27b2.dir
-      size: 38820545
+      md5: 22446f6312ad5aa2a3df32e44c848831.dir
+      size: 38870898
       nfiles: 23
