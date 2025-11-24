@@ -90,7 +90,7 @@ stages:
           - 60
           - 70
           model_dir:
-          momentum: 0.1
+          momentum: 0.2
           new_mode: avg_cos
           not_data_init: false
           num_workers: 8
@@ -114,6 +114,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: 24ad4d065667d73327d92a7317bba4ef.dir
+      md5: 18e73b5db832b72ccd01b8404971ff95.dir
       size: 38870896
       nfiles: 23
