@@ -81,16 +81,16 @@ stages:
           encoder: cnn1d
           epochs_base: 1
           epochs_new: 1000
-          eta: 0.9
+          eta: 0.1
           gamma: 0.25
           loss_iter: 0
           lr_base: 0.005
-          lr_new: 0.5
+          lr_new: 0.01
           milestones:
           - 60
           - 70
           model_dir:
-          momentum: 0.9
+          momentum: 0.5
           new_mode: avg_cos
           not_data_init: false
           num_workers: 8
@@ -99,7 +99,7 @@ stages:
           set_no_val: false
           start_session: 0
           step: 20
-          temperature: 16
+          temperature: 1
           test_batch_size: 100
           wandb:
             entity: ''
@@ -114,6 +114,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: 459d62b208c72e571bf97ccf7f442d54.dir
-      size: 38879092
+      md5: 7056ba5f8f5c9b1d962820e189bda625.dir
+      size: 38832340
       nfiles: 23
