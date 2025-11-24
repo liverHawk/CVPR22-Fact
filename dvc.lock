@@ -12,6 +12,14 @@ stages:
       hash: md5
       md5: b1aabc3697cb8f6e3e4227f368bb4127
       size: 7700
+    params:
+      params.yaml:
+        split_cicids:
+          data_dir: data/CICIDS2017_improved
+          output_dir: data/CICIDS2017_improved
+          random_state: 1
+          stratify: true
+          test_size: 0.2
     outs:
     - path: data/test.csv
       hash: md5
@@ -32,6 +40,16 @@ stages:
       hash: md5
       md5: 8de938eafdc821ea1ac5ba9ba24ab66f
       size: 920053282
+    params:
+      params.yaml:
+        create_sessions:
+          base_class: 4
+          num_classes: 10
+          output_dir: data/index_list/CICIDS2017_improved
+          random_state: 1
+          shot: 1
+          train_csv: data/train.csv
+          way: 1
     outs:
     - path: data/class_indices.json
       hash: md5
@@ -43,16 +61,16 @@ stages:
       size: 1410
     - path: data/index_list/CICIDS2017_improved
       hash: md5
-      md5: 91d3d2c0769b9a707eedc8b21ab3c18e.dir
-      size: 10932246
+      md5: 218e6a2eb6485045a4170ae91e97b184.dir
+      size: 10932067
       nfiles: 7
   train:
     cmd: uv run train.py
     deps:
     - path: data/index_list/CICIDS2017_improved
       hash: md5
-      md5: 91d3d2c0769b9a707eedc8b21ab3c18e.dir
-      size: 10932246
+      md5: 218e6a2eb6485045a4170ae91e97b184.dir
+      size: 10932067
       nfiles: 7
     - path: data/test.csv
       hash: md5
@@ -68,6 +86,14 @@ stages:
       size: 12056
     params:
       params.yaml:
+        create_sessions:
+          base_class: 4
+          num_classes: 10
+          output_dir: data/index_list/CICIDS2017_improved
+          random_state: 1
+          shot: 1
+          train_csv: data/train.csv
+          way: 1
         train:
           alpha: 2.0
           balance: 0.01
@@ -114,6 +140,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: 09c77ae3a92376fcb14ae0d05b396a8d.dir
-      size: 38862561
+      md5: d21b889f5fc6fe1486b30c992516e034.dir
+      size: 38854889
       nfiles: 23
