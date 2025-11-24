@@ -94,7 +94,7 @@ train:
   set_no_val: false
   start_session: 0
   step: 20
-  temperature: 16
+  temperature: 32
   test_batch_size: 100
   wandb:
     entity: ''
