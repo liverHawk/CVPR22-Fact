@@ -154,6 +154,8 @@ if __name__ == "__main__":
     import sys
     import os
 
+    root_dir = "/home/hawk/Documents/school/test/CVPR22-Fact"
+
     # utilsモジュールをインポート（パスを追加）
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     try:
@@ -233,6 +235,9 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    args.train_csv = os.path.join(root_dir, args.train_csv)
+    args.output_dir = os.path.join(root_dir, args.output_dir)
 
     create_session_files(
         train_csv=args.train_csv,

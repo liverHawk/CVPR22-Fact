@@ -1,6 +1,8 @@
+import dvc_workaround
 import argparse
 import comet_ml
 from utils import load_params_yaml, set_gpu, set_seed, pprint, torch
+import os
 
 MODEL_DIR = None
 DATA_DIR = "data/"
@@ -270,6 +272,8 @@ def get_command_line_parser():
 
 
 if __name__ == "__main__":
+    root_dir = "/home/hawk/Documents/school/test/CVPR22-Fact"
+    dvc_workaround.fix_stdout_buffer()
     parser = get_command_line_parser()
     args = parser.parse_args()
 
@@ -286,6 +290,10 @@ if __name__ == "__main__":
 
     set_seed(args.seed)
     pprint(vars(args))
+    
+    args.dataroot = os.path.join(root_dir, args.dataroot)
+    if args.model_dir is not None:
+        args.model_dir = os.path.join(root_dir, args.model_dir)
     
     args.comet = comet_ml.start(project_name="NIDS on FACT")
     args.num_gpu = set_gpu(args)

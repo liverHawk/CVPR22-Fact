@@ -1,5 +1,6 @@
 [core]
     remote = azure
+    no_scm = false
 [studio]
     offline = true
 ['remote "azure"']
