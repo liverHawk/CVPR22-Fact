@@ -47,18 +47,42 @@ class GridExperimentRunner:
         print(f"▶ コマンド実行: {self.command}")
         try:
             if isinstance(self.command, str):
-                result = subprocess.run(
-                    self.command, shell=True, check=True, capture_output=True, text=True
+                # リアルタイムで出力を表示
+                process = subprocess.Popen(
+                    self.command,
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,  # 行バッファリング
+                    universal_newlines=True
                 )
             else:
-                result = subprocess.run(
-                    self.command, check=True, capture_output=True, text=True
+                process = subprocess.Popen(
+                    self.command,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True
                 )
-
-            if result.stdout:
-                print(result.stdout)
-            print("✓ コマンドが正常に終了しました")
-            return True
+            
+            # リアルタイムで出力を表示
+            output_lines = []
+            for line in process.stdout:
+                line = line.rstrip()
+                print(line, flush=True)  # 即座に表示
+                output_lines.append(line)
+            
+            # プロセスの終了を待つ
+            return_code = process.wait()
+            
+            if return_code == 0:
+                print("✓ コマンドが正常に終了しました")
+                return True
+            else:
+                print(f"✗ コマンドがエラーコード {return_code} で終了しました")
+                return False
 
         except subprocess.CalledProcessError as e:
             print(f"✗ コマンド実行エラー: {e}")
@@ -229,7 +253,7 @@ if __name__ == "__main__":
 
     # パラメータグリッドを定義
     param_grid = {
-        "train.eta": [0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+        "train.schedule": ["Cosine", "Milestone", "Step"],
     }
 
     # ドライラン（実験リストのみ表示）

@@ -86,7 +86,7 @@ train:
   - 70
   model_dir: null
   momentum: 0.5
-  new_mode: avg_cos
+  new_mode: avg_dot
   not_data_init: false
   num_workers: 8
   project: fact
@@ -94,7 +94,7 @@ train:
   set_no_val: false
   start_session: 0
   step: 20
-  temperature: 128
+  temperature: 4
   test_batch_size: 100
   wandb:
     entity: ''
