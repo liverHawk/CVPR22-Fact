@@ -8,10 +8,16 @@ from utils import Averager, confmatrix, count_acc, os, torch
 # from .Network import MYNET
 
 
+def _unwrap_model(model):
+    """nn.DataParallel互換のシンプルなアンラップ."""
+    return model.module if hasattr(model, "module") else model
+
+
 def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
     tl = Averager()
     ta = Averager()
     model = model.train()
+    inner_model = _unwrap_model(model)
     tqdm_gen = tqdm(trainloader)
 
     for i, batch in enumerate(tqdm_gen, 1):
@@ -28,7 +34,7 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
 
         if epoch >= args.loss_iter:
             logits_masked = logits.masked_fill(
-                F.one_hot(train_label, num_classes=model.module.pre_allocate) == 1, -1e9
+                F.one_hot(train_label, num_classes=inner_model.pre_allocate) == 1, -1e9
             )
             logits_masked_chosen = logits_masked * mask[train_label]
             pseudo_label = (
@@ -39,9 +45,9 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
             loss2 = F.cross_entropy(logits_masked, pseudo_label)
 
             index = torch.randperm(data.size(0), device=args.device)
-            pre_emb1 = model.module.pre_encode(data)
+            pre_emb1 = inner_model.pre_encode(data)
             mixed_data = beta * pre_emb1 + (1 - beta) * pre_emb1[index]
-            mixed_logits = model.module.post_encode(mixed_data)
+            mixed_logits = inner_model.post_encode(mixed_data)
 
             newys = train_label[index]
             idx_chosen = newys != train_label
@@ -56,7 +62,7 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
             )  # old class label
             loss3 = F.cross_entropy(mixed_logits, pseudo_label1)
             novel_logits_masked = mixed_logits.masked_fill(
-                F.one_hot(pseudo_label1, num_classes=model.module.pre_allocate) == 1,
+                F.one_hot(pseudo_label1, num_classes=inner_model.pre_allocate) == 1,
                 -1e9,
             )
             loss4 = F.cross_entropy(novel_logits_masked, pseudo_label2)
@@ -85,6 +91,7 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
 def replace_base_fc(trainset, transform, model, args):
     # replace fc.weight with the embedding average of train data
     model = model.eval()
+    inner_model = _unwrap_model(model)
 
     trainloader = torch.utils.data.DataLoader(
         dataset=trainset, batch_size=128, num_workers=8, pin_memory=args.pin_memory, shuffle=False
@@ -98,7 +105,7 @@ def replace_base_fc(trainset, transform, model, args):
     with torch.no_grad():
         for i, batch in enumerate(trainloader):
             data, label = [_.to(args.device) for _ in batch]
-            model.module.mode = "encoder"
+            inner_model.mode = "encoder"
             embedding = model(data)
 
             embedding_list.append(embedding.cpu())
@@ -116,7 +123,7 @@ def replace_base_fc(trainset, transform, model, args):
 
     proto_list = torch.stack(proto_list, dim=0)
 
-    model.module.fc.weight.data[: args.base_class] = proto_list
+    inner_model.fc.weight.data[: args.base_class] = proto_list
 
     return model
 
@@ -176,6 +183,7 @@ def test(model, testloader, epoch, args, session, validation=True, wandb_logger=
 def test_withfc(model, testloader, epoch, args, session, validation=True):
     test_class = args.base_class + session * args.way
     model = model.eval()
+    inner_model = _unwrap_model(model)
     vl = Averager()
     va = Averager()
     lgt = torch.tensor([])
@@ -183,7 +191,7 @@ def test_withfc(model, testloader, epoch, args, session, validation=True):
     with torch.no_grad():
         for i, batch in enumerate(testloader, 1):
             data, test_label = [_.to(args.device) for _ in batch]
-            logits = model.module.forpass_fc(data)
+            logits = inner_model.forpass_fc(data)
             logits = logits[:, :test_class]
             loss = F.cross_entropy(logits, test_label)
             acc = count_acc(logits, test_label)

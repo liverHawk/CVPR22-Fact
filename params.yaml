@@ -1,5 +1,5 @@
 common:
-  device: cuda
+  device: cpu
   gpu: 0
   seed: 1
 create_sessions:
@@ -7,7 +7,7 @@ create_sessions:
   num_classes: 10
   output_dir: data/index_list/CICIDS2017_improved
   random_state: 1
-  shot: 1
+  shot: 5
   train_csv: data/train.csv
   way: 1
 dataset_presets:
@@ -64,6 +64,7 @@ split_cicids:
   stratify: true
   test_size: 0.2
 train:
+  normalize_method: moving_minmax
   alpha: 2.0
   balance: 0.01
   base_mode: ft_cos

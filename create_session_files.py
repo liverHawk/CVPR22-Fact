@@ -142,7 +142,7 @@ if __name__ == "__main__":
     import sys
     import os
 
-    root_dir = "/home/hawk/Documents/school/test/CVPR22-Fact"
+    root_dir = "/Users/toshi_pro/Documents/school/cvpr22-fact"
 
     # utilsモジュールをインポート（パスを追加）
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

@@ -4,7 +4,7 @@ import torch.nn as nn
 from copy import deepcopy
 from tqdm import tqdm
 
-from .helper import base_train, test, replace_base_fc
+from .helper import base_train, test, replace_base_fc, _unwrap_model
 from utils import ensure_path, save_list_to_txt, count_acc, count_acc_topk, torch, time, np, os, Averager, confmatrix
 from dataloader.data_utils import set_up_datasets, get_base_dataloader, get_new_dataloader
 from .Network import MYNET, F
@@ -208,7 +208,7 @@ class FSCILTrainer(Trainer):
                     self.best_model_dict = deepcopy(self.model.state_dict())
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
-                    self.model.module.mode = "avg_cos"
+                    _unwrap_model(self.model).mode = "avg_cos"
                     tsl, tsa, acc_dict = test(
                         self.model,
                         testloader,
@@ -239,7 +239,9 @@ class FSCILTrainer(Trainer):
                         )
 
                 # save dummy classifiers
-                self.dummy_classifiers = deepcopy(self.model.module.fc.weight.detach())
+                self.dummy_classifiers = deepcopy(
+                    _unwrap_model(self.model).fc.weight.detach()
+                )
 
                 self.dummy_classifiers = F.normalize(
                     self.dummy_classifiers[self.args.base_class :, :], p=2, dim=-1
@@ -249,14 +251,14 @@ class FSCILTrainer(Trainer):
             else:  # incremental learning sessions
                 print("training session: [%d]" % session)
 
-                self.model.module.mode = self.args.new_mode
+                _unwrap_model(self.model).mode = self.args.new_mode
                 self.model.eval()
                 # Only set transform for image datasets (CICIDS2017_improved doesn't have transform attribute)
                 if hasattr(trainloader.dataset, "transform") and hasattr(
                     testloader.dataset, "transform"
                 ):
                     trainloader.dataset.transform = testloader.dataset.transform
-                self.model.module.update_fc(
+                _unwrap_model(self.model).update_fc(
                     trainloader, np.unique(train_set.targets), session
                 )
 
@@ -344,6 +346,7 @@ class FSCILTrainer(Trainer):
     ):
         test_class = args.base_class + session * args.way
         model = model.eval()
+        inner_model = _unwrap_model(model)
         vl = Averager()
         va = Averager()
         va5 = Averager()
@@ -353,7 +356,7 @@ class FSCILTrainer(Trainer):
         proj_matrix = torch.mm(
             self.dummy_classifiers,
             F.normalize(
-                torch.transpose(model.module.fc.weight[:test_class, :], 1, 0),
+                torch.transpose(inner_model.fc.weight[:test_class, :], 1, 0),
                 p=2,
                 dim=-1,
             ),
@@ -368,7 +371,7 @@ class FSCILTrainer(Trainer):
             for i, batch in enumerate(pbar, 1):
                 data, test_label = [_.to(self.args.device) for _ in batch]
 
-                emb = model.module.encode(data)
+                emb = inner_model.encode(data)
 
                 proj = torch.mm(
                     F.normalize(emb, p=2, dim=-1),
@@ -381,7 +384,7 @@ class FSCILTrainer(Trainer):
                 res_logit = res.scatter(1, indices, topk)
 
                 logits1 = torch.mm(res_logit, proj_matrix)
-                logits2 = model.module.forpass_fc(data)[:, :test_class]
+                logits2 = inner_model.forpass_fc(data)[:, :test_class]
                 logits = eta * F.softmax(logits1, dim=1) + (1 - eta) * F.softmax(
                     logits2, dim=1
                 )

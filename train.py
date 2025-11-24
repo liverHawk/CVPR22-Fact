@@ -24,6 +24,8 @@ def load_defaults_from_yaml(yaml_path="params.yaml"):
         defaults["gpu"] = str(common_params.get("gpu", 0))
         defaults["seed"] = common_params.get("seed", 1)
 
+        defaults["normalize_method"] = train_params.get("normalize_method", "standard")
+
         # 訓練パラメータ
         defaults["project"] = train_params.get("project", PROJECT)
         defaults["dataset"] = train_params.get("dataset", "CICIDS2017_improved")
@@ -268,11 +270,18 @@ def get_command_line_parser():
         default=yaml_defaults.get("device", "cpu"),
         help="使用するデバイスを指定（\"cuda\" または \"cpu\"）",
     )
+    parser.add_argument(
+        "--normalize_method",
+        type=str,
+        default=yaml_defaults.get("normalize_method", "standard"),
+        choices=["standard", "minmax", "moving_minmax"],
+        help="normalize method",
+    )
     return parser
 
 
 if __name__ == "__main__":
-    root_dir = "/home/hawk/Documents/school/test/CVPR22-Fact"
+    root_dir = "/Users/toshi_pro/Documents/school/cvpr22-fact"
     dvc_workaround.fix_stdout_buffer()
     parser = get_command_line_parser()
     args = parser.parse_args()

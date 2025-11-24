@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.preprocessing import LabelEncoder
+import sklearn.preprocessing as preprocessing
 # from sklearn.model_selection import train_test_split
 
 
@@ -22,10 +23,12 @@ class CICIDS2017_improved(Dataset):
         index=None,
         base_sess=None,
         autoaug=1,
+        normalize_method="standard",
     ):
         self.root = os.path.expanduser(root)
         self.train = train
         self.autoaug = autoaug
+        self.normalize_method = normalize_method
 
         # Load and preprocess data
         self._pre_operate(self.root)
@@ -338,8 +341,8 @@ class CICIDS2017_improved(Dataset):
         test_df = self._fast_process(test_df)
 
         # Column adjustment: label consolidation and column renaming
-        train_df = self._column_adjustment(train_df)
-        test_df = self._column_adjustment(test_df)
+        train_df: pd.DataFrame = self._column_adjustment(train_df)
+        test_df: pd.DataFrame = self._column_adjustment(test_df)
 
         # Separate features and labels
         if "Label" not in train_df.columns:
@@ -361,13 +364,15 @@ class CICIDS2017_improved(Dataset):
         test_labels = le.transform(test_df[label_col].values)
 
         # Normalize features
-        scaler = StandardScaler()
-        train_features = scaler.fit_transform(train_features)
-        test_features = scaler.transform(test_features)
+        # scaler = StandardScaler()
+        train_features = self.normalize_features(train_features)
+        test_features = self.normalize_features(test_features)
+        # train_features = scaler.fit_transform(train_features)
+        # test_features = scaler.transform(test_features)
 
         # Store scaler and label encoder for later use
-        self.scaler = scaler
-        self.label_encoder = le
+        # self.scaler = scaler
+        # self.label_encoder = le
 
         # Create data2label mapping for index-based selection
         self.data2label = {}
@@ -450,3 +455,24 @@ class CICIDS2017_improved(Dataset):
         label = torch.LongTensor([label])[0]
 
         return features, label
+    
+    def normalize_features(self, features):
+        if self.normalize_method == "standard":
+            scaler = preprocessing.StandardScaler()
+            features = scaler.fit_transform(features)
+        elif self.normalize_method == "minmax":
+            scaler = preprocessing.MinMaxScaler()
+            features = scaler.fit_transform(features)
+        elif self.normalize_method == "moving_minmax":
+            features = moving_minmax(features)
+        features = np.nan_to_num(features, nan=0.0, posinf=0.0, neginf=0.0)
+        return features
+
+
+def moving_minmax(features):
+    df = pd.DataFrame(features)
+    rolling = df.rolling(window=5, min_periods=1)
+    rolling_min = rolling.min()
+    rolling_max = rolling.max()
+    df = (df - rolling_min) / (rolling_max - rolling_min + 1e-6)
+    return df.values
