@@ -47,7 +47,7 @@ stages:
           num_classes: 10
           output_dir: data/index_list/CICIDS2017_improved
           random_state: 1
-          shot: 4
+          shot: 5
           train_csv: data/train.csv
           way: 1
     outs:
@@ -61,16 +61,16 @@ stages:
       size: 1410
     - path: data/index_list/CICIDS2017_improved
       hash: md5
-      md5: a31e33624650ff5e1240acc3740042b2.dir
-      size: 10932200
+      md5: 91d3d2c0769b9a707eedc8b21ab3c18e.dir
+      size: 10932246
       nfiles: 7
   train:
     cmd: uv run train.py
     deps:
     - path: data/index_list/CICIDS2017_improved
       hash: md5
-      md5: a31e33624650ff5e1240acc3740042b2.dir
-      size: 10932200
+      md5: 91d3d2c0769b9a707eedc8b21ab3c18e.dir
+      size: 10932246
       nfiles: 7
     - path: data/test.csv
       hash: md5
@@ -91,7 +91,7 @@ stages:
           num_classes: 10
           output_dir: data/index_list/CICIDS2017_improved
           random_state: 1
-          shot: 4
+          shot: 5
           train_csv: data/train.csv
           way: 1
         train:
@@ -140,6 +140,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: 88d156c928250c3f096cf6e0c4ae6c94.dir
-      size: 38859722
+      md5: e4db657e34da23d71e8dd3b009ea06cc.dir
+      size: 38862561
       nfiles: 23
