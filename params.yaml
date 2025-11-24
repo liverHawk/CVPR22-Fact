@@ -86,7 +86,7 @@ train:
   - 70
   model_dir: null
   momentum: 0.5
-  new_mode: avg_dot
+  new_mode: avg_cos
   not_data_init: false
   num_workers: 8
   project: fact
