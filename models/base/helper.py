@@ -137,4 +137,4 @@ def test(model, testloader, epoch, args, session, validation=True, wandb_logger=
                 wandb_logger.log_image(
                     f"session_{session}_confusion_matrix", save_model_dir + ".png"
                 )
-    return vl, va
+    return vl, va, {"seenac": seenac, "unseenac": unseenac}

@@ -92,7 +92,7 @@ class FSCILTrainer(Trainer):
                         step=epoch
                     )
                     # test model with all seen class
-                    tsl, tsa = test(
+                    tsl, tsa, acc_dict = test(
                         self.model,
                         testloader,
                         epoch,
@@ -106,6 +106,8 @@ class FSCILTrainer(Trainer):
                             "test/base": {
                                 "loss": tsl,
                                 "acc": tsa,
+                                "seenac": acc_dict["seenac"],
+                                "unseenac": acc_dict["unseenac"],
                             }
                         },
                         step=epoch
@@ -191,7 +193,7 @@ class FSCILTrainer(Trainer):
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
                     self.model.module.mode = "avg_cos"
-                    tsl, tsa = test(
+                    tsl, tsa, acc_dict = test(
                         self.model,
                         testloader,
                         0,
@@ -205,6 +207,8 @@ class FSCILTrainer(Trainer):
                             "test": {
                                 "loss": tsl,
                                 "acc": tsa,
+                                "seenac": acc_dict["seenac"],
+                                "unseenac": acc_dict["unseenac"],
                             }
                         },
                         step=0
@@ -231,7 +235,7 @@ class FSCILTrainer(Trainer):
                     trainloader, np.unique(train_set.targets), session
                 )
 
-                tsl, tsa = test(
+                tsl, tsa, acc_dict = test(
                     self.model,
                     testloader,
                     0,
@@ -246,6 +250,8 @@ class FSCILTrainer(Trainer):
                         "test": {
                             "loss": tsl,
                             "acc": tsa,
+                            "seenac": acc_dict["seenac"],
+                            "unseenac": acc_dict["unseenac"],
                         }
                     },
                     step=session

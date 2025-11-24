@@ -64,6 +64,18 @@ def load_and_split_cicids2017(
         # 最後の列をラベルとして使用
         label_col = combined_df.columns[-1]
         print(f"Warning: 'Label' column not found, using '{label_col}' as label column")
+    
+        # ラベルの統合（前処理に合わせる）
+    labels = combined_df[label_col].unique()
+    for label in labels:
+        if "Attempted" in label:
+            combined_df.loc[combined_df[label_col] == label, label_col] = "BENIGN"
+        if "Web Attack" in label:
+            combined_df.loc[combined_df[label_col] == label, label_col] = "Web Attack"
+        if "Infiltration" in label:
+            combined_df.loc[combined_df[label_col] == label, label_col] = "Infiltration"
+        if "DoS" in label and label != "DDoS":
+            combined_df.loc[combined_df[label_col] == label, label_col] = "DoS"
 
     print(f"\nLabel column: {label_col}")
     print(f"Unique labels: {combined_df[label_col].unique()}")

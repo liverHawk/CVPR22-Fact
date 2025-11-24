@@ -170,7 +170,7 @@ def test(model, testloader, epoch, args, session, validation=True, wandb_logger=
                 wandb_logger.log_image(
                     f"session_{session}_confusion_matrix", save_model_dir + ".png"
                 )
-    return vl, va
+    return vl, va, {"seenac": seenac, "unseenac": unseenac}
 
 
 def test_withfc(model, testloader, epoch, args, session, validation=True):
@@ -216,4 +216,4 @@ def test_withfc(model, testloader, epoch, args, session, validation=True):
             from utils import save_classification_report
 
             save_classification_report(lgt, lbs, save_model_dir)
-    return vl, va
+    return vl, va, {"seenac": seenac, "unseenac": unseenac}

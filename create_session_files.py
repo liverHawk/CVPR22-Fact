@@ -45,18 +45,6 @@ def create_session_files(
 
     print(f"Label column: {label_col}")
 
-    # ラベルの統合（前処理に合わせる）
-    labels = df[label_col].unique()
-    for label in labels:
-        if "Attempted" in label:
-            df.loc[df[label_col] == label, label_col] = "BENIGN"
-        if "Web Attack" in label:
-            df.loc[df[label_col] == label, label_col] = "Web Attack"
-        if "Infiltration" in label:
-            df.loc[df[label_col] == label, label_col] = "Infiltration"
-        if "DoS" in label and label != "DDoS":
-            df.loc[df[label_col] == label, label_col] = "DoS"
-
     # ラベルをエンコード（0から始まる連番）
     unique_labels = sorted(df[label_col].unique())
     label_to_idx = {label: idx for idx, label in enumerate(unique_labels)}

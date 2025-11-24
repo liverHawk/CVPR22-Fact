@@ -10,32 +10,32 @@ stages:
       nfiles: 5
     - path: split_cicids2017.py
       hash: md5
-      md5: e009407c890848ebe5e3e117a6d5b6d1
-      size: 7077
+      md5: b1aabc3697cb8f6e3e4227f368bb4127
+      size: 7700
     outs:
     - path: data/test.csv
       hash: md5
-      md5: ed41889327bd3b6465575239fd8b5311
-      size: 230415072
+      md5: e48e8cdb0a354ff13908be22847a7d9e
+      size: 229983476
     - path: data/train.csv
       hash: md5
-      md5: 3c4880896b08cab0f3f076d1ab537b71
-      size: 921564131
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
   create_session_files:
     cmd: uv run create_session_files.py
     deps:
     - path: create_session_files.py
       hash: md5
-      md5: 20af13d7a235d76c7084626870f30d84
-      size: 8723
+      md5: 1bf660bcb5d91792a4ef8cd139ff09f5
+      size: 8189
     - path: data/train.csv
       hash: md5
-      md5: 3c4880896b08cab0f3f076d1ab537b71
-      size: 921564131
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
     outs:
     - path: data/class_indices.json
       hash: md5
-      md5: f29c90244e31c52ede125a0dcb127cdf
+      md5: 53ca2cb662df17651e7daa69780aca92
       size: 27448722
     - path: data/column_names.txt
       hash: md5
@@ -43,25 +43,25 @@ stages:
       size: 1410
     - path: data/index_list/CICIDS2017_improved
       hash: md5
-      md5: 88f4fb9338cc080025a73e92fba982d4.dir
-      size: 10932192
+      md5: 91d3d2c0769b9a707eedc8b21ab3c18e.dir
+      size: 10932246
       nfiles: 7
   train:
     cmd: uv run train.py
     deps:
     - path: data/index_list/CICIDS2017_improved
       hash: md5
-      md5: 88f4fb9338cc080025a73e92fba982d4.dir
-      size: 10932192
+      md5: 91d3d2c0769b9a707eedc8b21ab3c18e.dir
+      size: 10932246
       nfiles: 7
     - path: data/test.csv
       hash: md5
-      md5: ed41889327bd3b6465575239fd8b5311
-      size: 230415072
+      md5: e48e8cdb0a354ff13908be22847a7d9e
+      size: 229983476
     - path: data/train.csv
       hash: md5
-      md5: 3c4880896b08cab0f3f076d1ab537b71
-      size: 921564131
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
     - path: train.py
       hash: md5
       md5: e994e42749b54096b1d9be80477886e1
@@ -114,6 +114,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: 15a7582cd880cf901fc87e9207b67435.dir
-      size: 38870896
+      md5: 09c77ae3a92376fcb14ae0d05b396a8d.dir
+      size: 38862561
       nfiles: 23

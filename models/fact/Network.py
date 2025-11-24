@@ -239,6 +239,8 @@ class MYNET(nn.Module):
         new_fc = []
         for class_index in class_list:
             data_index = (label == class_index).nonzero().squeeze(-1)
+            if len(data_index) == 0:
+                continue
             embedding = data[data_index]
             proto = embedding.mean(0)
             new_fc.append(proto)

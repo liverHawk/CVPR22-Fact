@@ -107,7 +107,7 @@ class FSCILTrainer(Trainer):
                     # test model with all seen class
                     # 最終エポックの場合のみ混同行列を作成
                     is_final_epoch = epoch == args.epochs_base - 1
-                    tsl, tsa = test(
+                    tsl, tsa, acc_dict = test(
                         self.model,
                         testloader,
                         epoch,
@@ -122,6 +122,8 @@ class FSCILTrainer(Trainer):
                             "test/base": {
                                 "loss": tsl,
                                 "acc": tsa,
+                                "seenac": acc_dict["seenac"],
+                                "unseenac": acc_dict["unseenac"],
                             }
                         },
                         step=epoch
@@ -207,7 +209,7 @@ class FSCILTrainer(Trainer):
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
                     self.model.module.mode = "avg_cos"
-                    tsl, tsa = test(
+                    tsl, tsa, acc_dict = test(
                         self.model,
                         testloader,
                         0,
@@ -222,6 +224,8 @@ class FSCILTrainer(Trainer):
                             "test": {
                                 "loss": tsl,
                                 "acc": tsa,
+                                "seenac": acc_dict["seenac"],
+                                "unseenac": acc_dict["unseenac"],
                             }
                         },
                         step=session
@@ -259,7 +263,7 @@ class FSCILTrainer(Trainer):
                 # tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
                 # tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
                 print("Evaluating the updated model...")
-                tsl, tsa = self.test_intergrate(
+                tsl, tsa, acc_dict = self.test_intergrate(
                     self.model,
                     testloader,
                     0,
@@ -274,6 +278,8 @@ class FSCILTrainer(Trainer):
                         "test": {
                             "loss": tsl,
                             "acc": tsa,
+                            "seenac": acc_dict["seenac"],
+                            "unseenac": acc_dict["unseenac"],
                         }
                     },
                     step=session
@@ -424,7 +430,7 @@ class FSCILTrainer(Trainer):
                         f"session_{session}_confusion_matrix", save_model_dir + ".png"
                     )
 
-        return vl, va
+        return vl, va, {"seenac": seenac, "unseenac": unseenac}
 
     def set_save_path(self):
         self.args.save_path = os.path.join("checkpoint", self.args.dataset)
