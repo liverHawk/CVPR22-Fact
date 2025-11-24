@@ -106,7 +106,7 @@ stages:
           decay: 0.0005
           encoder: cnn1d
           epochs_base: 1
-          epochs_new: 1
+          epochs_new: 10
           eta: 0.1
           gamma: 0.25
           loss_iter: 0
@@ -140,6 +140,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: 7fc3a3e10c45c0ab0cdefe3d965b7115.dir
-      size: 38862558
+      md5: d16edf60f4023d7285dbe659f1142bac.dir
+      size: 38862559
       nfiles: 23
