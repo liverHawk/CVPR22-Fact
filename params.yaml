@@ -7,7 +7,7 @@ create_sessions:
   num_classes: 10
   output_dir: data/index_list/CICIDS2017_improved
   random_state: 1
-  shot: 9
+  shot: 5
   train_csv: data/train.csv
   way: 1
 dataset_presets:
@@ -75,7 +75,7 @@ train:
   decay: 0.0005
   encoder: cnn1d
   epochs_base: 1
-  epochs_new: 1000
+  epochs_new: 1
   eta: 0.1
   gamma: 0.25
   loss_iter: 0
