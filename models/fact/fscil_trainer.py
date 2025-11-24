@@ -64,6 +64,243 @@ class FSCILTrainer(Trainer):
         else:
             trainset, trainloader, testloader = get_new_dataloader(self.args, session)
         return trainset, trainloader, testloader
+    
+    def _base_session_train(self, train_set, trainloader, testloader, mask):
+        args = self.args
+        result_list = [args]
+
+        print("new classes for this session:\n", np.unique(train_set.targets))
+        optimizer, scheduler = self.get_optimizer_base()
+
+        for epoch in range(args.epochs_base):
+            start_time = time.time()
+            # train base sess
+            tl, ta = base_train(
+                self.model, trainloader, optimizer, scheduler, epoch, args, mask
+            )
+            args.comet.log_metrics(
+                dic={
+                    "train/base": {
+                        "loss": tl,
+                        "acc": ta,
+                    }
+                },
+                step=epoch
+            )
+
+            # test model with all seen class
+            # 最終エポックの場合のみ混同行列を作成
+            is_final_epoch = epoch == args.epochs_base - 1
+            tsl, tsa, acc_dict = test(
+                self.model,
+                testloader,
+                epoch,
+                args,
+                0,
+                validation=not is_final_epoch,
+                wandb_logger=self.wandb,
+                name="train"
+            )
+            args.comet.log_metrics(
+                dic={
+                    "test/base": {
+                        "loss": tsl,
+                        "acc": tsa,
+                        "seenac": acc_dict["seenac"],
+                        "unseenac": acc_dict["unseenac"],
+                    }
+                },
+                step=epoch
+            )
+
+            # save better model
+            if (tsa * 100) >= self.trlog["max_acc"][0]:
+                self.trlog["max_acc"][0] = float("%.3f" % (tsa * 100))
+                self.trlog["max_acc_epoch"] = epoch
+                save_model_dir = os.path.join(
+                    args.save_path, "session" + str(0) + "_max_acc.pth"
+                )
+                torch.save(dict(params=self.model.state_dict()), save_model_dir)
+                torch.save(
+                    optimizer.state_dict(),
+                    os.path.join(args.save_path, "optimizer_best.pth"),
+                )
+                self.best_model_dict = deepcopy(self.model.state_dict())
+                print("********A better model is found!!**********")
+                print("Saving model to :%s" % save_model_dir)
+            print(
+                "best epoch {}, best test acc={:.3f}".format(
+                    self.trlog["max_acc_epoch"], self.trlog["max_acc"][0]
+                )
+            )
+
+            self.trlog["train_loss"].append(tl)
+            self.trlog["train_acc"].append(ta)
+            self.trlog["test_loss"].append(tsl)
+            self.trlog["test_acc"].append(tsa)
+            lrc = scheduler.get_last_lr()[0]
+            result_list.append(
+                "epoch:%03d,lr:%.4f,training_loss:%.5f,training_acc:%.5f,test_loss:%.5f,test_acc:%.5f"
+                % (epoch, lrc, tl, ta, tsl, tsa)
+            )
+            self.global_step += 1
+            self.wandb.log_metrics(
+                {
+                    "session": 0,
+                    "epoch": epoch,
+                    "lr": lrc,
+                    "train/loss": tl,
+                    "train/acc": ta,
+                    "test/loss": tsl,
+                    "test/acc": tsa,
+                },
+                step=self.global_step,
+            )
+            print(
+                "This epoch takes %d seconds" % (time.time() - start_time),
+                "\nstill need around %.2f mins to finish this session"
+                % (
+                    (time.time() - start_time) * (args.epochs_base - epoch) / 60
+                ),
+            )
+            scheduler.step()
+
+        result_list.append(
+            "Session {}, Test Best Epoch {},\nbest test Acc {:.4f}\n".format(
+                0,
+                self.trlog["max_acc_epoch"],
+                self.trlog["max_acc"][0],
+            )
+        )
+
+        if not args.not_data_init:
+            self.model.load_state_dict(self.best_model_dict)
+            # For CICIDS2017_improved (tabular data), transform is not needed
+            transform = (
+                getattr(testloader.dataset, "transform", None)
+                if args.dataset != "CICIDS2017_improved"
+                else None
+            )
+            self.model = replace_base_fc(train_set, transform, self.model, args)
+            best_model_dir = os.path.join(
+                args.save_path, "session" + str(0) + "_max_acc.pth"
+            )
+            print(
+                "Replace the fc with average embedding, and save it to :%s"
+                % best_model_dir
+            )
+            self.best_model_dict = deepcopy(self.model.state_dict())
+            torch.save(dict(params=self.model.state_dict()), best_model_dir)
+
+            _unwrap_model(self.model).mode = "avg_cos"
+            tsl, tsa, acc_dict = test(
+                self.model,
+                testloader,
+                0,
+                args,
+                0,
+                validation=False,
+                wandb_logger=self.wandb,
+                name="session"
+            )
+            args.comet.log_metrics(
+                dic={
+                    "test": {
+                        "loss": tsl,
+                        "acc": tsa,
+                        "seenac": acc_dict["seenac"],
+                        "unseenac": acc_dict["unseenac"],
+                    }
+                },
+                step=0
+            )
+            if (tsa * 100) >= self.trlog["max_acc"][0]:
+                self.trlog["max_acc"][0] = float("%.3f" % (tsa * 100))
+                print(
+                    "The new best test acc of base session={:.3f}".format(
+                        self.trlog["max_acc"][0]
+                    )
+                )
+
+        # save dummy classifiers
+        self.dummy_classifiers = deepcopy(
+            _unwrap_model(self.model).fc.weight.detach()
+        )
+
+        self.dummy_classifiers = F.normalize(
+            self.dummy_classifiers[self.args.base_class :, :], p=2, dim=-1
+        )
+        self.old_classifiers = self.dummy_classifiers[: self.args.base_class, :]
+        return result_list
+    
+    def _new_session_train(self, train_set, trainloader, testloader, session):
+        args = self.args
+        result_list = [args]
+
+        print("training session: [%d]" % session)
+
+        _unwrap_model(self.model).mode = self.args.new_mode
+        self.model.eval()
+        # Only set transform for image datasets (CICIDS2017_improved doesn't have transform attribute)
+        if hasattr(trainloader.dataset, "transform") and hasattr(
+            testloader.dataset, "transform"
+        ):
+            trainloader.dataset.transform = testloader.dataset.transform
+        _unwrap_model(self.model).update_fc(
+            trainloader, np.unique(train_set.targets), session
+        )
+
+        # tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
+        # tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
+        print("Evaluating the updated model...")
+        tsl, tsa, acc_dict = self.test_intergrate(
+            self.model,
+            testloader,
+            0,
+            args,
+            session,
+            validation=False,
+            wandb_logger=self.wandb,
+            name="session"
+        )
+        args.comet.log_metrics(
+            dic={
+                "test": {
+                    "loss": tsl,
+                    "acc": tsa,
+                    "seenac": acc_dict["seenac"],
+                    "unseenac": acc_dict["unseenac"],
+                }
+            },
+            step=session
+        )
+
+        # save model
+        self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
+        save_model_dir = os.path.join(
+            args.save_path, "session" + str(session) + "_max_acc.pth"
+        )
+        torch.save(dict(params=self.model.state_dict()), save_model_dir)
+        self.best_model_dict = deepcopy(self.model.state_dict())
+        print("Saving model to :%s" % save_model_dir)
+        print("  test acc={:.3f}".format(self.trlog["max_acc"][session]))
+
+        result_list.append(
+            "Session {}, test Acc {:.3f}\n".format(
+                session, self.trlog["max_acc"][session]
+            )
+        )
+        self.global_step += 1
+        self.wandb.log_metrics(
+            {
+                "session": session,
+                "epoch": 0,
+                "test/loss": tsl,
+                "test/acc": tsa,
+            },
+            step=self.global_step,
+        )
+        return result_list
 
     def train(self):
         args = self.args
@@ -80,238 +317,30 @@ class FSCILTrainer(Trainer):
             mask[:, i + args.base_class][picked_dummy] = 1
         mask = torch.tensor(mask).to(self.args.device)
 
-        for session in range(args.start_session, args.sessions):
-            train_set, trainloader, testloader = self.get_dataloader(session)
-            self.model.load_state_dict(self.best_model_dict)
-
-            if session == 0:  # load base class train img label
-                print("new classes for this session:\n", np.unique(train_set.targets))
-                optimizer, scheduler = self.get_optimizer_base()
-
-                for epoch in range(args.epochs_base):
-                    start_time = time.time()
-                    # train base sess
-                    tl, ta = base_train(
-                        self.model, trainloader, optimizer, scheduler, epoch, args, mask
-                    )
-                    args.comet.log_metrics(
-                        dic={
-                            "train/base": {
-                                "loss": tl,
-                                "acc": ta,
-                            }
-                        },
-                        step=epoch
-                    )
-
-                    # test model with all seen class
-                    # 最終エポックの場合のみ混同行列を作成
-                    is_final_epoch = epoch == args.epochs_base - 1
-                    tsl, tsa, acc_dict = test(
-                        self.model,
-                        testloader,
-                        epoch,
-                        args,
-                        session,
-                        validation=not is_final_epoch,
-                        wandb_logger=self.wandb,
-                        name="train"
-                    )
-                    args.comet.log_metrics(
-                        dic={
-                            "test/base": {
-                                "loss": tsl,
-                                "acc": tsa,
-                                "seenac": acc_dict["seenac"],
-                                "unseenac": acc_dict["unseenac"],
-                            }
-                        },
-                        step=epoch
-                    )
-
-                    # save better model
-                    if (tsa * 100) >= self.trlog["max_acc"][session]:
-                        self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
-                        self.trlog["max_acc_epoch"] = epoch
-                        save_model_dir = os.path.join(
-                            args.save_path, "session" + str(session) + "_max_acc.pth"
-                        )
-                        torch.save(dict(params=self.model.state_dict()), save_model_dir)
-                        torch.save(
-                            optimizer.state_dict(),
-                            os.path.join(args.save_path, "optimizer_best.pth"),
-                        )
-                        self.best_model_dict = deepcopy(self.model.state_dict())
-                        print("********A better model is found!!**********")
-                        print("Saving model to :%s" % save_model_dir)
-                    print(
-                        "best epoch {}, best test acc={:.3f}".format(
-                            self.trlog["max_acc_epoch"], self.trlog["max_acc"][session]
-                        )
-                    )
-
-                    self.trlog["train_loss"].append(tl)
-                    self.trlog["train_acc"].append(ta)
-                    self.trlog["test_loss"].append(tsl)
-                    self.trlog["test_acc"].append(tsa)
-                    lrc = scheduler.get_last_lr()[0]
-                    result_list.append(
-                        "epoch:%03d,lr:%.4f,training_loss:%.5f,training_acc:%.5f,test_loss:%.5f,test_acc:%.5f"
-                        % (epoch, lrc, tl, ta, tsl, tsa)
-                    )
-                    self.global_step += 1
-                    self.wandb.log_metrics(
-                        {
-                            "session": session,
-                            "epoch": epoch,
-                            "lr": lrc,
-                            "train/loss": tl,
-                            "train/acc": ta,
-                            "test/loss": tsl,
-                            "test/acc": tsa,
-                        },
-                        step=self.global_step,
-                    )
-                    print(
-                        "This epoch takes %d seconds" % (time.time() - start_time),
-                        "\nstill need around %.2f mins to finish this session"
-                        % (
-                            (time.time() - start_time) * (args.epochs_base - epoch) / 60
-                        ),
-                    )
-                    scheduler.step()
-
-                result_list.append(
-                    "Session {}, Test Best Epoch {},\nbest test Acc {:.4f}\n".format(
-                        session,
-                        self.trlog["max_acc_epoch"],
-                        self.trlog["max_acc"][session],
-                    )
-                )
-
-                if not args.not_data_init:
+        if args.select_sessions is not None:
+            if 0 in args.select_sessions:
+                train_set, trainloader, testloader = self.get_dataloader(0)
+                self.model.load_state_dict(self.best_model_dict)
+                buf_list = self._base_session_train(train_set, trainloader, testloader, mask)
+                result_list.extend(buf_list)
+            else:
+                for session in args.select_sessions:
+                    train_set, trainloader, testloader = self.get_dataloader(session)
                     self.model.load_state_dict(self.best_model_dict)
-                    # For CICIDS2017_improved (tabular data), transform is not needed
-                    transform = (
-                        getattr(testloader.dataset, "transform", None)
-                        if args.dataset != "CICIDS2017_improved"
-                        else None
-                    )
-                    self.model = replace_base_fc(train_set, transform, self.model, args)
-                    best_model_dir = os.path.join(
-                        args.save_path, "session" + str(session) + "_max_acc.pth"
-                    )
-                    print(
-                        "Replace the fc with average embedding, and save it to :%s"
-                        % best_model_dir
-                    )
-                    self.best_model_dict = deepcopy(self.model.state_dict())
-                    torch.save(dict(params=self.model.state_dict()), best_model_dir)
+                    buf_list = self._new_session_train(train_set, trainloader, testloader, session)
+                    result_list.extend(buf_list)
+        else:
+            for session in range(args.start_session, args.sessions):
+                train_set, trainloader, testloader = self.get_dataloader(session)
+                self.model.load_state_dict(self.best_model_dict)
 
-                    _unwrap_model(self.model).mode = "avg_cos"
-                    tsl, tsa, acc_dict = test(
-                        self.model,
-                        testloader,
-                        0,
-                        args,
-                        session,
-                        validation=False,
-                        wandb_logger=self.wandb,
-                        name="session"
-                    )
-                    args.comet.log_metrics(
-                        dic={
-                            "test": {
-                                "loss": tsl,
-                                "acc": tsa,
-                                "seenac": acc_dict["seenac"],
-                                "unseenac": acc_dict["unseenac"],
-                            }
-                        },
-                        step=session
-                    )
-                    if (tsa * 100) >= self.trlog["max_acc"][session]:
-                        self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
-                        print(
-                            "The new best test acc of base session={:.3f}".format(
-                                self.trlog["max_acc"][session]
-                            )
-                        )
+                if session == 0:  # load base class train img label
+                    buf_list = self._base_session_train(train_set, trainloader, testloader, mask)
 
-                # save dummy classifiers
-                self.dummy_classifiers = deepcopy(
-                    _unwrap_model(self.model).fc.weight.detach()
-                )
+                else:  # incremental learning sessions
+                    buf_list = self._new_session_train(train_set, trainloader, testloader, session)
 
-                self.dummy_classifiers = F.normalize(
-                    self.dummy_classifiers[self.args.base_class :, :], p=2, dim=-1
-                )
-                self.old_classifiers = self.dummy_classifiers[: self.args.base_class, :]
-
-            else:  # incremental learning sessions
-                print("training session: [%d]" % session)
-
-                _unwrap_model(self.model).mode = self.args.new_mode
-                self.model.eval()
-                # Only set transform for image datasets (CICIDS2017_improved doesn't have transform attribute)
-                if hasattr(trainloader.dataset, "transform") and hasattr(
-                    testloader.dataset, "transform"
-                ):
-                    trainloader.dataset.transform = testloader.dataset.transform
-                _unwrap_model(self.model).update_fc(
-                    trainloader, np.unique(train_set.targets), session
-                )
-
-                # tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
-                # tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
-                print("Evaluating the updated model...")
-                tsl, tsa, acc_dict = self.test_intergrate(
-                    self.model,
-                    testloader,
-                    0,
-                    args,
-                    session,
-                    validation=False,
-                    wandb_logger=self.wandb,
-                    name="session"
-                )
-                args.comet.log_metrics(
-                    dic={
-                        "test": {
-                            "loss": tsl,
-                            "acc": tsa,
-                            "seenac": acc_dict["seenac"],
-                            "unseenac": acc_dict["unseenac"],
-                        }
-                    },
-                    step=session
-                )
-
-                # save model
-                self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
-                save_model_dir = os.path.join(
-                    args.save_path, "session" + str(session) + "_max_acc.pth"
-                )
-                torch.save(dict(params=self.model.state_dict()), save_model_dir)
-                self.best_model_dict = deepcopy(self.model.state_dict())
-                print("Saving model to :%s" % save_model_dir)
-                print("  test acc={:.3f}".format(self.trlog["max_acc"][session]))
-
-                result_list.append(
-                    "Session {}, test Acc {:.3f}\n".format(
-                        session, self.trlog["max_acc"][session]
-                    )
-                )
-                self.global_step += 1
-                self.wandb.log_metrics(
-                    {
-                        "session": session,
-                        "epoch": 0,
-                        "test/loss": tsl,
-                        "test/acc": tsa,
-                    },
-                    step=self.global_step,
-                )
+                result_list.extend(buf_list)
 
         result_list.append(
             "Base Session Best Epoch {}\n".format(self.trlog["max_acc_epoch"])

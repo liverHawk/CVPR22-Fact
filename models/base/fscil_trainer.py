@@ -67,7 +67,13 @@ class FSCILTrainer(Trainer):
         # init train statistics
         result_list = [args]
 
-        for session in range(args.start_session, args.sessions):
+        if args.select_sessions is not None:
+            # base sessionのみを再実行するユースケースに合わせ、0が含まれる場合は0のみを対象にする
+            target_sessions = [0] if 0 in args.select_sessions else args.select_sessions
+        else:
+            target_sessions = range(args.start_session, args.sessions)
+
+        for session in target_sessions:
             train_set, trainloader, testloader = self.get_dataloader(session)
 
             self.model.load_state_dict(self.best_model_dict)

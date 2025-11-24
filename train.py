@@ -54,6 +54,7 @@ def load_defaults_from_yaml(yaml_path="params.yaml"):
         defaults["alpha"] = train_params.get("alpha", 2.0)
         defaults["eta"] = train_params.get("eta", 0.1)
         defaults["batch_size_new"] = train_params.get("batch_size_new", 0)
+        defaults["select_sessions"] = train_params.get("select_sessions", None)
         defaults["not_data_init"] = train_params.get("not_data_init", False)
         defaults["set_no_val"] = train_params.get("set_no_val", False)
         defaults["num_workers"] = train_params.get("num_workers", 8)
@@ -189,6 +190,13 @@ def get_command_line_parser():
 
     parser.add_argument(
         "-start_session", type=int, default=yaml_defaults.get("start_session", 0)
+    )
+    parser.add_argument(
+        "--select_sessions",
+        nargs="+",
+        type=int,
+        default=yaml_defaults.get("select_sessions", None),
+        help="学習対象のセッション番号を指定 (例: --select_sessions 3 4)",
     )
     parser.add_argument(
         "-model_dir",
