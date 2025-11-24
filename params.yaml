@@ -90,7 +90,7 @@ train:
   not_data_init: false
   num_workers: 8
   project: fact
-  schedule: Cosine
+  schedule: Milestone
   set_no_val: false
   start_session: 0
   step: 20

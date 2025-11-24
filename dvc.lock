@@ -95,7 +95,7 @@ stages:
           not_data_init: false
           num_workers: 8
           project: fact
-          schedule: Cosine
+          schedule: Milestone
           set_no_val: false
           start_session: 0
           step: 20
@@ -114,6 +114,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: 22446f6312ad5aa2a3df32e44c848831.dir
-      size: 38870898
+      md5: 57325fc7f522eb5e892ff30d91431ba8.dir
+      size: 38870901
       nfiles: 23
