@@ -253,13 +253,23 @@ if __name__ == "__main__":
 
     # パラメータグリッドを定義
     param_grid = {
-        "train.schedule": ["Cosine", "Milestone", "Step"],
+        "create_sessions.shot": [1, 2, 3, 4, 5, 6, 7, 8, 9],
     }
 
     # ドライラン（実験リストのみ表示）
     # runner.run_grid_experiments(param_grid, dry_run=True)
 
     # 実際に実行
+    runner.run_grid_experiments(
+        param_grid,
+        stop_on_error=False,  # エラーが起きても続行
+    )
+
+    param_grid = {
+        "create_sessions.shot": [5],
+        "train.epochs_new": [1, 10, 100, 1000, 1e3, 1e4, 1e5],
+    }
+
     runner.run_grid_experiments(
         param_grid,
         stop_on_error=False,  # エラーが起きても続行

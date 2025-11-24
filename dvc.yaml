@@ -6,6 +6,8 @@ stages:
     deps:
       - data/CICIDS2017_improved
       - split_cicids2017.py
+    params:
+      - split_cicids
     outs:
       - data/train.csv
       - data/test.csv
@@ -15,6 +17,8 @@ stages:
     deps:
       - data/train.csv
       - create_session_files.py
+    params:
+      - create_sessions
     outs:
       - data/index_list/CICIDS2017_improved
       - data/class_indices.json
@@ -29,5 +33,6 @@ stages:
       - train.py
     params:
       - train
+      - create_sessions
     outs:
       - checkpoint/CICIDS2017_improved
