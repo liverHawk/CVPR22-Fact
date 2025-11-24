@@ -76,11 +76,11 @@ train:
   encoder: cnn1d
   epochs_base: 1
   epochs_new: 1000
-  eta: 0.3
+  eta: 0.4
   gamma: 0.25
   loss_iter: 0
   lr_base: 0.005
-  lr_new: 0.4
+  lr_new: 0.5
   milestones:
   - 60
   - 70
