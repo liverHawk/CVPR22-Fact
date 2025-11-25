@@ -11,6 +11,85 @@ from collections import defaultdict
 import json
 
 
+def _get_delete_columns():
+    """
+    Get columns to delete during preprocessing.
+    These columns are removed because they contain non-numeric or irrelevant data
+    for the machine learning model (e.g., IP addresses, timestamps, flags that are always 0).
+    This must match the preprocessing in cicids2017.py to ensure index consistency.
+    """
+    return [
+        "id",
+        "Flow ID",
+        "Src IP",
+        "Src Port",
+        "Dst IP",
+        "Timestamp",
+        "Bwd PSH Flags",
+        "Fwd URG Flags",
+        "Bwd URG Flags",
+        "Fwd RST Flags",
+        "Bwd RST Flags",
+        "FIN Flag Count",
+        "RST Flag Count",
+        "URG Flag Count",
+        "CWR Flag Count",
+        "ECE Flag Count",
+        "Fwd Bytes/Bulk Avg",
+        "Fwd Packet/Bulk Avg",
+        "Fwd Bulk Rate Avg",
+        "Bwd Bytes/Bulk Avg",
+        "ICMP Code",
+        "ICMP Type",
+        "Total TCP Flow Time",
+    ]
+
+
+def _fast_process(df):
+    """
+    Preprocessing step that drops irrelevant columns and removes rows with invalid values.
+    This includes dropping columns that don't contribute to learning (like IP addresses)
+    and removing rows containing NaN or infinite values.
+    This must match the preprocessing in cicids2017.py to ensure index consistency.
+    """
+    # Drop specified columns
+    delete_cols = _get_delete_columns()
+    existing_delete_cols = [col for col in delete_cols if col in df.columns]
+    df = df.drop(existing_delete_cols, axis=1)
+
+    # Drop 'Attempted Category' column if exists
+    if "Attempted Category" in df.columns:
+        df = df.drop(columns=["Attempted Category"])
+
+    # Replace infinite values with NaN and drop NaN rows
+    df = df.replace([np.inf, -np.inf], np.nan).dropna()
+
+    return df
+
+
+def _column_adjustment(df):
+    """
+    Adjust labels by consolidating attack types into broader categories.
+    For example, all "Web Attack" variants are merged into a single "Web Attack" label,
+    and all "DoS" variants are merged into "DoS".
+    This must match the preprocessing in cicids2017.py to ensure index consistency.
+    """
+    # Label consolidation
+    labels = df["Label"].unique()
+
+    for label in labels:
+        if "Attempted" in label:
+            df.loc[df["Label"] == label, "Label"] = "BENIGN"
+        if "Web Attack" in label:
+            df.loc[df["Label"] == label, "Label"] = "Web Attack"
+        if "Infiltration" in label:
+            df.loc[df["Label"] == label, "Label"] = "Infiltration"
+        if "DoS" in label and label != "DDoS":
+            df.loc[df["Label"] == label, "Label"] = "DoS"
+
+    return df
+
+
 def create_session_files(
     train_csv="data/CICIDS2017_improved/train.csv",
     output_dir="data/index_list/CICIDS2017_improved",
@@ -35,7 +114,17 @@ def create_session_files(
     print(f"Loading training data from {train_csv}...")
     df = pd.read_csv(train_csv)
 
-    print(f"Total rows: {len(df)}")
+    print(f"Total rows before preprocessing: {len(df)}")
+
+    # Apply the same preprocessing as cicids2017.py to ensure index consistency
+    df = _fast_process(df)
+    df = _column_adjustment(df)
+
+    # Reset index to ensure positional indices (0, 1, 2, ...)
+    # This is critical because SelectFromTxt in cicids2017.py expects positional indices
+    df = df.reset_index(drop=True)
+
+    print(f"Total rows after preprocessing: {len(df)}")
 
     # ラベル列を確認
     if "Label" in df.columns:
