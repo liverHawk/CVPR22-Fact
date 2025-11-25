@@ -10,8 +10,8 @@ stages:
       nfiles: 26
     - path: split_cicids2017.py
       hash: md5
-      md5: fb9318190e0908f6ff61f82cf68a90e3
-      size: 7685
+      md5: ab48af7efb456126e8721699cf825ed4
+      size: 7660
     outs:
     - path: data/test.csv
       hash: md5
@@ -26,8 +26,8 @@ stages:
     deps:
     - path: create_session_files.py
       hash: md5
-      md5: 58b560b1f5278a19c640b493f601e6e5
-      size: 8174
+      md5: 3e15150939ec34899ee4e47864425712
+      size: 11378
     - path: data/train.csv
       hash: md5
       md5: 8de938eafdc821ea1ac5ba9ba24ab66f
@@ -35,24 +35,24 @@ stages:
     outs:
     - path: data/class_indices.json
       hash: md5
-      md5: 53ca2cb662df17651e7daa69780aca92
-      size: 27448722
+      md5: 45ed9bfceac1d73de782ae01a6165559
+      size: 27448654
     - path: data/column_names.txt
       hash: md5
-      md5: 40d60946b24722a772c88cd61ea6895d
-      size: 1410
+      md5: ed1a0d623a2f775aa54240b6b8da766f
+      size: 1086
     - path: data/index_list/CICIDS2017_improved
       hash: md5
-      md5: 91d3d2c0769b9a707eedc8b21ab3c18e.dir
-      size: 10932246
+      md5: 534d98930633f7ffc32c1655cfbc33ee.dir
+      size: 10932214
       nfiles: 7
   train:
     cmd: uv run train.py
     deps:
     - path: data/index_list/CICIDS2017_improved
       hash: md5
-      md5: 91d3d2c0769b9a707eedc8b21ab3c18e.dir
-      size: 10932246
+      md5: 534d98930633f7ffc32c1655cfbc33ee.dir
+      size: 10932214
       nfiles: 7
     - path: data/test.csv
       hash: md5
@@ -64,12 +64,11 @@ stages:
       size: 920053282
     - path: train.py
       hash: md5
-      md5: 1e1dee0835400320f4ef86ddbb86b14c
-      size: 12694
+      md5: 842a2fc016eae0a4d1b41a6ddb991bd9
+      size: 12839
     params:
       params.yaml:
         train:
-          normalize_method: moving_minmax
           alpha: 2.0
           balance: 0.01
           base_mode: ft_cos
@@ -93,10 +92,12 @@ stages:
           model_dir:
           momentum: 0.9
           new_mode: avg_cos
+          normalize_method: moving_minmax
           not_data_init: false
           num_workers: 8
           project: fact
-          schedule: Step
+          schedule: Cosine
+          select_sessions: []
           set_no_val: false
           start_session: 0
           step: 20
@@ -115,6 +116,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: cd3bb3c7a9b9eae4e78864d8a6ff977a.dir
-      size: 38025201
+      md5: 1ec56017916155cefed4915104a8923e.dir
+      size: 38565524
       nfiles: 23
