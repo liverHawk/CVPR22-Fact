@@ -104,27 +104,32 @@ def create_session_files(
 
         session_indices = []
         for class_idx in range(start_class, end_class):
-            class_samples = class_indices[class_idx]
-            if len(class_samples) < shot:
+            # Labelの値でフィルタリング
+            label_value = unique_labels[class_idx]
+            filtered_df = df[df[label_col] == label_value]
+            
+            if len(filtered_df) < shot:
                 print(
-                    f"  Warning: Class {class_idx} ({unique_labels[class_idx]}) has only {len(class_samples)} samples, using all"
+                    f"  Warning: Class {class_idx} ({label_value}) has only {len(filtered_df)} samples, using all"
                 )
-                selected = class_samples
+                selected_indices = filtered_df.index.tolist()
             else:
                 # ランダムにshot個のサンプルを選択
-                selected = np.random.choice(
-                    class_samples, size=shot, replace=False
+                selected_indices = np.random.choice(
+                    filtered_df.index, size=shot, replace=False
                 ).tolist()
 
-            session_indices.extend(selected)
+            session_indices.extend(selected_indices)
             print(
-                f"  Class {class_idx} ({unique_labels[class_idx]}): selected {len(selected)} samples"
+                f"  Class {class_idx} ({label_value}): selected {len(selected_indices)} samples"
             )
 
         session_path = os.path.join(output_dir, f"session_{session_num}.txt")
         with open(session_path, "w") as f:
             for idx in session_indices:
                 f.write(f"{idx}\n")
+        select_data = df.loc[session_indices]
+        print(select_data["Label"])
         print(f"  Saved {len(session_indices)} indices to {session_path}")
 
     print("\nDone!")
@@ -142,7 +147,7 @@ if __name__ == "__main__":
     import sys
     import os
 
-    root_dir = "/Users/toshi_pro/Documents/school/cvpr22-fact"
+    root_dir = "/app"
 
     # utilsモジュールをインポート（パスを追加）
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

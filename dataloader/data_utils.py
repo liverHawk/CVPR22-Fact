@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import os
 from dataloader.sampler import CategoriesSampler
 
 
@@ -103,7 +104,7 @@ def get_dataloader(args, session):
     if session == 0:
         trainset, trainloader, testloader = get_base_dataloader(args)
     else:
-        trainset, trainloader, testloader = get_new_dataloader(args)
+        trainset, trainloader, testloader = get_new_dataloader(args, session)
     return trainset, trainloader, testloader
 
 
@@ -177,7 +178,7 @@ def get_base_dataloader(args):
 
 
 def get_base_dataloader_meta(args):
-    txt_path = "data/index_list/" + args.dataset + "/session_0.txt"
+    txt_path = os.path.join(os.path.dirname(args.dataroot), "data/index_list/" + args.dataset + "/session_0.txt")
     class_index = np.arange(args.base_class)
     if args.dataset == "cifar100":
         trainset = args.Dataset.CIFAR100(
@@ -237,7 +238,7 @@ def get_base_dataloader_meta(args):
 
 
 def get_new_dataloader(args, session):
-    txt_path = "data/index_list/" + args.dataset + "/session_" + str(session) + ".txt"
+    txt_path = os.path.join(os.path.dirname(args.dataroot), "data/index_list/" + args.dataset + "/session_" + str(session) + ".txt")
     if args.dataset == "cifar100":
         class_index = open(txt_path).read().splitlines()
         trainset = args.Dataset.CIFAR100(

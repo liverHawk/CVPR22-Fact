@@ -7,7 +7,7 @@ PYTHON := uv run python
 DATA_DIR ?= $(PROJECT_ROOT)/data
 CHECKPOINT_DIR ?= $(PROJECT_ROOT)/checkpoint
 CICIDS_DIR ?= $(DATA_DIR)/CICIDS2017_improved
-CICIDS_INDEX_DIR ?= $(DATA_DIR)/index_list/CICIDS2017_improved
+CICIDS_DIR ?= $(DATA_DIR)/list/CICIDS2017_improved
 CUB_DATAROOT ?= $(DATA_DIR)/cub200
 MINI_IMAGENET_ROOT ?= $(DATA_DIR)/mini_imagenet
 
@@ -165,7 +165,7 @@ create_cicids_sessions: ## CICIDS2017_improvedのセッションTXTを生成
 	cd $(PROJECT_ROOT) && \
 	$(PYTHON) create_session_files.py \
 		--train_csv $(CICIDS_DIR)/train.csv \
-		--output_dir $(CICIDS_INDEX_DIR) \
+		--output_dir $(CICIDS_DIR) \
 		--base_class $(SESSION_BASE_CLASS) \
 		--num_classes $(SESSION_NUM_CLASSES) \
 		--way $(SESSION_WAY) \
@@ -190,7 +190,7 @@ show_paths: ## 主要パスと変数を表示
 	@echo "DATA_DIR          = $(DATA_DIR)"
 	@echo "CHECKPOINT_DIR    = $(CHECKPOINT_DIR)"
 	@echo "CICIDS_DIR        = $(CICIDS_DIR)"
-	@echo "CICIDS_INDEX_DIR  = $(CICIDS_INDEX_DIR)"
+	@echo "CICIDS_DIR  = $(CICIDS_DIR)"
 	@echo "CUB_DATAROOT      = $(CUB_DATAROOT)"
 	@echo "MINI_IMAGENET_ROOT= $(MINI_IMAGENET_ROOT)"
 	@echo "GPU               = $(GPU)"

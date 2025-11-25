@@ -1,6 +1,6 @@
 common:
-  device: cpu
-  gpu: 0
+  device: cuda
+  gpu: 2
   seed: 1
 create_sessions:
   base_class: 4
@@ -97,6 +97,7 @@ train:
   step: 20
   temperature: 4
   test_batch_size: 100
+  select_sessions: []
   wandb:
     entity: ''
     group: ''

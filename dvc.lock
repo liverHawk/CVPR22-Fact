@@ -5,33 +5,33 @@ stages:
     deps:
     - path: data/CICIDS2017_improved
       hash: md5
-      md5: 97448ae36a9acd7110a7c6dafed93e84.dir
-      size: 1152270765
-      nfiles: 5
+      md5: 1603f55b6c08aae9d5122688450d087e.dir
+      size: 2501078482
+      nfiles: 26
     - path: split_cicids2017.py
       hash: md5
-      md5: f54451197c5be8719a7bf2af4bb3e57a
-      size: 7701
+      md5: fb9318190e0908f6ff61f82cf68a90e3
+      size: 7685
     outs:
     - path: data/test.csv
       hash: md5
-      md5: 0e4342946099240a881958f3862b66c5
-      size: 230030311
+      md5: e48e8cdb0a354ff13908be22847a7d9e
+      size: 229983476
     - path: data/train.csv
       hash: md5
-      md5: 0d0932fbba2d6237fc35d58900d107f2
-      size: 920238426
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
   create_session_files:
     cmd: uv run create_session_files.py
     deps:
     - path: create_session_files.py
       hash: md5
-      md5: a1efa80af07343246d76f3be94765598
-      size: 8190
+      md5: 58b560b1f5278a19c640b493f601e6e5
+      size: 8174
     - path: data/train.csv
       hash: md5
-      md5: 0d0932fbba2d6237fc35d58900d107f2
-      size: 920238426
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
     outs:
     - path: data/class_indices.json
       hash: md5
@@ -56,16 +56,16 @@ stages:
       nfiles: 7
     - path: data/test.csv
       hash: md5
-      md5: 0e4342946099240a881958f3862b66c5
-      size: 230030311
+      md5: e48e8cdb0a354ff13908be22847a7d9e
+      size: 229983476
     - path: data/train.csv
       hash: md5
-      md5: 0d0932fbba2d6237fc35d58900d107f2
-      size: 920238426
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
     - path: train.py
       hash: md5
-      md5: b3ec44d5a8cd6a6562aba9183eb74c0b
-      size: 12382
+      md5: 1e1dee0835400320f4ef86ddbb86b14c
+      size: 12694
     params:
       params.yaml:
         train:
@@ -115,6 +115,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: b345a1c7d0809a17be55b84fa1abf881.dir
-      size: 37908444
+      md5: cd3bb3c7a9b9eae4e78864d8a6ff977a.dir
+      size: 38025201
       nfiles: 23

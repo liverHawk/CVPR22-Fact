@@ -289,7 +289,7 @@ def get_command_line_parser():
 
 
 if __name__ == "__main__":
-    root_dir = "/Users/toshi_pro/Documents/school/cvpr22-fact"
+    root_dir = "/app"
     dvc_workaround.fix_stdout_buffer()
     parser = get_command_line_parser()
     args = parser.parse_args()

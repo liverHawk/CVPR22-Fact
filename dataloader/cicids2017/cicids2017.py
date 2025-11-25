@@ -78,6 +78,9 @@ class CICIDS2017_improved(Dataset):
                     self.data, self.targets = self.SelectfromClasses(
                         self.data, self.targets, index
                     )
+        
+        nplist = self.targets.tolist()
+        print(np.unique(nplist))
 
         # Convert to numpy arrays if needed
         if isinstance(self.data, list):
@@ -405,6 +408,9 @@ class CICIDS2017_improved(Dataset):
             if idx < len(self.data):
                 data_tmp.append(self.data[idx])
                 targets_tmp.append(self.targets[idx])
+        
+        targets_list = targets_tmp
+        print(np.unique(targets_list))
 
         return np.array(data_tmp), np.array(targets_tmp)
 
@@ -424,6 +430,9 @@ class CICIDS2017_improved(Dataset):
                 data_tmp = np.vstack((data_tmp, data[ind_cl]))
                 targets_tmp = np.hstack((targets_tmp, targets[ind_cl]))
 
+        targets_list = targets_tmp
+        print(np.unique(targets_list))
+
         return data_tmp, targets_tmp
 
     def SelectfromDataIndices(self, data, targets, indices):
@@ -437,6 +446,9 @@ class CICIDS2017_improved(Dataset):
             if 0 <= idx < len(data):
                 data_tmp.append(data[idx])
                 targets_tmp.append(targets[idx])
+
+        targets_list = targets_tmp
+        print(np.unique(targets_list))
 
         return np.array(data_tmp), np.array(targets_tmp)
 

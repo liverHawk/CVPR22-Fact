@@ -1,0 +1,19 @@
+services:
+  jupyter:
+    image: ghcr.io/astral-sh/uv:debian-slim
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/app
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - HTTP_PROXY=http://proxy.omu.ac.jp:8080
+      - HTTPS_PROXY=http://proxy.omu.ac.jp:8080
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["2"]
+              capabilities: [gpu]
+    working_dir: /app
