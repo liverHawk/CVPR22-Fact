@@ -17,3 +17,25 @@ services:
               device_ids: ["2"]
               capabilities: [gpu]
     working_dir: /app
+  
+  azurecli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: azure-cli
+    tty: true
+    environment:
+      - HTTP_PROXY=${HTTP_PROXY}
+      - HTTPS_PROXY=${HTTPS_PROXY}
+      - http_proxy=${HTTP_PROXY}
+      - https_proxy=${HTTPS_PROXY}
+    volumes:
+      - .:/app
+    working_dir: "/app"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["2"]
+              capabilities: [gpu]
