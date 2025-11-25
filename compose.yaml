@@ -18,11 +18,11 @@ services:
               capabilities: [gpu]
     working_dir: /app
   
-  azurecli:
+  azure:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: azure-cli
+    container_name: azure
     tty: true
     environment:
       - HTTP_PROXY=${HTTP_PROXY}

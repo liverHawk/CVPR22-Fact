@@ -2,6 +2,7 @@ import yaml
 import subprocess
 import itertools
 from pathlib import Path
+import time
 # from datetime import datetime
 
 
@@ -68,11 +69,11 @@ class GridExperimentRunner:
                 )
             
             # リアルタイムで出力を表示
-            output_lines = []
-            for line in process.stdout:
-                line = line.rstrip()
-                print(line, flush=True)  # 即座に表示
-                output_lines.append(line)
+            # output_lines = []
+            # for line in process.stdout:
+            #     line = line.rstrip()
+            #     print(line, flush=True)  # 即座に表示
+            #     output_lines.append(line)
             
             # プロセスの終了を待つ
             return_code = process.wait()
@@ -211,7 +212,12 @@ class GridExperimentRunner:
             print("✓ YAMLファイルを更新しました")
 
             # 2. コマンド実行
+            start_time = time.time()
             success = self.run_command()
+            end_time = time.time()
+            duration = end_time - start_time
+            print(f"about {duration * (total - idx)} seconds left")
+            
 
             if not success:
                 failed += 1
@@ -239,8 +245,7 @@ class GridExperimentRunner:
         print(f"{'=' * 80}\n")
 
 
-# 使用例1: 基本的なグリッドサーチ
-if __name__ == "__main__":
+def main(params_grids):
     runner = GridExperimentRunner(
         config_path="params.yaml",
         command="dvc repro",
@@ -251,16 +256,22 @@ if __name__ == "__main__":
         git_enabled=True,
     )
 
-    # パラメータグリッドを定義
-    param_grid = {
-        "train.schedule": ["Cosine", "Milestone", "Step"],
-    }
-
-    # ドライラン（実験リストのみ表示）
-    # runner.run_grid_experiments(param_grid, dry_run=True)
-
     # 実際に実行
-    runner.run_grid_experiments(
-        param_grid,
-        stop_on_error=False,  # エラーが起きても続行
-    )
+    for grid in params_grids:
+        runner.run_grid_experiments(
+            grid,
+            stop_on_error=False,  # エラーが起きても続行
+        )
+
+# 使用例1: 基本的なグリッドサーチ
+if __name__ == "__main__":
+    input_grids = [
+        {
+            "train.schedule": ["Cosine", "Milestone", "Step"],
+        },
+        {
+            "create_sessions.shot": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+        },
+    ]
+
+    main(input_grids)

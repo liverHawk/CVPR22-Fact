@@ -25,6 +25,7 @@ def load_defaults_from_yaml(yaml_path="params.yaml"):
         defaults["seed"] = common_params.get("seed", 1)
 
         defaults["normalize_method"] = train_params.get("normalize_method", "standard")
+        defaults["shot"] = params["create_sessions"]["shot"]
 
         # 訓練パラメータ
         defaults["project"] = train_params.get("project", PROJECT)
@@ -284,6 +285,9 @@ def get_command_line_parser():
         default=yaml_defaults.get("normalize_method", "standard"),
         choices=["standard", "minmax", "moving_minmax"],
         help="normalize method",
+    )
+    parser.add_argument(
+        "--shot", type=int, default=yaml_defaults.get("shot", 5), help="shot"
     )
     return parser
 

@@ -1,6 +1,6 @@
 common:
   device: cuda
-  gpu: 2
+  gpu: 0
   seed: 1
 create_sessions:
   base_class: 4
@@ -64,7 +64,6 @@ split_cicids:
   stratify: true
   test_size: 0.2
 train:
-  normalize_method: moving_minmax
   alpha: 2.0
   balance: 0.01
   base_mode: ft_cos
@@ -88,16 +87,17 @@ train:
   model_dir: null
   momentum: 0.9
   new_mode: avg_cos
+  normalize_method: moving_minmax
   not_data_init: false
   num_workers: 8
   project: fact
-  schedule: Step
+  schedule: Cosine
+  select_sessions: []
   set_no_val: false
   start_session: 0
   step: 20
   temperature: 4
   test_batch_size: 100
-  select_sessions: []
   wandb:
     entity: ''
     group: ''

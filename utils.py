@@ -177,46 +177,28 @@ def confmatrix(logits, label, filename, args, label_names=None, name=None, step=
             # 必要な数だけ使用
             label_names = label_names[:clss]
 
-    # 動的にチックを設定
-    # クラス数に応じて適切な間隔でチックを配置
-    if clss <= 10:
-        # 10クラス以下: すべてのクラスにチック
-        tick_positions = list(range(clss))
-        tick_labels = [label_names[i] for i in range(clss)]
-        # num_ticks = clss
-    elif clss <= 20:
-        # 11-20クラス: 2クラスごと
-        tick_positions = list(range(0, clss, 2))
-        tick_labels = [label_names[i] for i in range(0, clss, 2)]
-        # num_ticks = len(tick_positions)
-    elif clss <= 50:
-        # 21-50クラス: 5クラスごと
-        tick_positions = list(range(0, clss, 5))
-        tick_labels = [label_names[i] for i in range(0, clss, 5)]
-        # num_ticks = len(tick_positions)
-    elif clss <= 100:
-        # 51-100クラス: 10クラスごと
-        tick_positions = list(range(0, clss, 10))
-        tick_labels = [label_names[i] for i in range(0, clss, 10)]
-        # num_ticks = len(tick_positions)
-    elif clss <= 200:
-        # 101-200クラス: 20クラスごと
-        tick_positions = list(range(0, clss, 20))
-        tick_labels = [label_names[i] for i in range(0, clss, 20)]
-        # num_ticks = len(tick_positions)
-    else:
-        # 200クラス以上: 50クラスごと
-        tick_positions = list(range(0, clss, 50))
-        tick_labels = [label_names[i] for i in range(0, clss, 50)]
-        # num_ticks = len(tick_positions)
+    # すべてのクラスにチックを配置（ラベル名を全て表示）
+    tick_positions = list(range(clss))
+    tick_labels = [label_names[i] for i in range(clss)]
 
-    # 最後のクラスも含める
-    if tick_positions[-1] != clss - 1:
-        tick_positions.append(clss - 1)
-        tick_labels.append(label_names[clss - 1])
+    # クラス数に応じてフォントサイズを調整
+    if clss <= 10:
+        tick_fontsize = 12
+        cell_fontsize = 10
+    elif clss <= 20:
+        tick_fontsize = 10
+        cell_fontsize = 8
+    elif clss <= 50:
+        tick_fontsize = 8
+        cell_fontsize = 6
+    else:
+        tick_fontsize = 6
+        cell_fontsize = 4
 
     # 混同行列を1つだけ作成（カラーバー付き、割合を表示）
-    fig = plt.figure(figsize=(10, 8))
+    # クラス数に応じて図のサイズを調整
+    fig_size = max(10, clss * 0.5)
+    fig = plt.figure(figsize=(fig_size, fig_size * 0.8))
     ax = fig.add_subplot(111)
     # extentで正確な範囲を指定: [left, right, bottom, top]
     # 0からclss-1までの範囲を正確に表示
@@ -229,37 +211,34 @@ def confmatrix(logits, label, filename, args, label_names=None, name=None, step=
     ax.set_xlim(-0.5, clss - 0.5)
     ax.set_ylim(clss - 0.5, -0.5)
 
-    # 各セルに割合（0~1の範囲）を表示
-    thresh = cm_normalized.max() / 2.0
-    for i in range(clss):
-        for j in range(clss):
-            text = f"{cm_normalized[i, j]:.2f}"
-            text_obj = ax.text(
-                j,
-                i,
-                text,
-                horizontalalignment="center",
-                color="white" if cm_normalized[i, j] > thresh else "black",
-                fontsize=10 if clss <= 20 else 8,
-            )
-            # 対角要素（正しく分類された要素）に下線を引く
-            if i == j:
-                # # 対角要素のテキストオブジェクトを取得
-                # current_text = text_obj
-                # # 下線を引く
-                # new_text = r'$\underline{' + str(current_text) + r'}$'
-                # # テキストを更新
-                # text_obj.set_text(new_text)
-                text_obj.set_fontweight("bold")
+    # 各セルに割合（0~1の範囲）を表示（クラス数が多い場合は省略）
+    if clss <= 30:
+        thresh = cm_normalized.max() / 2.0
+        for i in range(clss):
+            for j in range(clss):
+                text = f"{cm_normalized[i, j]:.2f}"
+                text_obj = ax.text(
+                    j,
+                    i,
+                    text,
+                    horizontalalignment="center",
+                    color="white" if cm_normalized[i, j] > thresh else "black",
+                    fontsize=cell_fontsize,
+                )
+                # 対角要素（正しく分類された要素）に下線を引く
+                if i == j:
+                    text_obj.set_fontweight("bold")
 
     cbar = plt.colorbar(cax)  # This line includes the color bar
-    cbar.ax.tick_params(labelsize=16)
-    cbar.set_label("Normalized Count", fontsize=16)
-    plt.yticks(tick_positions, tick_labels, fontsize=16)
-    # 横軸ラベルを回転させて重なりを防ぐ
-    plt.xticks(tick_positions, tick_labels, fontsize=16, rotation=45, ha="right")
-    plt.xlabel("Predicted Label", fontsize=20)
-    plt.ylabel("True Label", fontsize=20)
+    cbar.ax.tick_params(labelsize=14)
+    cbar.set_label("Normalized Count", fontsize=14)
+    
+    # 縦軸ラベル
+    plt.yticks(tick_positions, tick_labels, fontsize=tick_fontsize)
+    # 横軸ラベルを45度回転させて重なりを防ぐ
+    plt.xticks(tick_positions, tick_labels, fontsize=tick_fontsize, rotation=45, ha="right")
+    plt.xlabel("Predicted Label", fontsize=16)
+    plt.ylabel("True Label", fontsize=16)
     plt.tight_layout()
     plt.savefig(filename + ".png", bbox_inches="tight", dpi=300)
     plt.close()
