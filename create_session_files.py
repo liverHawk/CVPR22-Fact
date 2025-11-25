@@ -13,8 +13,10 @@ import json
 
 def _get_delete_columns():
     """
-    Columns to delete according to research_data_drl preprocessing.
-    Must match cicids2017.py preprocessing.
+    Get columns to delete during preprocessing.
+    These columns are removed because they contain non-numeric or irrelevant data
+    for the machine learning model (e.g., IP addresses, timestamps, flags that are always 0).
+    This must match the preprocessing in cicids2017.py to ensure index consistency.
     """
     return [
         "id",
@@ -45,8 +47,10 @@ def _get_delete_columns():
 
 def _fast_process(df):
     """
-    Fast preprocessing: drop columns and handle missing/infinite values.
-    Must match cicids2017.py preprocessing.
+    Preprocessing step that drops irrelevant columns and removes rows with invalid values.
+    This includes dropping columns that don't contribute to learning (like IP addresses)
+    and removing rows containing NaN or infinite values.
+    This must match the preprocessing in cicids2017.py to ensure index consistency.
     """
     # Drop specified columns
     delete_cols = _get_delete_columns()
@@ -65,8 +69,10 @@ def _fast_process(df):
 
 def _column_adjustment(df):
     """
-    Adjust labels according to research_data_drl preprocessing.
-    Must match cicids2017.py preprocessing.
+    Adjust labels by consolidating attack types into broader categories.
+    For example, all "Web Attack" variants are merged into a single "Web Attack" label,
+    and all "DoS" variants are merged into "DoS".
+    This must match the preprocessing in cicids2017.py to ensure index consistency.
     """
     # Label consolidation
     labels = df["Label"].unique()
@@ -115,7 +121,7 @@ def create_session_files(
     df = _column_adjustment(df)
 
     # Reset index to ensure positional indices (0, 1, 2, ...)
-    # This is critical because SelectfromTxt in cicids2017.py expects positional indices
+    # This is critical because SelectFromTxt in cicids2017.py expects positional indices
     df = df.reset_index(drop=True)
 
     print(f"Total rows after preprocessing: {len(df)}")
