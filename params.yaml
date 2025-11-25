@@ -7,7 +7,7 @@ create_sessions:
   num_classes: 10
   output_dir: data/index_list/CICIDS2017_improved
   random_state: 1
-  shot: 1
+  shot: 2
   train_csv: data/train.csv
   way: 1
 dataset_presets:
