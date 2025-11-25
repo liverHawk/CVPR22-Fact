@@ -25,8 +25,10 @@ class MYNET(nn.Module):
             self.num_features = 512
         if self.args.dataset == 'cicids2017_improved':
             # For tabular data, create a simple MLP encoder
+            # Input dimension is 88 (after removing Label column and other preprocessing)
+            input_dim = getattr(self.args, 'input_dim', 88)  # Default to 88, can be overridden
             self.encoder = nn.Sequential(
-                nn.Linear(89, 128),  # 89 input features (actual number from dataset)
+                nn.Linear(input_dim, 128),  # 88 input features after preprocessing
                 nn.ReLU(),
                 nn.Dropout(0.2),
                 nn.Linear(128, 256),
