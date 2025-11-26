@@ -98,7 +98,7 @@ class FSCILTrainer(Trainer):
                         step=epoch
                     )
                     # test model with all seen class
-                    tsl, tsa, acc_dict = test(
+                    output = test(
                         self.model,
                         testloader,
                         epoch,
@@ -107,17 +107,25 @@ class FSCILTrainer(Trainer):
                         wandb_logger=self.wandb,
                         name="train"
                     )
-                    args.comet.log_metrics(
-                        dic={
+                    if len(output) == 3:
+                        tsl, tsa, acc_dict = output
+                        memory_dict = {
                             "test/base": {
                                 "loss": tsl,
                                 "acc": tsa,
                                 "seenac": acc_dict["seenac"],
                                 "unseenac": acc_dict["unseenac"],
                             }
-                        },
-                        step=epoch
-                    )
+                        }
+                    else:
+                        tsl, tsa = output
+                        memory_dict = {
+                            "test/base": {
+                                "loss": tsl,
+                                "acc": tsa,
+                            }
+                        }
+                    args.comet.log_metrics(dic=memory_dict, step=epoch)
 
                     # save better model
                     if (tsa * 100) >= self.trlog["max_acc"][session]:
@@ -199,7 +207,7 @@ class FSCILTrainer(Trainer):
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
                     self.model.module.mode = "avg_cos"
-                    tsl, tsa, acc_dict = test(
+                    output = test(
                         self.model,
                         testloader,
                         0,
@@ -208,17 +216,26 @@ class FSCILTrainer(Trainer):
                         wandb_logger=self.wandb,
                         name="session"
                     )
-                    args.comet.log_metrics(
-                        dic={
+                    if len(output) == 3:
+                        tsl, tsa, acc_dict = output
+                        memory_dict = {
                             "test": {
                                 "loss": tsl,
                                 "acc": tsa,
                                 "seenac": acc_dict["seenac"],
                                 "unseenac": acc_dict["unseenac"],
                             }
-                        },
-                        step=0
-                    )
+                        }
+                    else:
+                        tsl, tsa = output
+                        memory_dict = {
+                            "test": {
+                                "loss": tsl,
+                                "acc": tsa,
+                            }
+                        }
+                    args.comet.log_metrics(
+                        dic=memory_dict, step=0)
                     if (tsa * 100) >= self.trlog["max_acc"][session]:
                         self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
                         print(
@@ -241,7 +258,7 @@ class FSCILTrainer(Trainer):
                     trainloader, np.unique(train_set.targets), session
                 )
 
-                tsl, tsa, acc_dict = test(
+                output = test(
                     self.model,
                     testloader,
                     0,
@@ -251,17 +268,26 @@ class FSCILTrainer(Trainer):
                     wandb_logger=self.wandb,
                     name="session"
                 )
-                args.comet.log_metrics(
-                    dic={
+                if len(output) == 3:
+                    tsl, tsa, acc_dict = output
+                    memory_dict = {
                         "test": {
                             "loss": tsl,
                             "acc": tsa,
                             "seenac": acc_dict["seenac"],
                             "unseenac": acc_dict["unseenac"],
                         }
-                    },
-                    step=session
-                )
+                    }
+                else:
+                    tsl, tsa = output
+                    memory_dict = {
+                        "test": {
+                            "loss": tsl,
+                            "acc": tsa,
+                        }
+                    }
+                args.comet.log_metrics(
+                    dic=memory_dict, step=session)
 
                 # save model
                 self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))

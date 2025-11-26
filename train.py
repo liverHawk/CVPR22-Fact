@@ -293,7 +293,9 @@ def get_command_line_parser():
 
 
 if __name__ == "__main__":
-    root_dir = "/app"
+    # root_dir = "/app"
+    root_dir = "/home/hawk/Documents/school/test/CVPR22-Fact"
+    
     dvc_workaround.fix_stdout_buffer()
     parser = get_command_line_parser()
     args = parser.parse_args()

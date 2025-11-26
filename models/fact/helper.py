@@ -164,7 +164,8 @@ def test(model, testloader, epoch, args, session, validation=True, wandb_logger=
                 testloader.dataset, "label_encoder"
             ):
                 label_names = list(testloader.dataset.label_encoder.classes_)
-            cm = confmatrix(lgt, lbs, save_model_dir, args, label_names=label_names, name=name, step=session)
+            print(f"test: call confmatrix on session {session}")
+            cm = confmatrix(lgt, lbs, save_model_dir, args, label_names=label_names, name=name)
             perclassacc = cm.diagonal()
             seenac = np.mean(perclassacc[: args.base_class])
             unseenac = np.mean(perclassacc[args.base_class :])
@@ -177,10 +178,12 @@ def test(model, testloader, epoch, args, session, validation=True, wandb_logger=
                 wandb_logger.log_image(
                     f"session_{session}_confusion_matrix", save_model_dir + ".png"
                 )
-    return vl, va, {"seenac": seenac, "unseenac": unseenac}
+            return vl, va, {"seenac": seenac, "unseenac": unseenac}
+
+    return vl, va
 
 
-def test_withfc(model, testloader, epoch, args, session, validation=True):
+def test_withfc(model, testloader, epoch, args, session, validation=True, wandb_logger=None, name=None):
     test_class = args.base_class + session * args.way
     model = model.eval()
     inner_model = _unwrap_model(model)
@@ -215,7 +218,7 @@ def test_withfc(model, testloader, epoch, args, session, validation=True):
                 testloader.dataset, "label_encoder"
             ):
                 label_names = list(testloader.dataset.label_encoder.classes_)
-            cm = confmatrix(lgt, lbs, save_model_dir, args, label_names=label_names, step=session)
+            cm = confmatrix(lgt, lbs, save_model_dir, args, label_names=label_names, name=name)
             perclassacc = cm.diagonal()
             seenac = np.mean(perclassacc[: args.base_class])
             unseenac = np.mean(perclassacc[args.base_class :])
@@ -224,4 +227,6 @@ def test_withfc(model, testloader, epoch, args, session, validation=True):
             from utils import save_classification_report
 
             save_classification_report(lgt, lbs, save_model_dir)
-    return vl, va, {"seenac": seenac, "unseenac": unseenac}
+            return vl, va, {"seenac": seenac, "unseenac": unseenac}
+
+    return vl, va

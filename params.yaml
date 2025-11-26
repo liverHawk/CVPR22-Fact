@@ -7,7 +7,7 @@ create_sessions:
   num_classes: 10
   output_dir: data/index_list/CICIDS2017_improved
   random_state: 1
-  shot: 2
+  shot: 1
   train_csv: data/train.csv
   way: 1
 dataset_presets:
@@ -74,8 +74,8 @@ train:
   debug: false
   decay: 0.0005
   encoder: cnn1d
-  epochs_base: 1
-  epochs_new: 1000
+  epochs_base: 10
+  epochs_new: 100
   eta: 0.1
   gamma: 0.25
   loss_iter: 0
@@ -96,7 +96,7 @@ train:
   set_no_val: false
   start_session: 0
   step: 20
-  temperature: 4
+  temperature: 1024
   test_batch_size: 100
   wandb:
     entity: ''
