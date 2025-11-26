@@ -39,7 +39,7 @@ stages:
           num_classes: 10
           output_dir: data/index_list/CICIDS2017_improved
           random_state: 1
-          shot: 1
+          shot: 5
           train_csv: data/train.csv
           way: 1
     outs:
@@ -53,8 +53,8 @@ stages:
       size: 1086
     - path: data/index_list/CICIDS2017_improved
       hash: md5
-      md5: 8edcf50ce9d1420129104e698ef9fec3.dir
-      size: 10932035
+      md5: 534d98930633f7ffc32c1655cfbc33ee.dir
+      size: 10932214
       nfiles: 7
   train:
     cmd: uv run train.py
@@ -137,3 +137,626 @@ stages:
       md5: cea9070f41db9dea5fa8c07f7fe33de1.dir
       size: 37899894
       nfiles: 23
+  train_base:
+    cmd: uv run train_base_session.py
+    deps:
+    - path: data/index_list/CICIDS2017_improved
+      hash: md5
+      md5: 534d98930633f7ffc32c1655cfbc33ee.dir
+      size: 10932214
+      nfiles: 7
+    - path: data/test.csv
+      hash: md5
+      md5: e48e8cdb0a354ff13908be22847a7d9e
+      size: 229983476
+    - path: data/train.csv
+      hash: md5
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
+    - path: train_base_session.py
+      hash: md5
+      md5: 79e4f318def98a11692d4a5f165d26cf
+      size: 555
+    params:
+      params.yaml:
+        create_sessions:
+          base_class: 4
+          num_classes: 10
+          output_dir: data/index_list/CICIDS2017_improved
+          random_state: 1
+          shot: 5
+          train_csv: data/train.csv
+          way: 1
+        train:
+          alpha: 2.0
+          balance: 0.01
+          base_mode: ft_cos
+          batch_size_base: 128
+          batch_size_new: 0
+          dataroot: data
+          dataset: CICIDS2017_improved
+          debug: false
+          decay: 0.0005
+          encoder: cnn1d
+          epochs_base: 1
+          epochs_new: 100
+          eta: 0.1
+          gamma: 0.25
+          loss_iter: 0
+          lr_base: 0.005
+          lr_new: 0.01
+          milestones:
+          - 60
+          - 70
+          model_dir:
+          momentum: 0.9
+          new_mode: avg_cos
+          normalize_method: moving_minmax
+          not_data_init: false
+          num_workers: 8
+          project: fact
+          schedule: Cosine
+          select_sessions: []
+          set_no_val: false
+          start_session: 0
+          step: 20
+          temperature: 1024
+          test_batch_size: 100
+          wandb:
+            entity: ''
+            group: ''
+            mode: online
+            project: origin-fact
+            run_name: ''
+            tags: []
+            use_wandb: false
+            watch: gradients
+            watch_freq: 100
+    outs:
+    - path: checkpoint/CICIDS2017_improved/session0_max_acc.pth
+      hash: md5
+      md5: bbb40b1db180e451c710ad8f45acf91b
+      size: 4587805
+    - path: checkpoint/CICIDS2017_improved/session0confusion_matrix.png
+      hash: md5
+      md5: 49c7bd768b5d7de8f6b6268b4d2131dd
+      size: 175958
+    - path: 
+        checkpoint/CICIDS2017_improved/session0confusion_matrix_classification_report.txt
+      hash: md5
+      md5: 97cbb812e2db51d97ed01c5e46d56c8b
+      size: 434
+  train_new@1:
+    cmd: uv run train_new_sessions.py --select_sessions 1
+    deps:
+    - path: data/index_list/CICIDS2017_improved
+      hash: md5
+      md5: 534d98930633f7ffc32c1655cfbc33ee.dir
+      size: 10932214
+      nfiles: 7
+    - path: data/test.csv
+      hash: md5
+      md5: e48e8cdb0a354ff13908be22847a7d9e
+      size: 229983476
+    - path: data/train.csv
+      hash: md5
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
+    - path: train_new_sessions.py
+      hash: md5
+      md5: f03fbc6d8ce5f4ccf5375ab9e363132a
+      size: 1497
+    params:
+      params.yaml:
+        create_sessions:
+          base_class: 4
+          num_classes: 10
+          output_dir: data/index_list/CICIDS2017_improved
+          random_state: 1
+          shot: 5
+          train_csv: data/train.csv
+          way: 1
+        train:
+          alpha: 2.0
+          balance: 0.01
+          base_mode: ft_cos
+          batch_size_base: 128
+          batch_size_new: 0
+          dataroot: data
+          dataset: CICIDS2017_improved
+          debug: false
+          decay: 0.0005
+          encoder: cnn1d
+          epochs_base: 1
+          epochs_new: 100
+          eta: 0.1
+          gamma: 0.25
+          loss_iter: 0
+          lr_base: 0.005
+          lr_new: 0.01
+          milestones:
+          - 60
+          - 70
+          model_dir:
+          momentum: 0.9
+          new_mode: avg_cos
+          normalize_method: moving_minmax
+          not_data_init: false
+          num_workers: 8
+          project: fact
+          schedule: Cosine
+          select_sessions: []
+          set_no_val: false
+          start_session: 0
+          step: 20
+          temperature: 1024
+          test_batch_size: 100
+          wandb:
+            entity: ''
+            group: ''
+            mode: online
+            project: origin-fact
+            run_name: ''
+            tags: []
+            use_wandb: false
+            watch: gradients
+            watch_freq: 100
+    outs:
+    - path: checkpoint/CICIDS2017_improved/session1_max_acc.pth
+      hash: md5
+      md5: 5a47b58ac7570efe0a2b836d12579b7d
+      size: 4587805
+    - path: checkpoint/CICIDS2017_improved/session1confusion_matrix.png
+      hash: md5
+      md5: 36982f52b37ff78d89d834259ae2b10c
+      size: 207300
+    - path: 
+        checkpoint/CICIDS2017_improved/session1confusion_matrix_classification_report.txt
+      hash: md5
+      md5: 1c376b03d1d0c9ec29dcb2639c6fab9e
+      size: 488
+  train_new@2:
+    cmd: uv run train_new_sessions.py --select_sessions 2
+    deps:
+    - path: data/index_list/CICIDS2017_improved
+      hash: md5
+      md5: 534d98930633f7ffc32c1655cfbc33ee.dir
+      size: 10932214
+      nfiles: 7
+    - path: data/test.csv
+      hash: md5
+      md5: e48e8cdb0a354ff13908be22847a7d9e
+      size: 229983476
+    - path: data/train.csv
+      hash: md5
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
+    - path: train_new_sessions.py
+      hash: md5
+      md5: f03fbc6d8ce5f4ccf5375ab9e363132a
+      size: 1497
+    params:
+      params.yaml:
+        create_sessions:
+          base_class: 4
+          num_classes: 10
+          output_dir: data/index_list/CICIDS2017_improved
+          random_state: 1
+          shot: 5
+          train_csv: data/train.csv
+          way: 1
+        train:
+          alpha: 2.0
+          balance: 0.01
+          base_mode: ft_cos
+          batch_size_base: 128
+          batch_size_new: 0
+          dataroot: data
+          dataset: CICIDS2017_improved
+          debug: false
+          decay: 0.0005
+          encoder: cnn1d
+          epochs_base: 1
+          epochs_new: 100
+          eta: 0.1
+          gamma: 0.25
+          loss_iter: 0
+          lr_base: 0.005
+          lr_new: 0.01
+          milestones:
+          - 60
+          - 70
+          model_dir:
+          momentum: 0.9
+          new_mode: avg_cos
+          normalize_method: moving_minmax
+          not_data_init: false
+          num_workers: 8
+          project: fact
+          schedule: Cosine
+          select_sessions: []
+          set_no_val: false
+          start_session: 0
+          step: 20
+          temperature: 1024
+          test_batch_size: 100
+          wandb:
+            entity: ''
+            group: ''
+            mode: online
+            project: origin-fact
+            run_name: ''
+            tags: []
+            use_wandb: false
+            watch: gradients
+            watch_freq: 100
+    outs:
+    - path: checkpoint/CICIDS2017_improved/session2_max_acc.pth
+      hash: md5
+      md5: feb6b8d3cac78ed4a06310484fe788a3
+      size: 4587805
+    - path: checkpoint/CICIDS2017_improved/session2confusion_matrix.png
+      hash: md5
+      md5: b5adf39579f516fdb9739f978cea2911
+      size: 239899
+    - path: 
+        checkpoint/CICIDS2017_improved/session2confusion_matrix_classification_report.txt
+      hash: md5
+      md5: 5f415b544b3d0b3b9264906d914304ec
+      size: 542
+  train_new@3:
+    cmd: uv run train_new_sessions.py --select_sessions 3
+    deps:
+    - path: data/index_list/CICIDS2017_improved
+      hash: md5
+      md5: 534d98930633f7ffc32c1655cfbc33ee.dir
+      size: 10932214
+      nfiles: 7
+    - path: data/test.csv
+      hash: md5
+      md5: e48e8cdb0a354ff13908be22847a7d9e
+      size: 229983476
+    - path: data/train.csv
+      hash: md5
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
+    - path: train_new_sessions.py
+      hash: md5
+      md5: f03fbc6d8ce5f4ccf5375ab9e363132a
+      size: 1497
+    params:
+      params.yaml:
+        create_sessions:
+          base_class: 4
+          num_classes: 10
+          output_dir: data/index_list/CICIDS2017_improved
+          random_state: 1
+          shot: 5
+          train_csv: data/train.csv
+          way: 1
+        train:
+          alpha: 2.0
+          balance: 0.01
+          base_mode: ft_cos
+          batch_size_base: 128
+          batch_size_new: 0
+          dataroot: data
+          dataset: CICIDS2017_improved
+          debug: false
+          decay: 0.0005
+          encoder: cnn1d
+          epochs_base: 1
+          epochs_new: 100
+          eta: 0.1
+          gamma: 0.25
+          loss_iter: 0
+          lr_base: 0.005
+          lr_new: 0.01
+          milestones:
+          - 60
+          - 70
+          model_dir:
+          momentum: 0.9
+          new_mode: avg_cos
+          normalize_method: moving_minmax
+          not_data_init: false
+          num_workers: 8
+          project: fact
+          schedule: Cosine
+          select_sessions: []
+          set_no_val: false
+          start_session: 0
+          step: 20
+          temperature: 1024
+          test_batch_size: 100
+          wandb:
+            entity: ''
+            group: ''
+            mode: online
+            project: origin-fact
+            run_name: ''
+            tags: []
+            use_wandb: false
+            watch: gradients
+            watch_freq: 100
+    outs:
+    - path: checkpoint/CICIDS2017_improved/session3_max_acc.pth
+      hash: md5
+      md5: 93276b30b5f6a749ca725c564faff70e
+      size: 4587805
+    - path: checkpoint/CICIDS2017_improved/session3confusion_matrix.png
+      hash: md5
+      md5: 53e648479dff2e9c9385c7143324f21f
+      size: 278022
+    - path: 
+        checkpoint/CICIDS2017_improved/session3confusion_matrix_classification_report.txt
+      hash: md5
+      md5: d72d6e27745bf20b0490922ec2a858a1
+      size: 596
+  train_new@4:
+    cmd: uv run train_new_sessions.py --select_sessions 4
+    deps:
+    - path: data/index_list/CICIDS2017_improved
+      hash: md5
+      md5: 534d98930633f7ffc32c1655cfbc33ee.dir
+      size: 10932214
+      nfiles: 7
+    - path: data/test.csv
+      hash: md5
+      md5: e48e8cdb0a354ff13908be22847a7d9e
+      size: 229983476
+    - path: data/train.csv
+      hash: md5
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
+    - path: train_new_sessions.py
+      hash: md5
+      md5: f03fbc6d8ce5f4ccf5375ab9e363132a
+      size: 1497
+    params:
+      params.yaml:
+        create_sessions:
+          base_class: 4
+          num_classes: 10
+          output_dir: data/index_list/CICIDS2017_improved
+          random_state: 1
+          shot: 5
+          train_csv: data/train.csv
+          way: 1
+        train:
+          alpha: 2.0
+          balance: 0.01
+          base_mode: ft_cos
+          batch_size_base: 128
+          batch_size_new: 0
+          dataroot: data
+          dataset: CICIDS2017_improved
+          debug: false
+          decay: 0.0005
+          encoder: cnn1d
+          epochs_base: 1
+          epochs_new: 100
+          eta: 0.1
+          gamma: 0.25
+          loss_iter: 0
+          lr_base: 0.005
+          lr_new: 0.01
+          milestones:
+          - 60
+          - 70
+          model_dir:
+          momentum: 0.9
+          new_mode: avg_cos
+          normalize_method: moving_minmax
+          not_data_init: false
+          num_workers: 8
+          project: fact
+          schedule: Cosine
+          select_sessions: []
+          set_no_val: false
+          start_session: 0
+          step: 20
+          temperature: 1024
+          test_batch_size: 100
+          wandb:
+            entity: ''
+            group: ''
+            mode: online
+            project: origin-fact
+            run_name: ''
+            tags: []
+            use_wandb: false
+            watch: gradients
+            watch_freq: 100
+    outs:
+    - path: checkpoint/CICIDS2017_improved/session4_max_acc.pth
+      hash: md5
+      md5: 1f7ea014a5f8df7b059794c4c402f1f2
+      size: 4587805
+    - path: checkpoint/CICIDS2017_improved/session4confusion_matrix.png
+      hash: md5
+      md5: 1d5710397fcc07ccd940d2ef3da4c596
+      size: 309105
+    - path: 
+        checkpoint/CICIDS2017_improved/session4confusion_matrix_classification_report.txt
+      hash: md5
+      md5: 6ec97372079256598d7baba95d7ea3b2
+      size: 650
+  train_new@5:
+    cmd: uv run train_new_sessions.py --select_sessions 5
+    deps:
+    - path: data/index_list/CICIDS2017_improved
+      hash: md5
+      md5: 534d98930633f7ffc32c1655cfbc33ee.dir
+      size: 10932214
+      nfiles: 7
+    - path: data/test.csv
+      hash: md5
+      md5: e48e8cdb0a354ff13908be22847a7d9e
+      size: 229983476
+    - path: data/train.csv
+      hash: md5
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
+    - path: train_new_sessions.py
+      hash: md5
+      md5: f03fbc6d8ce5f4ccf5375ab9e363132a
+      size: 1497
+    params:
+      params.yaml:
+        create_sessions:
+          base_class: 4
+          num_classes: 10
+          output_dir: data/index_list/CICIDS2017_improved
+          random_state: 1
+          shot: 5
+          train_csv: data/train.csv
+          way: 1
+        train:
+          alpha: 2.0
+          balance: 0.01
+          base_mode: ft_cos
+          batch_size_base: 128
+          batch_size_new: 0
+          dataroot: data
+          dataset: CICIDS2017_improved
+          debug: false
+          decay: 0.0005
+          encoder: cnn1d
+          epochs_base: 1
+          epochs_new: 100
+          eta: 0.1
+          gamma: 0.25
+          loss_iter: 0
+          lr_base: 0.005
+          lr_new: 0.01
+          milestones:
+          - 60
+          - 70
+          model_dir:
+          momentum: 0.9
+          new_mode: avg_cos
+          normalize_method: moving_minmax
+          not_data_init: false
+          num_workers: 8
+          project: fact
+          schedule: Cosine
+          select_sessions: []
+          set_no_val: false
+          start_session: 0
+          step: 20
+          temperature: 1024
+          test_batch_size: 100
+          wandb:
+            entity: ''
+            group: ''
+            mode: online
+            project: origin-fact
+            run_name: ''
+            tags: []
+            use_wandb: false
+            watch: gradients
+            watch_freq: 100
+    outs:
+    - path: checkpoint/CICIDS2017_improved/session5_max_acc.pth
+      hash: md5
+      md5: db8d92815981201846a0462a58e78f87
+      size: 4587805
+    - path: checkpoint/CICIDS2017_improved/session5confusion_matrix.png
+      hash: md5
+      md5: 7c30c7eeebed134e7c49b2ac8b92a96d
+      size: 341280
+    - path: 
+        checkpoint/CICIDS2017_improved/session5confusion_matrix_classification_report.txt
+      hash: md5
+      md5: c32559bd2d136afa744b68e420806373
+      size: 704
+  train_new@6:
+    cmd: uv run train_new_sessions.py --select_sessions 6
+    deps:
+    - path: data/index_list/CICIDS2017_improved
+      hash: md5
+      md5: 534d98930633f7ffc32c1655cfbc33ee.dir
+      size: 10932214
+      nfiles: 7
+    - path: data/test.csv
+      hash: md5
+      md5: e48e8cdb0a354ff13908be22847a7d9e
+      size: 229983476
+    - path: data/train.csv
+      hash: md5
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
+    - path: train_new_sessions.py
+      hash: md5
+      md5: f03fbc6d8ce5f4ccf5375ab9e363132a
+      size: 1497
+    params:
+      params.yaml:
+        create_sessions:
+          base_class: 4
+          num_classes: 10
+          output_dir: data/index_list/CICIDS2017_improved
+          random_state: 1
+          shot: 5
+          train_csv: data/train.csv
+          way: 1
+        train:
+          alpha: 2.0
+          balance: 0.01
+          base_mode: ft_cos
+          batch_size_base: 128
+          batch_size_new: 0
+          dataroot: data
+          dataset: CICIDS2017_improved
+          debug: false
+          decay: 0.0005
+          encoder: cnn1d
+          epochs_base: 1
+          epochs_new: 100
+          eta: 0.1
+          gamma: 0.25
+          loss_iter: 0
+          lr_base: 0.005
+          lr_new: 0.01
+          milestones:
+          - 60
+          - 70
+          model_dir:
+          momentum: 0.9
+          new_mode: avg_cos
+          normalize_method: moving_minmax
+          not_data_init: false
+          num_workers: 8
+          project: fact
+          schedule: Cosine
+          select_sessions: []
+          set_no_val: false
+          start_session: 0
+          step: 20
+          temperature: 1024
+          test_batch_size: 100
+          wandb:
+            entity: ''
+            group: ''
+            mode: online
+            project: origin-fact
+            run_name: ''
+            tags: []
+            use_wandb: false
+            watch: gradients
+            watch_freq: 100
+    outs:
+    - path: checkpoint/CICIDS2017_improved/session6_max_acc.pth
+      hash: md5
+      md5: 46512203dc439ed3d6e1c575fc81961d
+      size: 4587805
+    - path: checkpoint/CICIDS2017_improved/session6confusion_matrix.png
+      hash: md5
+      md5: 414137b22f8763684a05e7ad97033f4b
+      size: 380169
+    - path: 
+        checkpoint/CICIDS2017_improved/session6confusion_matrix_classification_report.txt
+      hash: md5
+      md5: 54a1070146470f61c595565ca7bc0679
+      size: 758

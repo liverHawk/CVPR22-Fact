@@ -1,12 +1,15 @@
-import dvc_workaround
 import argparse
-import comet_ml
-from utils import load_params_yaml, set_gpu, set_seed, pprint, torch
 import os
+
+import comet_ml
+
+import dvc_workaround
+from utils import load_params_yaml, pprint, set_gpu, set_seed, torch
 
 MODEL_DIR = None
 DATA_DIR = "data/"
 PROJECT = "fact"  # base, fact
+REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 
 def load_defaults_from_yaml(yaml_path="params.yaml"):
@@ -292,32 +295,32 @@ def get_command_line_parser():
     return parser
 
 
-if __name__ == "__main__":
-    # root_dir = "/app"
-    root_dir = "/home/hawk/Documents/school/test/CVPR22-Fact"
-    
+def apply_yaml_boolean_flags(args, yaml_defaults=None):
+    """
+    params.yamlでTrue指定されたフラグをargparse結果に反映
+    """
+    yaml_defaults = yaml_defaults or load_defaults_from_yaml()
+    for flag in ("not_data_init", "set_no_val", "debug", "use_wandb"):
+        if yaml_defaults.get(flag, False):
+            setattr(args, flag, True)
+    return args
+
+
+def initialize_trainer(args, *, root_dir=REPO_ROOT, yaml_defaults=None):
+    """
+    共通初期化を行い、トレーナーインスタンスを返す
+    """
+    yaml_defaults = yaml_defaults or load_defaults_from_yaml()
+    apply_yaml_boolean_flags(args, yaml_defaults)
+
     dvc_workaround.fix_stdout_buffer()
-    parser = get_command_line_parser()
-    args = parser.parse_args()
-
-    # not_data_initとset_no_valはaction='store_true'なので、YAMLから設定する場合は別途処理
-    yaml_defaults = load_defaults_from_yaml()
-    if yaml_defaults.get("not_data_init", False):
-        args.not_data_init = True
-    if yaml_defaults.get("set_no_val", False):
-        args.set_no_val = True
-    if yaml_defaults.get("debug", False):
-        args.debug = True
-    if yaml_defaults.get("use_wandb", False):
-        args.use_wandb = True
-
     set_seed(args.seed)
     pprint(vars(args))
-    
+
     args.dataroot = os.path.join(root_dir, args.dataroot)
     if args.model_dir is not None:
         args.model_dir = os.path.join(root_dir, args.model_dir)
-    
+
     args.comet = comet_ml.start(project_name="NIDS on FACT")
     args.num_gpu = set_gpu(args)
     args.pin_memory = True if not torch.mps.is_available() else False
@@ -326,11 +329,20 @@ if __name__ == "__main__":
         raise ValueError("Invalid project name: %s" % (args.project))
     elif args.project == "base":
         from models.base.fscil_trainer import FSCILTrainer
-        trainer = FSCILTrainer(args)
     else:
         from models.fact.fscil_trainer import FSCILTrainer
-        trainer = FSCILTrainer(args)
 
+    trainer = FSCILTrainer(args)
     args.comet.log_parameters(parameters=args.__dict__)
-    # args.comet.log_metrics
+    return trainer
+
+
+def main():
+    parser = get_command_line_parser()
+    args = parser.parse_args()
+    trainer = initialize_trainer(args)
     trainer.train()
+
+
+if __name__ == "__main__":
+    main()

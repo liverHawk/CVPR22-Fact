@@ -356,6 +356,8 @@ class CICIDS2017_improved(Dataset):
         le = LabelEncoder()
         all_labels = pd.concat([train_df[label_col], test_df[label_col]], axis=0)
         le.fit(all_labels)
+        self.label_encoder = le
+        self.label_names = list(le.classes_)
 
         # Split features and labels
         feature_cols = [col for col in train_df.columns if col != label_col]

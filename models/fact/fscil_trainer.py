@@ -239,19 +239,15 @@ class FSCILTrainer(Trainer):
                 )
 
         # save dummy classifiers
-        self.dummy_classifiers = deepcopy(
-            _unwrap_model(self.model).fc.weight.detach()
-        )
-
-        self.dummy_classifiers = F.normalize(
-            self.dummy_classifiers[self.args.base_class :, :], p=2, dim=-1
-        )
-        self.old_classifiers = self.dummy_classifiers[: self.args.base_class, :]
+        self._refresh_dummy_classifiers()
         return result_list
     
     def _new_session_train(self, train_set, trainloader, testloader, session):
         args = self.args
         result_list = [args]
+
+        if not hasattr(self, "dummy_classifiers"):
+            self._refresh_dummy_classifiers()
 
         print("training session: [%d]" % session)
 
@@ -326,6 +322,20 @@ class FSCILTrainer(Trainer):
         )
         return result_list
 
+    def _refresh_dummy_classifiers(self):
+        """
+        現在のFC重みから dummy_classifiers / old_classifiers を更新
+        """
+        inner_model = _unwrap_model(self.model)
+        weight = inner_model.fc.weight.detach()
+        if weight.size(0) <= self.args.base_class:
+            raise ValueError(
+                "dummy_classifiers を初期化できません。ベースセッションの重みをロードしてください。"
+            )
+        normalized = F.normalize(weight[self.args.base_class :, :], p=2, dim=-1)
+        self.dummy_classifiers = normalized.clone()
+        self.old_classifiers = self.dummy_classifiers[: self.args.base_class, :]
+
     def train(self):
         args = self.args
         t_start_time = time.time()
@@ -344,19 +354,19 @@ class FSCILTrainer(Trainer):
         if args.select_sessions is not None and len(args.select_sessions) > 0:
             if 0 in args.select_sessions:
                 train_set, trainloader, testloader = self.get_dataloader(0)
-                self.model.load_state_dict(self.best_model_dict)
+                self._load_checkpoint_for_session(0)
                 buf_list = self._base_session_train(train_set, trainloader, testloader, mask)
                 result_list.extend(buf_list)
             else:
                 for session in args.select_sessions:
                     train_set, trainloader, testloader = self.get_dataloader(session)
-                    self.model.load_state_dict(self.best_model_dict)
+                    self._load_checkpoint_for_session(session)
                     buf_list = self._new_session_train(train_set, trainloader, testloader, session)
                     result_list.extend(buf_list)
         else:
             for session in range(args.start_session, args.sessions):
                 train_set, trainloader, testloader = self.get_dataloader(session)
-                self.model.load_state_dict(self.best_model_dict)
+                self._load_checkpoint_for_session(session)
 
                 if session == 0:  # load base class train img label
                     buf_list = self._base_session_train(train_set, trainloader, testloader, mask)
@@ -385,6 +395,24 @@ class FSCILTrainer(Trainer):
         summary_payload["total_time_min"] = total_time
         self.wandb.set_summary(**summary_payload)
         self.finalize()
+
+    def _load_checkpoint_for_session(self, session):
+        """
+        session n を開始する前に session n-1 の重みをロード
+        """
+        if session == 0:
+            self.model.load_state_dict(self.best_model_dict)
+            return
+        prev_session = session - 1
+        ckpt_path = os.path.join(
+            self.args.save_path, f"session{prev_session}_max_acc.pth"
+        )
+        if not os.path.exists(ckpt_path):
+            raise FileNotFoundError(
+                f"セッション{prev_session}のモデル {ckpt_path} が見つかりません。先に該当セッションを学習してください。"
+            )
+        state = torch.load(ckpt_path, weights_only=False)["params"]
+        self.model.load_state_dict(state)
 
     def test_intergrate(
         self,
