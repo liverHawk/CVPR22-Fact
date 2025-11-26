@@ -5,12 +5,12 @@ stages:
     deps:
     - path: data/CICIDS2017_improved
       hash: md5
-      md5: 97448ae36a9acd7110a7c6dafed93e84.dir
-      size: 1152270765
-      nfiles: 5
+      md5: 1603f55b6c08aae9d5122688450d087e.dir
+      size: 2501078482
+      nfiles: 26
     - path: split_cicids2017.py
       hash: md5
-      md5: 4cf7f92bc0415d9e090f166623c94b16
+      md5: 989319cef71af7eb2a02d56498c1f619
       size: 7724
     outs:
     - path: data/test.csv
@@ -26,7 +26,7 @@ stages:
     deps:
     - path: create_session_files.py
       hash: md5
-      md5: d68b882340f790a68ed3ad1375385406
+      md5: 37a9c7c46d55bf0b0bddf7309eb2c726
       size: 11577
     - path: data/train.csv
       hash: md5
@@ -74,7 +74,7 @@ stages:
       size: 920053282
     - path: train.py
       hash: md5
-      md5: 5a440de2ca5c113251eea2b315dca502
+      md5: 1d5142067c0308c262aae2450810b4b9
       size: 12908
     params:
       params.yaml:
@@ -134,6 +134,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: cea9070f41db9dea5fa8c07f7fe33de1.dir
-      size: 37899894
+      md5: e784cc395e2066ca9a9bd8d8fb19b0ca.dir
+      size: 37917035
       nfiles: 23
