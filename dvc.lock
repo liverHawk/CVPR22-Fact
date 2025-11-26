@@ -171,7 +171,7 @@ stages:
           decay: 0.0005
           encoder: cnn1d
           epochs_base: 10
-          epochs_new: 10
+          epochs_new: 100
           eta: 0.1
           gamma: 0.25
           loss_iter: 0
@@ -260,7 +260,7 @@ stages:
           decay: 0.0005
           encoder: cnn1d
           epochs_base: 10
-          epochs_new: 10
+          epochs_new: 100
           eta: 0.1
           gamma: 0.25
           loss_iter: 0
@@ -349,7 +349,7 @@ stages:
           decay: 0.0005
           encoder: cnn1d
           epochs_base: 10
-          epochs_new: 10
+          epochs_new: 100
           eta: 0.1
           gamma: 0.25
           loss_iter: 0
@@ -438,7 +438,7 @@ stages:
           decay: 0.0005
           encoder: cnn1d
           epochs_base: 10
-          epochs_new: 10
+          epochs_new: 100
           eta: 0.1
           gamma: 0.25
           loss_iter: 0
@@ -527,7 +527,7 @@ stages:
           decay: 0.0005
           encoder: cnn1d
           epochs_base: 10
-          epochs_new: 10
+          epochs_new: 100
           eta: 0.1
           gamma: 0.25
           loss_iter: 0
@@ -616,7 +616,7 @@ stages:
           decay: 0.0005
           encoder: cnn1d
           epochs_base: 10
-          epochs_new: 10
+          epochs_new: 100
           eta: 0.1
           gamma: 0.25
           loss_iter: 0
@@ -705,7 +705,7 @@ stages:
           decay: 0.0005
           encoder: cnn1d
           epochs_base: 10
-          epochs_new: 10
+          epochs_new: 100
           eta: 0.1
           gamma: 0.25
           loss_iter: 0
