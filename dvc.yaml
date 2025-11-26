@@ -31,7 +31,6 @@ stages:
       - train_base_session.py
     params:
       - train
-      - create_sessions
     outs:
       - checkpoint/CICIDS2017_improved/session0_max_acc.pth
       - checkpoint/CICIDS2017_improved/session0confusion_matrix.png
