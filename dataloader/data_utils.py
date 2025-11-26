@@ -93,7 +93,8 @@ def set_up_datasets(args):
         args.base_class = 4  # Base classes (BENIGN + major attack types)
         args.num_classes = 10  # Total classes after label consolidation
         args.way = 1  # Number of new classes per session
-        args.shot = 5  # Few-shot samples per class
+        if args.shot is None:
+            args.shot = 5  # Few-shot samples per class
         args.sessions = 7  # Number of incremental sessions (5 + 1*5 = 10)
 
     args.Dataset = Dataset

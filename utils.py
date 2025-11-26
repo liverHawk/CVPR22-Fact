@@ -155,11 +155,9 @@ def confmatrix(logits, label, filename, args, label_names=None, name=None, step=
     # label, pred -> int array
     label_array = label.cpu().numpy().astype(int)
     pred_array = pred.cpu().numpy().astype(int)
-    args.comet.log_confusion_matrix(
-        label_array, pred_array, class_names=label_names, file_name=f"{name}.json", step=step
-    )
+
     # 正規化された混同行列（割合）
-    cm_normalized = confusion_matrix(label, pred, normalize="true")
+    cm_normalized = confusion_matrix(label_array, pred_array, normalize="true")
     # 生の混同行列（カウント）
     # cm_counts = confusion_matrix(label, pred, normalize=None)
     clss = len(cm_normalized)
@@ -176,6 +174,15 @@ def confmatrix(logits, label, filename, args, label_names=None, name=None, step=
         else:
             # 必要な数だけ使用
             label_names = label_names[:clss]
+
+    print(f"=========================================session {step}: call confmatrix in {name}.json")
+    args.comet.log_confusion_matrix(
+        label_array,
+        pred_array,
+        class_names=label_names,
+        file_name=f"{name}.json",
+        step=step,
+    )
 
     # すべてのクラスにチックを配置（ラベル名を全て表示）
     tick_positions = list(range(clss))

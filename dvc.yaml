@@ -15,9 +15,11 @@ stages:
     deps:
       - data/train.csv
       - create_session_files.py
+    params:
+      - create_sessions
     outs:
       - data/index_list/CICIDS2017_improved
-      - data/class_indices.json
+      - data/class_distribution.txt
       - data/column_names.txt
   
   train:
@@ -29,5 +31,6 @@ stages:
       - train.py
     params:
       - train
+      - create_sessions
     outs:
       - checkpoint/CICIDS2017_improved

@@ -69,11 +69,11 @@ class GridExperimentRunner:
                 )
             
             # リアルタイムで出力を表示
-            # output_lines = []
-            # for line in process.stdout:
-            #     line = line.rstrip()
-            #     print(line, flush=True)  # 即座に表示
-            #     output_lines.append(line)
+            output_lines = []
+            for line in process.stdout:
+                line = line.rstrip()
+                print(line, flush=True)  # 即座に表示
+                output_lines.append(line)
             
             # プロセスの終了を待つ
             return_code = process.wait()
@@ -267,11 +267,12 @@ def main(params_grids):
 if __name__ == "__main__":
     input_grids = [
         {
-            "train.schedule": ["Cosine", "Milestone", "Step"],
+            "train.epochs_new": [1, 10, 100, 1000, 10000],
         },
         {
-            "create_sessions.shot": [1, 2, 3, 4, 5, 6, 7, 8, 9],
-        },
+            "train.epochs_base": [1000],
+            "train.temperature": [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024],
+        }
     ]
 
     main(input_grids)

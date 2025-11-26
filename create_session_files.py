@@ -148,12 +148,15 @@ def create_session_files(
         class_indices[label_idx].append(idx)
 
     print("\nClass distribution:")
-    for label_idx in range(len(unique_labels)):
-        count = len(class_indices[label_idx])
-        print(f"  Class {label_idx} ({unique_labels[label_idx]}): {count} samples")
+    with open("data/class_distribution.txt", "w") as f:
+        for label_idx in range(len(unique_labels)):
+            count = len(class_indices[label_idx])
+            string = f"  Class {label_idx} ({unique_labels[label_idx]}): {count} samples"
+            print(string)
+            f.write(string + "\n")
 
-    with open("data/class_indices.json", "w") as f:
-        json.dump(class_indices, f, indent=4)
+    # with open("data/class_indices.json", "w") as f:
+    #     json.dump(class_indices, f, indent=4)
 
     with open("data/column_names.txt", "w") as f:
         columns = df.columns.tolist()
@@ -236,7 +239,8 @@ if __name__ == "__main__":
     import sys
     import os
 
-    root_dir = "/app"
+    # root_dir = "/app"
+    root_dir = "/home/hawk/Documents/school/test/CVPR22-Fact"
 
     # utilsモジュールをインポート（パスを追加）
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

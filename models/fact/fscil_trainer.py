@@ -91,7 +91,7 @@ class FSCILTrainer(Trainer):
             # test model with all seen class
             # 最終エポックの場合のみ混同行列を作成
             is_final_epoch = epoch == args.epochs_base - 1
-            tsl, tsa, acc_dict = test(
+            output = test(
                 self.model,
                 testloader,
                 epoch,
@@ -101,17 +101,25 @@ class FSCILTrainer(Trainer):
                 wandb_logger=self.wandb,
                 name="train"
             )
-            args.comet.log_metrics(
-                dic={
+            if len(output) == 3:
+                tsl, tsa, acc_dict = output
+                memory_dict = {
                     "test/base": {
                         "loss": tsl,
                         "acc": tsa,
                         "seenac": acc_dict["seenac"],
                         "unseenac": acc_dict["unseenac"],
                     }
-                },
-                step=epoch
-            )
+                }
+            else:
+                tsl, tsa = output
+                memory_dict = {
+                    "test/base": {
+                        "loss": tsl,
+                        "acc": tsa,
+                    }
+                }
+            args.comet.log_metrics(dic=memory_dict, step=epoch)
 
             # save better model
             if (tsa * 100) >= self.trlog["max_acc"][0]:
@@ -193,7 +201,7 @@ class FSCILTrainer(Trainer):
             torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
             _unwrap_model(self.model).mode = "avg_cos"
-            tsl, tsa, acc_dict = test(
+            output = test(
                 self.model,
                 testloader,
                 0,
@@ -203,17 +211,25 @@ class FSCILTrainer(Trainer):
                 wandb_logger=self.wandb,
                 name="session"
             )
-            args.comet.log_metrics(
-                dic={
+            if len(output) == 3:
+                tsl, tsa, acc_dict = output
+                memory_dict = {
                     "test": {
                         "loss": tsl,
                         "acc": tsa,
                         "seenac": acc_dict["seenac"],
                         "unseenac": acc_dict["unseenac"],
                     }
-                },
-                step=0
-            )
+                }
+            else:
+                tsl, tsa = output
+                memory_dict = {
+                    "test": {
+                        "loss": tsl,
+                        "acc": tsa,
+                    }
+                }
+            args.comet.log_metrics(dic=memory_dict, step=0)
             if (tsa * 100) >= self.trlog["max_acc"][0]:
                 self.trlog["max_acc"][0] = float("%.3f" % (tsa * 100))
                 print(
@@ -250,10 +266,10 @@ class FSCILTrainer(Trainer):
             trainloader, np.unique(train_set.targets), session
         )
 
-        # tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
-        # tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
+        # output = test(self.model, testloader, 0, args, session,validation=False)
+        # output = test_withfc(self.model, testloader, 0, args, session,validation=False)
         print("Evaluating the updated model...")
-        tsl, tsa, acc_dict = self.test_intergrate(
+        output = self.test_intergrate(
             self.model,
             testloader,
             0,
@@ -263,17 +279,25 @@ class FSCILTrainer(Trainer):
             wandb_logger=self.wandb,
             name="session"
         )
-        args.comet.log_metrics(
-            dic={
+        if len(output) == 3:
+            tsl, tsa, acc_dict = output
+            memory_dict = {
                 "test": {
                     "loss": tsl,
                     "acc": tsa,
                     "seenac": acc_dict["seenac"],
                     "unseenac": acc_dict["unseenac"],
                 }
-            },
-            step=session
-        )
+            }
+        else:
+            tsl, tsa = output
+            memory_dict = {
+                "test": {
+                    "loss": tsl,
+                    "acc": tsa,
+                }
+            }
+        args.comet.log_metrics(dic=memory_dict, step=session)
 
         # save model
         self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
@@ -317,7 +341,7 @@ class FSCILTrainer(Trainer):
             mask[:, i + args.base_class][picked_dummy] = 1
         mask = torch.tensor(mask).to(self.args.device)
 
-        if args.select_sessions is not None:
+        if args.select_sessions is not None and len(args.select_sessions) > 0:
             if 0 in args.select_sessions:
                 train_set, trainloader, testloader = self.get_dataloader(0)
                 self.model.load_state_dict(self.best_model_dict)
@@ -448,6 +472,7 @@ class FSCILTrainer(Trainer):
                     testloader.dataset, "label_encoder"
                 ):
                     label_names = list(testloader.dataset.label_encoder.classes_)
+                print(f"test_intergrate: call confmatrix on session {session}")
                 cm = confmatrix(lgt, lbs, save_model_dir, args, label_names=label_names, name=name, step=session)
                 perclassacc = cm.diagonal()
                 seenac = np.mean(perclassacc[: args.base_class])
@@ -461,8 +486,9 @@ class FSCILTrainer(Trainer):
                     wandb_logger.log_image(
                         f"session_{session}_confusion_matrix", save_model_dir + ".png"
                     )
+                return vl, va, {"seenac": seenac, "unseenac": unseenac}
 
-        return vl, va, {"seenac": seenac, "unseenac": unseenac}
+        return vl, va
 
     def set_save_path(self):
         self.args.save_path = os.path.join("checkpoint", self.args.dataset)
