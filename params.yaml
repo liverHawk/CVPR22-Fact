@@ -7,7 +7,7 @@ create_sessions:
   num_classes: 10
   output_dir: data/index_list/CICIDS2017_improved
   random_state: 1
-  shot: 9
+  shot: 1
   train_csv: data/train.csv
   way: 1
 dataset_presets:
@@ -91,7 +91,7 @@ train:
   not_data_init: false
   num_workers: 8
   project: fact
-  schedule: Step
+  schedule: Cosine
   select_sessions: []
   set_no_val: false
   start_session: 0
