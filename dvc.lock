@@ -32,6 +32,16 @@ stages:
       hash: md5
       md5: 8de938eafdc821ea1ac5ba9ba24ab66f
       size: 920053282
+    params:
+      params.yaml:
+        create_sessions:
+          base_class: 4
+          num_classes: 10
+          output_dir: data/index_list/CICIDS2017_improved
+          random_state: 1
+          shot: 9
+          train_csv: data/train.csv
+          way: 1
     outs:
     - path: data/class_indices.json
       hash: md5
@@ -43,16 +53,16 @@ stages:
       size: 1086
     - path: data/index_list/CICIDS2017_improved
       hash: md5
-      md5: 534d98930633f7ffc32c1655cfbc33ee.dir
-      size: 10932214
+      md5: 06619f7dbfe7a2c74bf28e0eba099b4d.dir
+      size: 10932389
       nfiles: 7
   train:
     cmd: uv run train.py
     deps:
     - path: data/index_list/CICIDS2017_improved
       hash: md5
-      md5: 534d98930633f7ffc32c1655cfbc33ee.dir
-      size: 10932214
+      md5: 06619f7dbfe7a2c74bf28e0eba099b4d.dir
+      size: 10932389
       nfiles: 7
     - path: data/test.csv
       hash: md5
@@ -68,6 +78,14 @@ stages:
       size: 12839
     params:
       params.yaml:
+        create_sessions:
+          base_class: 4
+          num_classes: 10
+          output_dir: data/index_list/CICIDS2017_improved
+          random_state: 1
+          shot: 9
+          train_csv: data/train.csv
+          way: 1
         train:
           alpha: 2.0
           balance: 0.01
@@ -96,7 +114,7 @@ stages:
           not_data_init: false
           num_workers: 8
           project: fact
-          schedule: Step
+          schedule: Cosine
           select_sessions: []
           set_no_val: false
           start_session: 0
@@ -116,6 +134,6 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved
       hash: md5
-      md5: 6407e6b6bd1c82098274e6b28b2520f8.dir
-      size: 38565508
+      md5: 5a2f718ffc74c9c0b869ee4d51b303b5.dir
+      size: 38563478
       nfiles: 23
