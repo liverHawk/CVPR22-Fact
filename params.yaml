@@ -74,7 +74,7 @@ train:
   debug: false
   decay: 0.0005
   encoder: cnn1d
-  epochs_base: 1
+  epochs_base: 10
   epochs_new: 1
   eta: 0.1
   gamma: 0.25

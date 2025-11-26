@@ -170,7 +170,7 @@ stages:
           debug: false
           decay: 0.0005
           encoder: cnn1d
-          epochs_base: 1
+          epochs_base: 10
           epochs_new: 1
           eta: 0.1
           gamma: 0.25
@@ -207,16 +207,16 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved/session0_max_acc.pth
       hash: md5
-      md5: bbb40b1db180e451c710ad8f45acf91b
+      md5: 61fb5981f780674f63b2b239ee6cd505
       size: 4587805
     - path: checkpoint/CICIDS2017_improved/session0confusion_matrix.png
       hash: md5
-      md5: 49c7bd768b5d7de8f6b6268b4d2131dd
-      size: 175958
+      md5: 10c09dee180c64fb7d4b445d799e4fd3
+      size: 169411
     - path: 
         checkpoint/CICIDS2017_improved/session0confusion_matrix_classification_report.txt
       hash: md5
-      md5: 97cbb812e2db51d97ed01c5e46d56c8b
+      md5: 77d283a83b3cae723991bbc51778ca30
       size: 434
   train_new@1:
     cmd: uv run train_new_sessions.py --select_sessions 1
@@ -259,7 +259,7 @@ stages:
           debug: false
           decay: 0.0005
           encoder: cnn1d
-          epochs_base: 1
+          epochs_base: 10
           epochs_new: 1
           eta: 0.1
           gamma: 0.25
@@ -296,16 +296,16 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved/session1_max_acc.pth
       hash: md5
-      md5: 5a47b58ac7570efe0a2b836d12579b7d
+      md5: bbe6aea566b1654d9e0d4e6c8574d8b2
       size: 4587805
     - path: checkpoint/CICIDS2017_improved/session1confusion_matrix.png
       hash: md5
-      md5: 36982f52b37ff78d89d834259ae2b10c
-      size: 207300
+      md5: 34245e12c33b51f3d451a1b762fa25d0
+      size: 195488
     - path: 
         checkpoint/CICIDS2017_improved/session1confusion_matrix_classification_report.txt
       hash: md5
-      md5: 1c376b03d1d0c9ec29dcb2639c6fab9e
+      md5: c3f3fdb1ebb0eb4548c914e97879c15b
       size: 488
   train_new@2:
     cmd: uv run train_new_sessions.py --select_sessions 2
@@ -348,7 +348,7 @@ stages:
           debug: false
           decay: 0.0005
           encoder: cnn1d
-          epochs_base: 1
+          epochs_base: 10
           epochs_new: 1
           eta: 0.1
           gamma: 0.25
@@ -385,16 +385,16 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved/session2_max_acc.pth
       hash: md5
-      md5: feb6b8d3cac78ed4a06310484fe788a3
+      md5: f828c2acca9ad9866ee3a92d1ef82261
       size: 4587805
     - path: checkpoint/CICIDS2017_improved/session2confusion_matrix.png
       hash: md5
-      md5: b5adf39579f516fdb9739f978cea2911
-      size: 239899
+      md5: 5f70ad1b85684b4a4f669c7792bbb7a2
+      size: 225892
     - path: 
         checkpoint/CICIDS2017_improved/session2confusion_matrix_classification_report.txt
       hash: md5
-      md5: 5f415b544b3d0b3b9264906d914304ec
+      md5: 0934531a2e6c2c73b2b2aeaa64014746
       size: 542
   train_new@3:
     cmd: uv run train_new_sessions.py --select_sessions 3
@@ -437,7 +437,7 @@ stages:
           debug: false
           decay: 0.0005
           encoder: cnn1d
-          epochs_base: 1
+          epochs_base: 10
           epochs_new: 1
           eta: 0.1
           gamma: 0.25
@@ -474,16 +474,16 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved/session3_max_acc.pth
       hash: md5
-      md5: 93276b30b5f6a749ca725c564faff70e
+      md5: 0570ac0e0fb69db35f20790f4d473304
       size: 4587805
     - path: checkpoint/CICIDS2017_improved/session3confusion_matrix.png
       hash: md5
-      md5: 53e648479dff2e9c9385c7143324f21f
-      size: 278022
+      md5: eb90e11554525915b0eb634bf1b3edb1
+      size: 259049
     - path: 
         checkpoint/CICIDS2017_improved/session3confusion_matrix_classification_report.txt
       hash: md5
-      md5: d72d6e27745bf20b0490922ec2a858a1
+      md5: aa4f8aef8e6df8aa0d684b348e1de98f
       size: 596
   train_new@4:
     cmd: uv run train_new_sessions.py --select_sessions 4
@@ -526,7 +526,7 @@ stages:
           debug: false
           decay: 0.0005
           encoder: cnn1d
-          epochs_base: 1
+          epochs_base: 10
           epochs_new: 1
           eta: 0.1
           gamma: 0.25
@@ -563,16 +563,16 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved/session4_max_acc.pth
       hash: md5
-      md5: 1f7ea014a5f8df7b059794c4c402f1f2
+      md5: b8f06d799c13f0fb3d91220ae0b9379c
       size: 4587805
     - path: checkpoint/CICIDS2017_improved/session4confusion_matrix.png
       hash: md5
-      md5: 1d5710397fcc07ccd940d2ef3da4c596
-      size: 309105
+      md5: dba58b35febed02b0e55b0a7692e8070
+      size: 292548
     - path: 
         checkpoint/CICIDS2017_improved/session4confusion_matrix_classification_report.txt
       hash: md5
-      md5: 6ec97372079256598d7baba95d7ea3b2
+      md5: 897f31c02a6af5a7449de789ad9c2314
       size: 650
   train_new@5:
     cmd: uv run train_new_sessions.py --select_sessions 5
@@ -615,7 +615,7 @@ stages:
           debug: false
           decay: 0.0005
           encoder: cnn1d
-          epochs_base: 1
+          epochs_base: 10
           epochs_new: 1
           eta: 0.1
           gamma: 0.25
@@ -652,16 +652,16 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved/session5_max_acc.pth
       hash: md5
-      md5: db8d92815981201846a0462a58e78f87
+      md5: e1c191c28ace88269d65dfcc92633503
       size: 4587805
     - path: checkpoint/CICIDS2017_improved/session5confusion_matrix.png
       hash: md5
-      md5: 7c30c7eeebed134e7c49b2ac8b92a96d
-      size: 341280
+      md5: efdbaa8ded2fa2af0a5d7860bc74c87a
+      size: 325670
     - path: 
         checkpoint/CICIDS2017_improved/session5confusion_matrix_classification_report.txt
       hash: md5
-      md5: c32559bd2d136afa744b68e420806373
+      md5: 74fed9204b0eef30e8e70da092c56e2b
       size: 704
   train_new@6:
     cmd: uv run train_new_sessions.py --select_sessions 6
@@ -704,7 +704,7 @@ stages:
           debug: false
           decay: 0.0005
           encoder: cnn1d
-          epochs_base: 1
+          epochs_base: 10
           epochs_new: 1
           eta: 0.1
           gamma: 0.25
@@ -741,14 +741,14 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved/session6_max_acc.pth
       hash: md5
-      md5: 46512203dc439ed3d6e1c575fc81961d
+      md5: 75c74bc35a2efe5f990fcf49691730d1
       size: 4587805
     - path: checkpoint/CICIDS2017_improved/session6confusion_matrix.png
       hash: md5
-      md5: 414137b22f8763684a05e7ad97033f4b
-      size: 380169
+      md5: dd518dfa733ad9ca2675c2b42a1b07ca
+      size: 357077
     - path: 
         checkpoint/CICIDS2017_improved/session6confusion_matrix_classification_report.txt
       hash: md5
-      md5: 54a1070146470f61c595565ca7bc0679
+      md5: b0082ea689967c13c43c8933868c6e35
       size: 758
