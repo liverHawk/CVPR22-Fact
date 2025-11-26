@@ -3,7 +3,7 @@ import subprocess
 import itertools
 from pathlib import Path
 import time
-# from datetime import datetime
+import datetime
 
 
 class GridExperimentRunner:
@@ -46,6 +46,7 @@ class GridExperimentRunner:
     def run_command(self):
         """コマンドを実行"""
         print(f"▶ コマンド実行: {self.command}")
+        flag = False
         try:
             if isinstance(self.command, str):
                 # リアルタイムで出力を表示
@@ -72,7 +73,20 @@ class GridExperimentRunner:
             output_lines = []
             for line in process.stdout:
                 line = line.rstrip()
-                print(line, flush=True)  # 即座に表示
+                if not flag:
+                    if "%" in line and "10%" not in line:
+                        continue
+                    print(line, flush=True)
+                    if "10%" in line:
+                        dt_now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
+                        print(f"[{dt_now.strftime('%Y-%m-%d %H:%M:%S')}]", flush=True)
+                        flag = True
+                    # elif i % 10 == 0:
+                    #     print(line, flush=True)  # 即座に表示
+                else:
+                    if "test" in line:
+                        print(line, flush=True)
+                        flag = False
                 output_lines.append(line)
             
             # プロセスの終了を待つ
@@ -269,10 +283,10 @@ if __name__ == "__main__":
         {
             "train.epochs_new": [1, 10, 100, 1000, 10000],
         },
-        {
-            "train.epochs_base": [1000],
-            "train.temperature": [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024],
-        }
+        # {
+        #     "train.epochs_base": [1000],
+        #     "train.temperature": [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024],
+        # }
     ]
 
     main(input_grids)
