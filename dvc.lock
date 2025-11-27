@@ -175,21 +175,21 @@ stages:
           momentum: 0.9
           schedule: Cosine
           step: 20
-          temperature: 1024
+          temperature: 1
         train.common:
           dataroot: data
           dataset: CICIDS2017_improved
           debug: false
           encoder: cnn1d
+          model_dir:
           normalize_method: moving_minmax
           not_data_init: false
           num_workers: 8
           project: fact
-          test_batch_size: 100
-          model_dir:
+          select_sessions: []
           set_no_val: false
           start_session: 0
-          select_sessions: []
+          test_batch_size: 100
           wandb:
             entity: ''
             group: ''
@@ -203,16 +203,16 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved/session0_max_acc.pth
       hash: md5
-      md5: 61fb5981f780674f63b2b239ee6cd505
+      md5: 23738b8b5843d64d6e4354800636e619
       size: 4587805
     - path: checkpoint/CICIDS2017_improved/session0confusion_matrix.png
       hash: md5
-      md5: 10c09dee180c64fb7d4b445d799e4fd3
-      size: 169411
+      md5: a2647e285e217409a86066283a777554
+      size: 172063
     - path: 
         checkpoint/CICIDS2017_improved/session0confusion_matrix_classification_report.txt
       hash: md5
-      md5: 77d283a83b3cae723991bbc51778ca30
+      md5: 470c84923ab6e7eefd7a32bab488d4d2
       size: 434
   train_new@1:
     cmd: uv run train_new_sessions.py --select_sessions 1
@@ -830,7 +830,7 @@ stages:
     deps:
     - path: checkpoint/CICIDS2017_improved/session0_max_acc.pth
       hash: md5
-      md5: 61fb5981f780674f63b2b239ee6cd505
+      md5: 23738b8b5843d64d6e4354800636e619
       size: 4587805
     - path: data/index_list/CICIDS2017_improved/session_1.txt
       hash: md5
