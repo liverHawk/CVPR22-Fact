@@ -122,6 +122,19 @@ data/                # Datasets and session splits
 3. Dataset-specific presets in `params.yaml`
 4. Hardcoded defaults
 
+**Parameter structure** in `params.yaml`:
+- `train.common`: Parameters used by both base and incremental sessions
+  - `dataset`, `encoder`, `project`, `dataroot`, `num_workers`, etc.
+- `train.base`: Parameters specific to base session (session 0)
+  - `epochs_base`, `lr_base`, `batch_size_base`, `alpha`, `balance`, `eta`, etc.
+- `train.new`: Parameters specific to incremental sessions (session 1+)
+  - `epochs_new`, `lr_new`, `new_mode`, `batch_size_new`, etc.
+
+**DVC dependency isolation**:
+- Changing `train.new.*` parameters only re-runs `train_new` stages
+- Changing `train.base.*` parameters only re-runs `train_base` stage
+- Changing `train.common.*` parameters re-runs both stages (as expected)
+
 **Key parameters**:
 - `project`: `base` or `fact` (training method)
 - `dataset`: `CICIDS2017_improved`, `cifar100`, `cub200`, `mini_imagenet`
