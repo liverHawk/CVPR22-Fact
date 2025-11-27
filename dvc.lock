@@ -896,7 +896,7 @@ stages:
             watch_freq: 100
         train.new:
           batch_size_new: 0
-          epochs_new: 1
+          epochs_new: 10
           lr_new: 0.01
           new_mode: avg_cos
     outs:
