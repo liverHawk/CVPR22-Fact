@@ -16,10 +16,18 @@ def _prepare_new_session_list(args):
 
 
 def main():
+    import os
+
     parser = get_command_line_parser()
     args = parser.parse_args()
+
+    # select_sessionsが指定されている場合のみタグに使用
+    session_tag = "all_new_sessions"
+    if args.select_sessions:
+        session_tag = f"new_sessions_{'-'.join(map(str, args.select_sessions))}"
+
     config = comet_ml.ExperimentConfig(
-        tags=[f"new_sessions_{'-'.join(map(str, args.select_sessions))}"],
+        tags=[session_tag],
     )
     args.comet = comet_ml.start(project_name="NIDS on FACT", experiment_config=config)
 
@@ -38,6 +46,13 @@ def main():
 
     trainer.args.select_sessions = pending_sessions
     trainer.train()
+
+    # 完了マーカーファイルを作成（DVCの出力追跡用）
+    checkpoint_dir = os.path.join(trainer.args.save_path)
+    marker_file = os.path.join(checkpoint_dir, "new_sessions_complete.txt")
+    with open(marker_file, "w") as f:
+        f.write(f"Completed sessions: {pending_sessions}\n")
+        f.write(f"Total sessions: {total_sessions}\n")
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ create_sessions:
   num_classes: 10
   output_dir: data/index_list/CICIDS2017_improved
   random_state: 1
-  shot: 5
+  shot: 4
   train_csv: data/train.csv
   way: 1
 dataset_presets:
@@ -64,47 +64,55 @@ split_cicids:
   stratify: true
   test_size: 0.2
 train:
-  alpha: 2.0
-  balance: 0.01
-  base_mode: ft_cos
-  batch_size_base: 128
-  batch_size_new: 0
-  dataroot: data
-  dataset: CICIDS2017_improved
-  debug: false
-  decay: 0.0005
-  encoder: cnn1d
-  epochs_base: 10
-  epochs_new: 10000
-  eta: 0.1
-  gamma: 0.25
-  loss_iter: 0
-  lr_base: 0.005
-  lr_new: 0.01
-  milestones:
-  - 60
-  - 70
-  model_dir: null
-  momentum: 0.9
-  new_mode: avg_cos
-  normalize_method: moving_minmax
-  not_data_init: false
-  num_workers: 8
-  project: fact
-  schedule: Cosine
-  select_sessions: []
-  set_no_val: false
-  start_session: 0
-  step: 20
-  temperature: 1024
-  test_batch_size: 100
-  wandb:
-    entity: ''
-    group: ''
-    mode: online
-    project: origin-fact
-    run_name: ''
-    tags: []
-    use_wandb: false
-    watch: gradients
-    watch_freq: 100
+  # Common parameters used by both base and new sessions
+  common:
+    dataroot: data
+    dataset: CICIDS2017_improved
+    debug: false
+    encoder: cnn1d
+    normalize_method: moving_minmax
+    not_data_init: false
+    num_workers: 8
+    project: fact
+    test_batch_size: 100
+    model_dir: null
+    set_no_val: false
+    start_session: 0
+    select_sessions: []
+    wandb:
+      entity: ''
+      group: ''
+      mode: online
+      project: origin-fact
+      run_name: ''
+      tags: []
+      use_wandb: false
+      watch: gradients
+      watch_freq: 100
+
+  # Parameters specific to base session (session 0)
+  base:
+    alpha: 2.0
+    balance: 0.01
+    base_mode: ft_cos
+    batch_size_base: 128
+    decay: 0.0005
+    epochs_base: 10
+    eta: 0.1
+    gamma: 0.25
+    loss_iter: 0
+    lr_base: 0.005
+    milestones:
+    - 60
+    - 70
+    momentum: 0.9
+    schedule: Cosine
+    step: 20
+    temperature: 1024
+
+  # Parameters specific to new sessions (session 1+)
+  new:
+    batch_size_new: 0
+    epochs_new: 1000
+    lr_new: 0.01
+    new_mode: avg_cos

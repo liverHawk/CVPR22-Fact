@@ -18,7 +18,20 @@ def load_defaults_from_yaml(yaml_path="params.yaml"):
         params = load_params_yaml(yaml_path)
         train_params = params.get("train", {})
         common_params = params.get("common", {})
-        wandb_params = train_params.get("wandb", {})
+
+        # 新しい構造に対応: train.common, train.base, train.new
+        train_common = train_params.get("common", {})
+        train_base = train_params.get("base", {})
+        train_new = train_params.get("new", {})
+
+        # 後方互換性: 古い構造（フラットな train パラメータ）もサポート
+        # 新しい構造が空の場合、フラットな train_params から読み込む
+        if not train_common:
+            train_common = train_params
+            train_base = train_params
+            train_new = train_params
+
+        wandb_params = train_common.get("wandb", {})
 
         defaults = {}
 
@@ -27,43 +40,47 @@ def load_defaults_from_yaml(yaml_path="params.yaml"):
         defaults["gpu"] = str(common_params.get("gpu", 0))
         defaults["seed"] = common_params.get("seed", 1)
 
-        defaults["normalize_method"] = train_params.get("normalize_method", "standard")
+        defaults["normalize_method"] = train_common.get("normalize_method", "standard")
         defaults["shot"] = params["create_sessions"]["shot"]
 
-        # 訓練パラメータ
-        defaults["project"] = train_params.get("project", PROJECT)
-        defaults["dataset"] = train_params.get("dataset", "CICIDS2017_improved")
-        defaults["dataroot"] = train_params.get("dataroot", DATA_DIR)
-        defaults["encoder"] = train_params.get("encoder", "mlp")
-        defaults["base_mode"] = train_params.get("base_mode", "ft_cos")
-        defaults["new_mode"] = train_params.get("new_mode", "avg_cos")
-        defaults["epochs_base"] = train_params.get("epochs_base", 400)
-        defaults["epochs_new"] = train_params.get("epochs_new", 100)
-        defaults["batch_size_base"] = train_params.get("batch_size_base", 256)
-        defaults["test_batch_size"] = train_params.get("test_batch_size", 100)
-        defaults["start_session"] = train_params.get("start_session", 0)
-        defaults["lr_base"] = train_params.get("lr_base", 0.005)
-        defaults["lr_new"] = train_params.get("lr_new", 0.1)
-        defaults["schedule"] = train_params.get("schedule", "Milestone")
-        defaults["milestones"] = train_params.get(
+        # 訓練共通パラメータ (train.common)
+        defaults["project"] = train_common.get("project", PROJECT)
+        defaults["dataset"] = train_common.get("dataset", "CICIDS2017_improved")
+        defaults["dataroot"] = train_common.get("dataroot", DATA_DIR)
+        defaults["encoder"] = train_common.get("encoder", "mlp")
+        defaults["test_batch_size"] = train_common.get("test_batch_size", 100)
+        defaults["start_session"] = train_common.get("start_session", 0)
+        defaults["select_sessions"] = train_common.get("select_sessions", None)
+        defaults["not_data_init"] = train_common.get("not_data_init", False)
+        defaults["set_no_val"] = train_common.get("set_no_val", False)
+        defaults["num_workers"] = train_common.get("num_workers", 8)
+        defaults["debug"] = train_common.get("debug", False)
+        defaults["model_dir"] = train_common.get("model_dir", MODEL_DIR)
+
+        # ベースセッションパラメータ (train.base)
+        defaults["base_mode"] = train_base.get("base_mode", "ft_cos")
+        defaults["epochs_base"] = train_base.get("epochs_base", 400)
+        defaults["batch_size_base"] = train_base.get("batch_size_base", 256)
+        defaults["lr_base"] = train_base.get("lr_base", 0.005)
+        defaults["schedule"] = train_base.get("schedule", "Milestone")
+        defaults["milestones"] = train_base.get(
             "milestones", [50, 100, 150, 200, 250, 300]
         )
-        defaults["step"] = train_params.get("step", 20)
-        defaults["decay"] = train_params.get("decay", 0.0005)
-        defaults["momentum"] = train_params.get("momentum", 0.9)
-        defaults["gamma"] = train_params.get("gamma", 0.25)
-        defaults["temperature"] = train_params.get("temperature", 16)
-        defaults["balance"] = train_params.get("balance", 0.01)
-        defaults["loss_iter"] = train_params.get("loss_iter", 0)
-        defaults["alpha"] = train_params.get("alpha", 2.0)
-        defaults["eta"] = train_params.get("eta", 0.1)
-        defaults["batch_size_new"] = train_params.get("batch_size_new", 0)
-        defaults["select_sessions"] = train_params.get("select_sessions", None)
-        defaults["not_data_init"] = train_params.get("not_data_init", False)
-        defaults["set_no_val"] = train_params.get("set_no_val", False)
-        defaults["num_workers"] = train_params.get("num_workers", 8)
-        defaults["debug"] = train_params.get("debug", False)
-        defaults["model_dir"] = train_params.get("model_dir", MODEL_DIR)
+        defaults["step"] = train_base.get("step", 20)
+        defaults["decay"] = train_base.get("decay", 0.0005)
+        defaults["momentum"] = train_base.get("momentum", 0.9)
+        defaults["gamma"] = train_base.get("gamma", 0.25)
+        defaults["temperature"] = train_base.get("temperature", 16)
+        defaults["balance"] = train_base.get("balance", 0.01)
+        defaults["loss_iter"] = train_base.get("loss_iter", 0)
+        defaults["alpha"] = train_base.get("alpha", 2.0)
+        defaults["eta"] = train_base.get("eta", 0.1)
+
+        # 新規セッションパラメータ (train.new)
+        defaults["new_mode"] = train_new.get("new_mode", "avg_cos")
+        defaults["epochs_new"] = train_new.get("epochs_new", 100)
+        defaults["lr_new"] = train_new.get("lr_new", 0.1)
+        defaults["batch_size_new"] = train_new.get("batch_size_new", 0)
 
         # wandbパラメータ
         defaults["use_wandb"] = wandb_params.get("use_wandb", False)

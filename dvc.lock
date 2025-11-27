@@ -140,11 +140,10 @@ stages:
   train_base:
     cmd: uv run train_base_session.py
     deps:
-    - path: data/index_list/CICIDS2017_improved
+    - path: data/index_list/CICIDS2017_improved/session_0.txt
       hash: md5
-      md5: 534d98930633f7ffc32c1655cfbc33ee.dir
-      size: 10932214
-      nfiles: 7
+      md5: d5ae2bd0357f25c7d0f713699e2bfef5
+      size: 10931992
     - path: data/test.csv
       hash: md5
       md5: e48e8cdb0a354ff13908be22847a7d9e
@@ -159,41 +158,38 @@ stages:
       size: 555
     params:
       params.yaml:
-        train:
+        train.base:
           alpha: 2.0
           balance: 0.01
           base_mode: ft_cos
           batch_size_base: 128
-          batch_size_new: 0
-          dataroot: data
-          dataset: CICIDS2017_improved
-          debug: false
           decay: 0.0005
-          encoder: cnn1d
           epochs_base: 10
-          epochs_new: 10000
           eta: 0.1
           gamma: 0.25
           loss_iter: 0
           lr_base: 0.005
-          lr_new: 0.01
           milestones:
           - 60
           - 70
-          model_dir:
           momentum: 0.9
-          new_mode: avg_cos
+          schedule: Cosine
+          step: 20
+          temperature: 1024
+        train.common:
+          dataroot: data
+          dataset: CICIDS2017_improved
+          debug: false
+          encoder: cnn1d
           normalize_method: moving_minmax
           not_data_init: false
           num_workers: 8
           project: fact
-          schedule: Cosine
-          select_sessions: []
+          test_batch_size: 100
+          model_dir:
           set_no_val: false
           start_session: 0
-          step: 20
-          temperature: 1024
-          test_batch_size: 100
+          select_sessions: []
           wandb:
             entity: ''
             group: ''
@@ -752,3 +748,159 @@ stages:
       hash: md5
       md5: b0082ea689967c13c43c8933868c6e35
       size: 758
+  create_base_session:
+    cmd: uv run create_base_session_file.py
+    deps:
+    - path: create_base_session_file.py
+      hash: md5
+      md5: ce867f90724709861ac31e9dd99bce9b
+      size: 3800
+      isexec: true
+    - path: data/train.csv
+      hash: md5
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
+    params:
+      params.yaml:
+        create_sessions.base_class: 4
+        create_sessions.output_dir: data/index_list/CICIDS2017_improved
+        create_sessions.train_csv: data/train.csv
+    outs:
+    - path: data/index_list/CICIDS2017_improved/session_0.txt
+      hash: md5
+      md5: d5ae2bd0357f25c7d0f713699e2bfef5
+      size: 10931992
+  create_new_sessions:
+    cmd: uv run create_session_files.py
+    deps:
+    - path: create_session_files.py
+      hash: md5
+      md5: d68b882340f790a68ed3ad1375385406
+      size: 11577
+    - path: data/train.csv
+      hash: md5
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
+    params:
+      params.yaml:
+        common.seed: 1
+        create_sessions:
+          base_class: 4
+          num_classes: 10
+          output_dir: data/index_list/CICIDS2017_improved
+          random_state: 1
+          shot: 4
+          train_csv: data/train.csv
+          way: 1
+    outs:
+    - path: data/class_distribution.txt
+      hash: md5
+      md5: 8d51cc4d96773187b1c22e21b05a6eb1
+      size: 354
+    - path: data/column_names.txt
+      hash: md5
+      md5: ed1a0d623a2f775aa54240b6b8da766f
+      size: 1086
+    - path: data/index_list/CICIDS2017_improved/session_1.txt
+      hash: md5
+      md5: c390c63c9b1014a1e434caffc0e64b87
+      size: 29
+    - path: data/index_list/CICIDS2017_improved/session_2.txt
+      hash: md5
+      md5: 9b005c879a8a7db141c948cd28de415c
+      size: 29
+    - path: data/index_list/CICIDS2017_improved/session_3.txt
+      hash: md5
+      md5: 48d4a5ab31b52660d7ac089d35631c94
+      size: 27
+    - path: data/index_list/CICIDS2017_improved/session_4.txt
+      hash: md5
+      md5: 1b230fbd25404dacd7c932c0ba9efa38
+      size: 32
+    - path: data/index_list/CICIDS2017_improved/session_5.txt
+      hash: md5
+      md5: dae230599d9e7a532e5deef97c4aee71
+      size: 30
+    - path: data/index_list/CICIDS2017_improved/session_6.txt
+      hash: md5
+      md5: 9e6ee5e7c8e88b16a418f7710fc936b7
+      size: 29
+  train_new:
+    cmd: uv run train_new_sessions.py
+    deps:
+    - path: checkpoint/CICIDS2017_improved/session0_max_acc.pth
+      hash: md5
+      md5: 61fb5981f780674f63b2b239ee6cd505
+      size: 4587805
+    - path: data/index_list/CICIDS2017_improved/session_1.txt
+      hash: md5
+      md5: c390c63c9b1014a1e434caffc0e64b87
+      size: 29
+    - path: data/index_list/CICIDS2017_improved/session_2.txt
+      hash: md5
+      md5: 9b005c879a8a7db141c948cd28de415c
+      size: 29
+    - path: data/index_list/CICIDS2017_improved/session_3.txt
+      hash: md5
+      md5: 48d4a5ab31b52660d7ac089d35631c94
+      size: 27
+    - path: data/index_list/CICIDS2017_improved/session_4.txt
+      hash: md5
+      md5: 1b230fbd25404dacd7c932c0ba9efa38
+      size: 32
+    - path: data/index_list/CICIDS2017_improved/session_5.txt
+      hash: md5
+      md5: dae230599d9e7a532e5deef97c4aee71
+      size: 30
+    - path: data/index_list/CICIDS2017_improved/session_6.txt
+      hash: md5
+      md5: 9e6ee5e7c8e88b16a418f7710fc936b7
+      size: 29
+    - path: data/test.csv
+      hash: md5
+      md5: e48e8cdb0a354ff13908be22847a7d9e
+      size: 229983476
+    - path: data/train.csv
+      hash: md5
+      md5: 8de938eafdc821ea1ac5ba9ba24ab66f
+      size: 920053282
+    - path: train_new_sessions.py
+      hash: md5
+      md5: 8f03c56d66a8245c31598e8ee2146af5
+      size: 2049
+    params:
+      params.yaml:
+        train.common:
+          dataroot: data
+          dataset: CICIDS2017_improved
+          debug: false
+          encoder: cnn1d
+          normalize_method: moving_minmax
+          not_data_init: false
+          num_workers: 8
+          project: fact
+          test_batch_size: 100
+          model_dir:
+          set_no_val: false
+          start_session: 0
+          select_sessions: []
+          wandb:
+            entity: ''
+            group: ''
+            mode: online
+            project: origin-fact
+            run_name: ''
+            tags: []
+            use_wandb: false
+            watch: gradients
+            watch_freq: 100
+        train.new:
+          batch_size_new: 0
+          epochs_new: 1000
+          lr_new: 0.01
+          new_mode: avg_cos
+    outs:
+    - path: checkpoint/CICIDS2017_improved/new_sessions_complete.txt
+      hash: md5
+      md5: 118ed12d387c10d824b9a3e19e7b22ad
+      size: 57

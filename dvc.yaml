@@ -10,51 +10,66 @@ stages:
       - data/train.csv
       - data/test.csv
   
-  create_session_files:
+  create_base_session:
+    cmd: uv run create_base_session_file.py
+    deps:
+      - data/train.csv
+      - create_base_session_file.py
+    params:
+      - create_sessions.base_class
+      - create_sessions.train_csv
+      - create_sessions.output_dir
+    outs:
+      - data/index_list/CICIDS2017_improved/session_0.txt
+
+  create_new_sessions:
     cmd: uv run create_session_files.py
     deps:
       - data/train.csv
       - create_session_files.py
     params:
       - create_sessions
+      - common.seed
     outs:
-      - data/index_list/CICIDS2017_improved
       - data/class_distribution.txt
       - data/column_names.txt
+      - data/index_list/CICIDS2017_improved/session_1.txt
+      - data/index_list/CICIDS2017_improved/session_2.txt
+      - data/index_list/CICIDS2017_improved/session_3.txt
+      - data/index_list/CICIDS2017_improved/session_4.txt
+      - data/index_list/CICIDS2017_improved/session_5.txt
+      - data/index_list/CICIDS2017_improved/session_6.txt
   
   train_base:
     cmd: uv run train_base_session.py
     deps:
       - data/train.csv
       - data/test.csv
-      - data/index_list/CICIDS2017_improved
+      - data/index_list/CICIDS2017_improved/session_0.txt
       - train_base_session.py
     params:
-      - train
+      - train.common
+      - train.base
     outs:
       - checkpoint/CICIDS2017_improved/session0_max_acc.pth
       - checkpoint/CICIDS2017_improved/session0confusion_matrix.png
       - checkpoint/CICIDS2017_improved/session0confusion_matrix_classification_report.txt
   
   train_new:
-    foreach:
-      - 1
-      - 2
-      - 3
-      - 4
-      - 5
-      - 6
-    do:
-      cmd: uv run train_new_sessions.py --select_sessions ${item}
-      deps:
-        - data/train.csv
-        - data/test.csv
-        - data/index_list/CICIDS2017_improved
-        - train_new_sessions.py
-      params:
-        - train
-        - create_sessions
-      outs:
-        - checkpoint/CICIDS2017_improved/session${item}_max_acc.pth
-        - checkpoint/CICIDS2017_improved/session${item}confusion_matrix.png
-        - checkpoint/CICIDS2017_improved/session${item}confusion_matrix_classification_report.txt
+    cmd: uv run train_new_sessions.py
+    deps:
+      - data/train.csv
+      - data/test.csv
+      - data/index_list/CICIDS2017_improved/session_1.txt
+      - data/index_list/CICIDS2017_improved/session_2.txt
+      - data/index_list/CICIDS2017_improved/session_3.txt
+      - data/index_list/CICIDS2017_improved/session_4.txt
+      - data/index_list/CICIDS2017_improved/session_5.txt
+      - data/index_list/CICIDS2017_improved/session_6.txt
+      - train_new_sessions.py
+      - checkpoint/CICIDS2017_improved/session0_max_acc.pth
+    params:
+      - train.common
+      - train.new
+    outs:
+      - checkpoint/CICIDS2017_improved/new_sessions_complete.txt
