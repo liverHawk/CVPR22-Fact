@@ -81,7 +81,7 @@ train:
     momentum: 0.9
     schedule: Cosine
     step: 20
-    temperature: 8
+    temperature: 16
   common:
     dataroot: data
     dataset: CICIDS2017_improved

@@ -175,7 +175,7 @@ stages:
           momentum: 0.9
           schedule: Cosine
           step: 20
-          temperature: 8
+          temperature: 16
         train.common:
           dataroot: data
           dataset: CICIDS2017_improved
@@ -203,7 +203,7 @@ stages:
     outs:
     - path: checkpoint/CICIDS2017_improved/session0_max_acc.pth
       hash: md5
-      md5: 90aa6767295bbb1eabc94ebafefa36ef
+      md5: 006b75aaae6198b1a04b7e1237ac8829
       size: 4587805
     - path: checkpoint/CICIDS2017_improved/session0confusion_matrix.png
       hash: md5
@@ -212,7 +212,7 @@ stages:
     - path: 
         checkpoint/CICIDS2017_improved/session0confusion_matrix_classification_report.txt
       hash: md5
-      md5: 57105b078aed8b68e1f7ec5107eae397
+      md5: 164a04f6bef0062e9d4b7bb5db0a3b32
       size: 434
   train_new@1:
     cmd: uv run train_new_sessions.py --select_sessions 1
@@ -830,7 +830,7 @@ stages:
     deps:
     - path: checkpoint/CICIDS2017_improved/session0_max_acc.pth
       hash: md5
-      md5: 90aa6767295bbb1eabc94ebafefa36ef
+      md5: 006b75aaae6198b1a04b7e1237ac8829
       size: 4587805
     - path: data/index_list/CICIDS2017_improved/session_1.txt
       hash: md5
