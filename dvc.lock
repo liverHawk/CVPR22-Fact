@@ -897,7 +897,7 @@ stages:
         train.new:
           batch_size_new: 0
           epochs_new: 100
-          lr_new: 0.005
+          lr_new: 0.01
           new_mode: avg_cos
     outs:
     - path: checkpoint/CICIDS2017_improved/new_sessions_complete.txt
