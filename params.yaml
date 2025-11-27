@@ -109,5 +109,5 @@ train:
   new:
     batch_size_new: 0
     epochs_new: 100
-    lr_new: 0.001
+    lr_new: 0.005
     new_mode: avg_cos
