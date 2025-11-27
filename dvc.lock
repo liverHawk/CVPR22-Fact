@@ -789,7 +789,7 @@ stages:
           num_classes: 10
           output_dir: data/index_list/CICIDS2017_improved
           random_state: 1
-          shot: 6
+          shot: 7
           train_csv: data/train.csv
           way: 1
     outs:
@@ -803,28 +803,28 @@ stages:
       size: 1086
     - path: data/index_list/CICIDS2017_improved/session_1.txt
       hash: md5
-      md5: 355bc615a21f2d0c32d00973d5c89418
-      size: 43
+      md5: c49358b21d0c817d209c268fa5602a0a
+      size: 50
     - path: data/index_list/CICIDS2017_improved/session_2.txt
       hash: md5
-      md5: 16bd3eb0376b2bd9e5d0d13175ed27e8
-      size: 43
+      md5: 414ba3c0fd858df6a67ff259467829cd
+      size: 50
     - path: data/index_list/CICIDS2017_improved/session_3.txt
       hash: md5
-      md5: bb5ed2c036e32113e6012f1b5a053ccc
-      size: 43
+      md5: 3340b8aa0acd150d5d2eff6766eae2a3
+      size: 50
     - path: data/index_list/CICIDS2017_improved/session_4.txt
       hash: md5
-      md5: 84d8558703fb30f2c94cdf0648652d94
-      size: 47
+      md5: b6397b3f9ef82f472ccff87245d2b57e
+      size: 55
     - path: data/index_list/CICIDS2017_improved/session_5.txt
       hash: md5
-      md5: 2b7eb818b2173de9cc683de5ad078c54
-      size: 44
+      md5: 04fc4c8a3f2f0fcf65c8e37238ce9bd6
+      size: 52
     - path: data/index_list/CICIDS2017_improved/session_6.txt
       hash: md5
-      md5: 00fe336467bd1ee85b996b2980a960a4
-      size: 43
+      md5: 980e21ff5dfa0431687012c3cebdbcc5
+      size: 51
   train_new:
     cmd: uv run train_new_sessions.py
     deps:
@@ -834,28 +834,28 @@ stages:
       size: 4587805
     - path: data/index_list/CICIDS2017_improved/session_1.txt
       hash: md5
-      md5: 355bc615a21f2d0c32d00973d5c89418
-      size: 43
+      md5: c49358b21d0c817d209c268fa5602a0a
+      size: 50
     - path: data/index_list/CICIDS2017_improved/session_2.txt
       hash: md5
-      md5: 16bd3eb0376b2bd9e5d0d13175ed27e8
-      size: 43
+      md5: 414ba3c0fd858df6a67ff259467829cd
+      size: 50
     - path: data/index_list/CICIDS2017_improved/session_3.txt
       hash: md5
-      md5: bb5ed2c036e32113e6012f1b5a053ccc
-      size: 43
+      md5: 3340b8aa0acd150d5d2eff6766eae2a3
+      size: 50
     - path: data/index_list/CICIDS2017_improved/session_4.txt
       hash: md5
-      md5: 84d8558703fb30f2c94cdf0648652d94
-      size: 47
+      md5: b6397b3f9ef82f472ccff87245d2b57e
+      size: 55
     - path: data/index_list/CICIDS2017_improved/session_5.txt
       hash: md5
-      md5: 2b7eb818b2173de9cc683de5ad078c54
-      size: 44
+      md5: 04fc4c8a3f2f0fcf65c8e37238ce9bd6
+      size: 52
     - path: data/index_list/CICIDS2017_improved/session_6.txt
       hash: md5
-      md5: 00fe336467bd1ee85b996b2980a960a4
-      size: 43
+      md5: 980e21ff5dfa0431687012c3cebdbcc5
+      size: 51
     - path: data/test.csv
       hash: md5
       md5: e48e8cdb0a354ff13908be22847a7d9e
