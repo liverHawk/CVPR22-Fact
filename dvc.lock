@@ -789,7 +789,7 @@ stages:
           num_classes: 10
           output_dir: data/index_list/CICIDS2017_improved
           random_state: 1
-          shot: 4
+          shot: 5
           train_csv: data/train.csv
           way: 1
     outs:
@@ -803,28 +803,28 @@ stages:
       size: 1086
     - path: data/index_list/CICIDS2017_improved/session_1.txt
       hash: md5
-      md5: c390c63c9b1014a1e434caffc0e64b87
-      size: 29
+      md5: b6a0227108edfb7f9bf576d0bd93352b
+      size: 36
     - path: data/index_list/CICIDS2017_improved/session_2.txt
       hash: md5
-      md5: 9b005c879a8a7db141c948cd28de415c
-      size: 29
+      md5: a2cd01c7d73d084e3b5615d901eee70d
+      size: 36
     - path: data/index_list/CICIDS2017_improved/session_3.txt
       hash: md5
-      md5: 48d4a5ab31b52660d7ac089d35631c94
-      size: 27
+      md5: a6398e3c13bbd8e5497da7254df6a162
+      size: 35
     - path: data/index_list/CICIDS2017_improved/session_4.txt
       hash: md5
-      md5: 1b230fbd25404dacd7c932c0ba9efa38
-      size: 32
+      md5: 6b060d159eb6aec7a72ce3b6d6d32873
+      size: 40
     - path: data/index_list/CICIDS2017_improved/session_5.txt
       hash: md5
-      md5: dae230599d9e7a532e5deef97c4aee71
-      size: 30
+      md5: 04ddb59f272a898d670540cfca9640ce
+      size: 38
     - path: data/index_list/CICIDS2017_improved/session_6.txt
       hash: md5
-      md5: 9e6ee5e7c8e88b16a418f7710fc936b7
-      size: 29
+      md5: 017feb0b162bb9db869ba0210cccae11
+      size: 37
   train_new:
     cmd: uv run train_new_sessions.py
     deps:
@@ -834,28 +834,28 @@ stages:
       size: 4587805
     - path: data/index_list/CICIDS2017_improved/session_1.txt
       hash: md5
-      md5: c390c63c9b1014a1e434caffc0e64b87
-      size: 29
+      md5: b6a0227108edfb7f9bf576d0bd93352b
+      size: 36
     - path: data/index_list/CICIDS2017_improved/session_2.txt
       hash: md5
-      md5: 9b005c879a8a7db141c948cd28de415c
-      size: 29
+      md5: a2cd01c7d73d084e3b5615d901eee70d
+      size: 36
     - path: data/index_list/CICIDS2017_improved/session_3.txt
       hash: md5
-      md5: 48d4a5ab31b52660d7ac089d35631c94
-      size: 27
+      md5: a6398e3c13bbd8e5497da7254df6a162
+      size: 35
     - path: data/index_list/CICIDS2017_improved/session_4.txt
       hash: md5
-      md5: 1b230fbd25404dacd7c932c0ba9efa38
-      size: 32
+      md5: 6b060d159eb6aec7a72ce3b6d6d32873
+      size: 40
     - path: data/index_list/CICIDS2017_improved/session_5.txt
       hash: md5
-      md5: dae230599d9e7a532e5deef97c4aee71
-      size: 30
+      md5: 04ddb59f272a898d670540cfca9640ce
+      size: 38
     - path: data/index_list/CICIDS2017_improved/session_6.txt
       hash: md5
-      md5: 9e6ee5e7c8e88b16a418f7710fc936b7
-      size: 29
+      md5: 017feb0b162bb9db869ba0210cccae11
+      size: 37
     - path: data/test.csv
       hash: md5
       md5: e48e8cdb0a354ff13908be22847a7d9e
@@ -875,15 +875,15 @@ stages:
           dataset: CICIDS2017_improved
           debug: false
           encoder: cnn1d
+          model_dir:
           normalize_method: moving_minmax
           not_data_init: false
           num_workers: 8
           project: fact
-          test_batch_size: 100
-          model_dir:
+          select_sessions: []
           set_no_val: false
           start_session: 0
-          select_sessions: []
+          test_batch_size: 100
           wandb:
             entity: ''
             group: ''
@@ -896,7 +896,7 @@ stages:
             watch_freq: 100
         train.new:
           batch_size_new: 0
-          epochs_new: 1000
+          epochs_new: 1
           lr_new: 0.01
           new_mode: avg_cos
     outs:
