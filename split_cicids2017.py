@@ -143,8 +143,8 @@ if __name__ == "__main__":
     import sys
     import os
 
-    # root_dir = "/app"
-    root_dir = "/home/hawk/Documents/school/test/CVPR22-Fact"
+    root_dir = "/app"
+    # root_dir = "/home/hawk/Documents/school/test/CVPR22-Fact"
 
     # utilsモジュールをインポート（パスを追加）
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

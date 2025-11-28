@@ -267,10 +267,14 @@ def main(params_grids):
 if __name__ == "__main__":
     input_grids = [
         {
+            "create_sessions.shot": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+        },
+        {
+            "create_sessions.shot": [ 5 ],
             "train.epochs_new": [1, 10, 100, 1000, 10000],
         },
         {
-            "train.epochs_base": [1000],
+            "train.epochs_base": [ 1000 ],
             "train.temperature": [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024],
         }
     ]
