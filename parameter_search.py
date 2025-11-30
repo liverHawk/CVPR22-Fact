@@ -281,12 +281,8 @@ def main(params_grids):
 if __name__ == "__main__":
     input_grids = [
         {
-            "train.epochs_new": [1, 10, 100, 1000, 10000],
-        },
-        # {
-        #     "train.epochs_base": [1000],
-        #     "train.temperature": [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024],
-        # }
+            "train.base.temperature": [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024],
+        }
     ]
 
     main(input_grids)

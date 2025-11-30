@@ -90,12 +90,34 @@ def set_up_datasets(args):
         # CICIDS2017_improved has 10 classes after preprocessing (label consolidation)
         # Following research_data_drl preprocessing: labels are consolidated
         # Configuration: base_class + (way * sessions) = num_classes
-        args.base_class = 4  # Base classes (BENIGN + major attack types)
-        args.num_classes = 10  # Total classes after label consolidation
-        args.way = 1  # Number of new classes per session
-        if args.shot is None:
-            args.shot = 5  # Few-shot samples per class
-        args.sessions = 7  # Number of incremental sessions (5 + 1*5 = 10)
+
+        # Load from params.yaml if not set via command line
+        from utils import load_params_yaml
+        try:
+            params = load_params_yaml("params.yaml")
+            create_sessions = params.get("create_sessions", {})
+
+            if not hasattr(args, 'base_class') or args.base_class is None:
+                args.base_class = create_sessions.get("base_class", 4)
+            if not hasattr(args, 'num_classes') or args.num_classes is None:
+                args.num_classes = create_sessions.get("num_classes", 10)
+            if not hasattr(args, 'way') or args.way is None:
+                args.way = create_sessions.get("way", 1)
+            if not hasattr(args, 'shot') or args.shot is None:
+                args.shot = create_sessions.get("shot", 5)
+        except:
+            # Fallback to defaults if params.yaml loading fails
+            if not hasattr(args, 'base_class') or args.base_class is None:
+                args.base_class = 4
+            if not hasattr(args, 'num_classes') or args.num_classes is None:
+                args.num_classes = 10
+            if not hasattr(args, 'way') or args.way is None:
+                args.way = 1
+            if not hasattr(args, 'shot') or args.shot is None:
+                args.shot = 5
+
+        # Calculate sessions based on configuration
+        args.sessions = (args.num_classes - args.base_class) // args.way + 1
 
     args.Dataset = Dataset
     return args
@@ -239,7 +261,7 @@ def get_base_dataloader_meta(args):
 
 
 def get_new_dataloader(args, session):
-    txt_path = os.path.join(os.path.dirname(args.dataroot), "data/index_list/" + args.dataset + "/session_" + str(session) + ".txt")
+    txt_path = os.path.join(os.path.dirname(args.dataroot), "data/index_list/" + args.dataset + "/new_sessions/session_" + str(session) + ".txt")
     if args.dataset == "cifar100":
         class_index = open(txt_path).read().splitlines()
         trainset = args.Dataset.CIFAR100(

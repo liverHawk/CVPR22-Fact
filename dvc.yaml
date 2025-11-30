@@ -33,12 +33,7 @@ stages:
     outs:
       - data/class_distribution.txt
       - data/column_names.txt
-      - data/index_list/CICIDS2017_improved/session_1.txt
-      - data/index_list/CICIDS2017_improved/session_2.txt
-      - data/index_list/CICIDS2017_improved/session_3.txt
-      - data/index_list/CICIDS2017_improved/session_4.txt
-      - data/index_list/CICIDS2017_improved/session_5.txt
-      - data/index_list/CICIDS2017_improved/session_6.txt
+      - data/index_list/CICIDS2017_improved/new_sessions
   
   train_base:
     cmd: uv run train_base_session.py
@@ -60,12 +55,7 @@ stages:
     deps:
       - data/train.csv
       - data/test.csv
-      - data/index_list/CICIDS2017_improved/session_1.txt
-      - data/index_list/CICIDS2017_improved/session_2.txt
-      - data/index_list/CICIDS2017_improved/session_3.txt
-      - data/index_list/CICIDS2017_improved/session_4.txt
-      - data/index_list/CICIDS2017_improved/session_5.txt
-      - data/index_list/CICIDS2017_improved/session_6.txt
+      - data/index_list/CICIDS2017_improved/new_sessions
       - train_new_sessions.py
       - checkpoint/CICIDS2017_improved/session0_max_acc.pth
     params:

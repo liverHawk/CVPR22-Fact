@@ -98,6 +98,7 @@ def create_session_files(
     way=2,
     shot=5,
     random_state=42,
+    new_sessions_dir="new_sessions",
 ):
     """
     セッションファイルを作成
@@ -166,8 +167,12 @@ def create_session_files(
     # 出力ディレクトリを作成
     os.makedirs(output_dir, exist_ok=True)
 
+    # 新規セッション用のサブディレクトリを作成
+    new_sessions_path = os.path.join(output_dir, new_sessions_dir)
+    os.makedirs(new_sessions_path, exist_ok=True)
+
     # セッション0（base session）のファイルを作成
-    # session_1.txtにはベースクラスのすべてのサンプルインデックスを含む
+    # session_0.txtにはベースクラスのすべてのサンプルインデックスを含む
     print(f"\nCreating session_0.txt (base session, classes 0-{base_class - 1})...")
     base_indices = []
     for class_idx in range(base_class):
@@ -216,7 +221,8 @@ def create_session_files(
                 f"  Class {class_idx} ({label_value}): selected {len(selected_indices)} samples"
             )
 
-        session_path = os.path.join(output_dir, f"session_{session_num}.txt")
+        # 新規セッションのファイルは new_sessions ディレクトリに保存
+        session_path = os.path.join(new_sessions_path, f"session_{session_num}.txt")
         with open(session_path, "w") as f:
             for idx in session_indices:
                 f.write(f"{idx}\n")
@@ -225,13 +231,15 @@ def create_session_files(
         print(f"  Saved {len(session_indices)} indices to {session_path}")
 
     print("\nDone!")
-    print(f"\nSession files created in {output_dir}:")
-    for session_num in range(1, num_sessions + 2):
-        session_file = os.path.join(output_dir, f"session_{session_num}.txt")
+    print(f"\nSession files created:")
+    print(f"  Base session: {session_0_path}")
+    print(f"  New sessions in: {new_sessions_path}")
+    for session_num in range(1, num_sessions + 1):
+        session_file = os.path.join(new_sessions_path, f"session_{session_num}.txt")
         if os.path.exists(session_file):
             with open(session_file, "r") as f:
                 num_lines = len(f.readlines())
-            print(f"  session_{session_num}.txt: {num_lines} indices")
+            print(f"    session_{session_num}.txt: {num_lines} indices")
 
 
 if __name__ == "__main__":

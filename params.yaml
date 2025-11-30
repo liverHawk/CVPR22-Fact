@@ -7,9 +7,9 @@ create_sessions:
   num_classes: 10
   output_dir: data/index_list/CICIDS2017_improved
   random_state: 1
-  shot: 8
+  shot: 3
   train_csv: data/train.csv
-  way: 1
+  way: 2
 dataset_presets:
   cifar100:
     alpha: 0.5
@@ -81,7 +81,7 @@ train:
     momentum: 0.9
     schedule: Cosine
     step: 20
-    temperature: 1024
+    temperature: 32
   common:
     dataroot: data
     dataset: CICIDS2017_improved
