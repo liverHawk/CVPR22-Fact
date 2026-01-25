@@ -1,11 +1,20 @@
 # import new Network name here and add in model_class args
-from utils import Averager, count_acc, confmatrix
+from utils import Averager, count_acc, confmatrix, get_dataset_label_names
 from tqdm import tqdm
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
 import numpy as np
 import os
+
+
+def _get_label_names_for_loader(loader, num_classes):
+    if loader is None or num_classes is None:
+        return None
+    label_names = get_dataset_label_names(loader.dataset)
+    if label_names:
+        return label_names[:num_classes]
+    return None
 
 
 def base_train(model, trainloader, optimizer, scheduler, epoch, args,mask):
@@ -142,7 +151,8 @@ def test(model, testloader, epoch,args, session,validation=True):
         lbs=lbs.view(-1)
         if validation is not True:
             save_model_dir = os.path.join(args.save_path, 'session' + str(session) + 'confusion_matrix')
-            cm=confmatrix(lgt,lbs,save_model_dir)
+            label_names = _get_label_names_for_loader(testloader, test_class)
+            cm=confmatrix(lgt,lbs,save_model_dir, label_names=label_names)
             perclassacc=cm.diagonal()
             seenac=np.mean(perclassacc[:args.base_class])
             unseenac=np.mean(perclassacc[args.base_class:])
@@ -181,7 +191,8 @@ def test_withfc(model, testloader, epoch,args, session,validation=True):
         lbs=lbs.view(-1)
         if validation is not True:
             save_model_dir = os.path.join(args.save_path, 'session' + str(session) + 'confusion_matrix')
-            cm=confmatrix(lgt,lbs,save_model_dir)
+            label_names = _get_label_names_for_loader(testloader, test_class)
+            cm=confmatrix(lgt,lbs,save_model_dir, label_names=label_names)
             perclassacc=cm.diagonal()
             seenac=np.mean(perclassacc[:args.base_class])
             unseenac=np.mean(perclassacc[args.base_class:])

@@ -67,4 +67,4 @@ create_sessions:
   shot: 5  # 各クラスのショット数（Few-Shot用）
   seed: 42  # 乱数シード
   base_use_class_index: false  # ベースセッションファイルにクラスインデックスを使用（false: データインデックス）
-  base_labels: ["BENIGN", "Bot", "DDoS", "DoS", "DoS"]  # ベースセッションに使用するラベルのリスト（null: 自動、リスト指定時はそのラベルのみ使用）
+  base_labels: ["BENIGN", "Botnet", "DDoS", "DoS", "FTP-Patator"]  # ベースセッションに使用するラベルのリスト（null: 自動、リスト指定時はそのラベルのみ使用）

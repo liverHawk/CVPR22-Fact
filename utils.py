@@ -7,6 +7,7 @@ import pprint as pprint
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt 
 import matplotlib
+import seaborn as sns
 _utils_pp = pprint.PrettyPrinter()
 
 
@@ -129,54 +130,87 @@ def count_acc_taskIL(logits, label,args):
     else:
         return (pred == label).type(torch.FloatTensor).mean().item()
 
-def confmatrix(logits,label,filename):
-    
+def _resolve_dataset(dataset):
+    """Unwraps Subset/DataLoader wrappers to the base dataset."""
+    if hasattr(dataset, 'dataset'):
+        return _resolve_dataset(dataset.dataset)
+    return dataset
+
+
+def get_dataset_label_names(dataset):
+    """Returns a list of label names in index order if available."""
+    if dataset is None:
+        return None
+    base_dataset = _resolve_dataset(dataset)
+
+    if hasattr(base_dataset, 'idx_to_label'):
+        label_map = base_dataset.idx_to_label
+        sorted_indices = sorted(label_map.keys())
+        return [label_map[idx] for idx in sorted_indices]
+    if hasattr(base_dataset, 'classes'):
+        return list(base_dataset.classes)
+    if hasattr(base_dataset, 'class_to_idx'):
+        sorted_items = sorted(base_dataset.class_to_idx.items(), key=lambda item: item[1])
+        return [item[0] for item in sorted_items]
+    return None
+
+
+def confmatrix(logits, label, filename, label_names=None):
     font={'family':'DejaVu Serif','size':18}
     matplotlib.rc('font',**font)
     matplotlib.rcParams.update({'font.family':'DejaVu Serif','font.size':18})
     plt.rcParams["font.family"]="DejaVu Serif"
 
     pred = torch.argmax(logits, dim=1)
-    cm=confusion_matrix(label, pred,normalize='true')
-    #print(cm)
+    cm=confusion_matrix(label, pred, normalize='true')
     clss=len(cm)
-    fig = plt.figure() 
-    ax = fig.add_subplot(111) 
-    cax = ax.imshow(cm,cmap=plt.cm.jet) 
-    if clss<=100:
-        plt.yticks([0,19,39,59,79,99],[0,20,40,60,80,100],fontsize=16)
-        plt.xticks([0,19,39,59,79,99],[0,20,40,60,80,100],fontsize=16)
-    elif clss<=200:
-        plt.yticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
-        plt.xticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
-    else:
-        plt.yticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
-        plt.xticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
 
-    plt.xlabel('Predicted Label',fontsize=20)
-    plt.ylabel('True Label',fontsize=20)
-    plt.tight_layout()
-    plt.savefig(filename+'.pdf',bbox_inches='tight')
-    plt.close()
+    # アノテーションの準備（0以外の値のみ表示）
+    annot = np.full(cm.shape, '', dtype=object)
+    for i in range(clss):
+        for j in range(clss):
+            value = cm[i, j]
+            if value != 0:
+                annot[i, j] = f'{value:.2f}'
 
-    fig = plt.figure() 
-    ax = fig.add_subplot(111) 
-    cax = ax.imshow(cm,cmap=plt.cm.jet) 
-    cbar = plt.colorbar(cax) # This line includes the color bar
-    cbar.ax.tick_params(labelsize=16)
-    if clss<=100:
-        plt.yticks([0,19,39,59,79,99],[0,20,40,60,80,100],fontsize=16)
-        plt.xticks([0,19,39,59,79,99],[0,20,40,60,80,100],fontsize=16)
-    elif clss<=200:
-        plt.yticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
-        plt.xticks([0,39,79,119,159,199],[0,40,80,120,160,200],fontsize=16)
+    # ラベルの準備
+    if label_names and len(label_names) >= clss:
+        tick_labels = label_names[:clss]
     else:
-        plt.yticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
-        plt.xticks([0,199,399,599,799,999],[0,200,400,600,800,1000],fontsize=16)
-    plt.xlabel('Predicted Label',fontsize=20)
-    plt.ylabel('True Label',fontsize=20)
+        tick_labels = [str(i) for i in range(clss)]
+    
+    # クラス数に応じたサイズとフォント調整
+    if clss <= 10:
+        figsize = (10, 8)
+        label_fontsize = 10
+        annot_fontsize = 8
+        rotation = 45
+    elif clss <= 20:
+        figsize = (14, 12)
+        label_fontsize = 8
+        annot_fontsize = 6
+        rotation = 45
+    else:
+        figsize = (max(16, clss * 0.5), max(14, clss * 0.45))
+        label_fontsize = 6
+        annot_fontsize = 4
+        rotation = 90
+
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.heatmap(cm, cmap='Blues', annot=annot, fmt='', cbar=True, ax=ax, square=True,
+                linewidths=0.5, linecolor='white',
+                xticklabels=tick_labels, yticklabels=tick_labels,
+                annot_kws={'fontsize': annot_fontsize})
+    
+    if ax.collections:
+        ax.collections[0].colorbar.ax.tick_params(labelsize=12)
+    
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=rotation, ha='right', fontsize=label_fontsize)
+    ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=label_fontsize)
+    ax.set_xlabel('Predicted Label', fontsize=16)
+    ax.set_ylabel('True Label', fontsize=16)
     plt.tight_layout()
-    plt.savefig(filename+'_cbar.pdf',bbox_inches='tight')
+    plt.savefig(filename+'_cbar.pdf', bbox_inches='tight', dpi=150)
     plt.close()
 
     return cm

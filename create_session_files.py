@@ -121,8 +121,9 @@ def create_base_session_file(
     
     if use_data_index:
         # データインデックスを保存（CIFAR100形式）
-        # polarsではインデックスがないので、with_row_index()で行番号を追加
-        base_data = df.filter(pl.col(label_column).is_in(base_classes)).with_row_index("row_index")
+        # 元のデータフレームのインデックスを保持するため、先に行番号を追加してからフィルタリング
+        df_with_index = df.with_row_index("row_index")
+        base_data = df_with_index.filter(pl.col(label_column).is_in(base_classes))
         indices = base_data["row_index"].to_list()
         with open(output_path, 'w') as f:
             for idx in indices:

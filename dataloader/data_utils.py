@@ -297,7 +297,7 @@ def get_new_dataloader(args,session):
             root=args.dataroot,
             train=False,
             index=class_new,
-            base_sess=False,
+            base_sess=True,  # treat index as class list to include all seen classes
             label_column=label_column,
             normalize_method=normalize_method
         )

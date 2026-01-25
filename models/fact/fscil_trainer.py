@@ -4,7 +4,7 @@ from copy import deepcopy
 import torch
 
 from .helper import base_train, test, replace_base_fc
-from utils import Averager, count_acc
+from utils import Averager, count_acc, confmatrix, get_dataset_label_names
 from dataloader.data_utils import get_base_dataloader, get_new_dataloader, set_up_datasets
 import numpy as np
 import time
@@ -145,6 +145,8 @@ class FSCILTrainer(Trainer):
                 
                 self.dummy_classifiers=F.normalize(self.dummy_classifiers[self.args.base_class:,:],p=2,dim=-1)
                 self.old_classifiers=self.dummy_classifiers[:self.args.base_class,:]
+                model_module.mode = 'avg_cos'
+                test(self.model, testloader, 0, args, session, validation=False)
 
             else:  # incremental learning sessions
                 print("training session: [%d]" % session)
@@ -158,7 +160,7 @@ class FSCILTrainer(Trainer):
 
                 #tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
                 #tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
-                tsl, tsa = self.test_intergrate(self.model, testloader, 0,args, session,validation=True)
+                tsl, tsa = self.test_intergrate(self.model, testloader, 0,args, session,validation=False)
                 
                 # save model
                 self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
@@ -183,8 +185,6 @@ class FSCILTrainer(Trainer):
 
     def test_intergrate(self, model, testloader, epoch,args, session,validation=True):
         test_class = args.base_class + session * args.way
-        if args.dataset == "CICIDS2017_improved":
-            test_class = args.num_classes
         model = model.eval()
         # DataParallelの場合はmodule、そうでない場合はmodel自体を使用
         model_module = model.module if isinstance(model, nn.DataParallel) else model
@@ -229,7 +229,21 @@ class FSCILTrainer(Trainer):
             va5= va5.item()
             print('epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}'.format(epoch, vl, va,va5))
 
-            
+        lgt=lgt.view(-1,test_class)
+        lbs=lbs.view(-1)
+        if validation is not True:
+            save_model_dir = os.path.join(args.save_path, 'session' + str(session) + 'confusion_matrix')
+            label_names = get_dataset_label_names(testloader.dataset)
+            if label_names:
+                label_names = label_names[:test_class]
+            cm=confmatrix(lgt,lbs,save_model_dir, label_names=label_names)
+            perclassacc=cm.diagonal()
+            seen_slice = perclassacc[:args.base_class] if len(perclassacc) >= args.base_class else perclassacc
+            seenac=np.mean(seen_slice) if len(seen_slice) > 0 else float('nan')
+            unseen_slice = perclassacc[args.base_class:]
+            unseenac=np.mean(unseen_slice) if len(unseen_slice) > 0 else float('nan')
+            print('Seen Acc:',seenac, 'Unseen ACC:', unseenac)
+
         return vl, va
 
     def set_save_path(self):

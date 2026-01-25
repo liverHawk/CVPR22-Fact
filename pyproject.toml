@@ -11,6 +11,7 @@ dependencies = [
     "polars>=1.0.0",
     "pyyaml>=6.0",
     "scikit-learn>=1.7.2",
+    "seaborn>=0.13.2",
     "torch>=2.9.0",
     "torchvision>=0.24.0",
     "tqdm>=4.67.1",
