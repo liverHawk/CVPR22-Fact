@@ -3,4 +3,3 @@ checkpoint
 data/*
 !data/index_list/*
 .dvc
-/params.yaml

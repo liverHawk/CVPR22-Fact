@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Optional
 import argparse
 from sklearn.model_selection import train_test_split
+import yaml
+import os
 
 
 def relabel_df(df: pl.DataFrame, label_column: str) -> pl.DataFrame:
@@ -194,7 +196,27 @@ def split_dataset_by_label(
     print(f"  テストデータ: {len(test_df)}行 ({len(test_df)/len(merged_df)*100:.1f}%)")
 
 
+def load_params_yaml(yaml_path: str = 'params.yaml') -> dict:
+    """params.yamlから設定を読み込む"""
+    if not os.path.exists(yaml_path):
+        print(f"Warning: {yaml_path} not found. Using command-line arguments only.")
+        return {}
+    
+    try:
+        with open(yaml_path, 'r', encoding='utf-8') as f:
+            params = yaml.safe_load(f)
+        return params if params else {}
+    except Exception as e:
+        print(f"Warning: Failed to load {yaml_path}: {e}. Using command-line arguments only.")
+        return {}
+
+
 def main():
+    # params.yamlからデフォルト値を読み込む
+    yaml_params = load_params_yaml()
+    dataset_name = yaml_params.get('dataset_name', 'CICIDS2017_flow_improved')
+    default_output_dir = f"./data/{dataset_name}"
+    
     parser = argparse.ArgumentParser(
         description="CICIDS2017_flow_improvedデータセットをラベルごとにtrain/testに分割"
     )
@@ -207,8 +229,8 @@ def main():
     parser.add_argument(
         "--output-dir",
         type=str,
-        default="./data/CICIDS2017_flow_improved",
-        help="出力ディレクトリのパス（指定しない場合は入力ディレクトリと同じ）"
+        default=default_output_dir,
+        help="出力ディレクトリのパス（指定しない場合はparams.yamlのdataset_nameから自動生成）"
     )
     parser.add_argument(
         "--label-column",
