@@ -201,7 +201,7 @@ def get_base_dataloader(args):
 
 
 def get_base_dataloader_meta(args):
-    txt_path = os.path.join(os.path.dirname(args.dataroot), "data/index_list/" + args.dataset + "/session_0.txt")
+    txt_path = os.path.join("data/index_list", args.dataset, "session_0.txt")
     class_index = np.arange(args.base_class)
     if args.dataset == "cifar100":
         trainset = args.Dataset.CIFAR100(
@@ -261,7 +261,13 @@ def get_base_dataloader_meta(args):
 
 
 def get_new_dataloader(args, session):
-    txt_path = os.path.join(os.path.dirname(args.dataroot), "data/index_list/" + args.dataset + "/new_sessions/session_" + str(session) + ".txt")
+    # datarootを基準にしたパスを使用（絶対パス対応）
+    if os.path.isabs(args.dataroot):
+        # datarootが絶対パスの場合
+        txt_path = os.path.join(args.dataroot, "index_list", args.dataset, "new_sessions", f"session_{session}.txt")
+    else:
+        # datarootが相対パスの場合（後方互換性のため）
+        txt_path = os.path.join("data/index_list", args.dataset, "new_sessions", f"session_{session}.txt")
     if args.dataset == "cifar100":
         class_index = open(txt_path).read().splitlines()
         trainset = args.Dataset.CIFAR100(

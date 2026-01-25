@@ -335,6 +335,37 @@ class FSCILTrainer(Trainer):
         self.wandb.set_summary(**summary_payload)
         self.finalize()
 
+    def test(self, model, session, testloader=None, return_loss=True):
+        """
+        簡易テストメソッド（ノートブック用）
+
+        Args:
+            model: テストするモデル
+            session: セッション番号
+            testloader: テストデータローダー（Noneの場合は自動取得）
+            return_loss: Trueの場合(loss, accuracy)を返す、Falseの場合accuracyのみ
+
+        Returns:
+            return_loss=True: (loss, accuracy)
+            return_loss=False: accuracy
+        """
+        if testloader is None:
+            _, _, testloader = self.get_dataloader(session)
+
+        from models.base.helper import test
+        vl, va = test(
+            model,
+            testloader,
+            0,  # epoch
+            self.args,
+            session
+        )
+
+        if return_loss:
+            return vl.item(), va.item()
+        else:
+            return va.item()
+
     def set_save_path(self):
         self.args.save_path = os.path.join("checkpoint", self.args.dataset)
         ensure_path(self.args.save_path)

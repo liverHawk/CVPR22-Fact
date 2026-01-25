@@ -86,6 +86,10 @@ def count_acc(logits, label):
 
 
 def count_acc_topk(x, y, k=5):
+    # クラス数がk未満の場合は、クラス数を使用
+    num_classes = x.size(-1)
+    k = min(k, num_classes)
+
     _, maxk = torch.topk(x, k, dim=-1)
     total = y.size(0)
     test_labels = y.view(-1, 1)
