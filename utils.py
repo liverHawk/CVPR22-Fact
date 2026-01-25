@@ -14,21 +14,42 @@ def pprint(x):
     _utils_pp.pprint(x)
 
 
+def get_device():
+    """利用可能なデバイスを返す（GPUが利用可能な場合はGPU、そうでない場合はCPU）"""
+    return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+
+def get_model_module(model):
+    """モデルから実際のモデルオブジェクトを取得（DataParallelの場合はmodule、そうでない場合はmodel自体）"""
+    return model.module if isinstance(model, torch.nn.DataParallel) else model
+
+
 def set_seed(seed):
     if seed == 0:
         print(' random seed')
-        torch.backends.cudnn.benchmark = True
+        if torch.cuda.is_available():
+            torch.backends.cudnn.benchmark = True
     else:
         print('manual seed:', seed)
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
 
 
 def set_gpu(args):
+    """GPU設定を行い、利用可能なGPU数を返す（CPUの場合は0を返す）"""
+    if not torch.cuda.is_available():
+        print('CUDA is not available. Using CPU.')
+        return 0
+    
+    if args.gpu.lower() == 'cpu' or args.gpu == '':
+        print('Using CPU (specified by user).')
+        return 0
+    
     gpu_list = [int(x) for x in args.gpu.split(',')]
     print('use gpu:', gpu_list)
     os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'

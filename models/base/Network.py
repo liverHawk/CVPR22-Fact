@@ -1,10 +1,13 @@
 import argparse
+import math
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from models.resnet18_encoder import *
 from models.resnet20_cifar import *
+from models.mlp_encoder import mlp_encoder
+from models.cnn1d_encoder import cnn1d_encoder
 
 
 class MYNET(nn.Module):
@@ -24,7 +27,27 @@ class MYNET(nn.Module):
         if self.args.dataset in ['cub200','manyshotcub']:
             self.encoder = resnet18(True, args)  # pretrained=True follow TOPIC, models for cub is imagenet pre-trained. https://github.com/xyutao/fscil/issues/11#issuecomment-687548790
             self.num_features = 512
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        
+        if self.args.dataset == 'CICIDS2017_improved':
+            # CICIDS2017_improved用のエンコーダー選択
+            encoder_type = getattr(args, 'encoder', 'mlp')  # デフォルト: mlp
+            input_dim = getattr(args, 'input_dim', 67)  # 特徴量の次元数（デフォルト: 67）
+            embedding_dim = getattr(args, 'embedding_dim', 256)  # 埋め込み次元数
+            
+            if encoder_type == 'mlp':
+                hidden_dims = getattr(args, 'mlp_hidden_dims', [512, 256])
+                self.encoder = mlp_encoder(input_dim, hidden_dims, embedding_dim)
+                self.num_features = embedding_dim
+            elif encoder_type == 'cnn1d':
+                hidden_dims = getattr(args, 'cnn1d_hidden_dims', [128, 256, 512])
+                self.encoder = cnn1d_encoder(input_dim, hidden_dims, None, embedding_dim)
+                self.num_features = embedding_dim
+            else:
+                raise ValueError(f"Unknown encoder type for CICIDS2017_improved: {encoder_type}. Use 'mlp' or 'cnn1d'")
+        
+        # 画像データセット用のavgpool（CICIDS2017_improvedでは使用しない）
+        if self.args.dataset not in ['CICIDS2017_improved']:
+            self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
         self.fc = nn.Linear(self.num_features, self.args.num_classes, bias=False)
 
@@ -41,8 +64,10 @@ class MYNET(nn.Module):
 
     def encode(self, x):
         x = self.encoder(x)
-        x = F.adaptive_avg_pool2d(x, 1)
-        x = x.squeeze(-1).squeeze(-1)
+        # 画像データセットの場合はavgpoolを適用
+        if self.args.dataset not in ['CICIDS2017_improved']:
+            x = F.adaptive_avg_pool2d(x, 1)
+            x = x.squeeze(-1).squeeze(-1)
         return x
 
     def forward(self, input):
@@ -56,8 +81,9 @@ class MYNET(nn.Module):
             raise ValueError('Unknown mode')
 
     def update_fc(self,dataloader,class_list,session):
+        device = next(self.parameters()).device
         for batch in dataloader:
-            data, label = [_.cuda() for _ in batch]
+            data, label = [_.to(device) for _ in batch]
             data=self.encode(data).detach()
 
         if self.args.not_data_init:

@@ -3,16 +3,18 @@ from .Network import MYNET
 from utils import *
 from tqdm import tqdm
 import torch.nn.functional as F
+import torch.nn as nn
 
 
 def base_train(model, trainloader, optimizer, scheduler, epoch, args):
     tl = Averager()
     ta = Averager()
     model = model.train()
+    device = next(model.parameters()).device
     # standard classification for pretrain
     tqdm_gen = tqdm(trainloader)
     for i, batch in enumerate(tqdm_gen, 1):
-        data, train_label = [_.cuda() for _ in batch]
+        data, train_label = [_.to(device) for _ in batch]
 
         logits = model(data)
         logits = logits[:, :args.base_class]
@@ -38,17 +40,21 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args):
 def replace_base_fc(trainset, transform, model, args):
     # replace fc.weight with the embedding average of train data
     model = model.eval()
+    # DataParallelの場合はmodule、そうでない場合はmodel自体を使用
+    model_module = model.module if isinstance(model, nn.DataParallel) else model
 
     trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=128,
                                               num_workers=8, pin_memory=True, shuffle=False)
-    trainloader.dataset.transform = transform
+    if transform is not None:
+        trainloader.dataset.transform = transform
     embedding_list = []
     label_list = []
     # data_list=[]
+    device = next(model.parameters()).device
     with torch.no_grad():
         for i, batch in enumerate(trainloader):
-            data, label = [_.cuda() for _ in batch]
-            model.module.mode = 'encoder'
+            data, label = [_.to(device) for _ in batch]
+            model_module.mode = 'encoder'
             embedding = model(data)
 
             embedding_list.append(embedding.cpu())
@@ -66,7 +72,7 @@ def replace_base_fc(trainset, transform, model, args):
 
     proto_list = torch.stack(proto_list, dim=0)
 
-    model.module.fc.weight.data[:args.base_class] = proto_list
+    model_module.fc.weight.data[:args.base_class] = proto_list
 
     return model
 
@@ -81,9 +87,10 @@ def test(model, testloader, epoch,args, session,validation=True):
     va5= Averager()
     lgt=torch.tensor([])
     lbs=torch.tensor([])
+    device = next(model.parameters()).device
     with torch.no_grad():
         for i, batch in enumerate(testloader, 1):
-            data, test_label = [_.cuda() for _ in batch]
+            data, test_label = [_.to(device) for _ in batch]
             logits = model(data)
             logits = logits[:, :test_class]
             loss = F.cross_entropy(logits, test_label)

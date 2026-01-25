@@ -1,11 +1,18 @@
 from .base import Trainer
-import os.path as osp
 import torch.nn as nn
 from copy import deepcopy
+import torch
 
-from .helper import *
-from utils import *
-from dataloader.data_utils import *
+from .helper import base_train, test, replace_base_fc
+from utils import Averager, count_acc
+from dataloader.data_utils import get_base_dataloader, get_new_dataloader, set_up_datasets
+import numpy as np
+import time
+import os
+from utils import ensure_path, save_list_to_txt
+import torch.nn.functional as F
+from utils import count_acc_topk
+from models.fact.Network import MYNET
 
 
 class FSCILTrainer(Trainer):
@@ -16,8 +23,13 @@ class FSCILTrainer(Trainer):
         self.args = set_up_datasets(self.args)
 
         self.model = MYNET(self.args, mode=self.args.base_mode)
-        self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
-        self.model = self.model.cuda()
+        if self.args.num_gpu > 0 and torch.cuda.is_available():
+            self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
+            self.model = self.model.cuda()
+            self.device = torch.device('cuda')
+        else:
+            self.device = torch.device('cpu')
+            self.model = self.model.to(self.device)
 
         if self.args.model_dir is not None:
             print('Loading init parameters from: %s' % self.args.model_dir)
@@ -63,7 +75,7 @@ class FSCILTrainer(Trainer):
         for i in range(args.num_classes-args.base_class):
             picked_dummy=np.random.choice(args.base_class,masknum,replace=False)
             mask[:,i+args.base_class][picked_dummy]=1
-        mask=torch.tensor(mask).cuda()
+        mask=torch.tensor(mask).to(self.device)
 
 
 
@@ -113,20 +125,23 @@ class FSCILTrainer(Trainer):
 
                 if not args.not_data_init:
                     self.model.load_state_dict(self.best_model_dict)
-                    self.model = replace_base_fc(train_set, testloader.dataset.transform, self.model, args)
+                    dataset_transform = getattr(testloader.dataset, "transform", None)
+                    self.model = replace_base_fc(train_set, dataset_transform, self.model, args)
                     best_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
                     print('Replace the fc with average embedding, and save it to :%s' % best_model_dir)
                     self.best_model_dict = deepcopy(self.model.state_dict())
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
-                    self.model.module.mode = 'avg_cos'
+                    model_module = self.model.module if isinstance(self.model, nn.DataParallel) else self.model
+                    model_module.mode = 'avg_cos'
                     tsl, tsa = test(self.model, testloader, 0, args, session)
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                         print('The new best test acc of base session={:.3f}'.format(self.trlog['max_acc'][session]))
 
                 #save dummy classifiers
-                self.dummy_classifiers=deepcopy(self.model.module.fc.weight.detach())
+                model_module = self.model.module if isinstance(self.model, nn.DataParallel) else self.model
+                self.dummy_classifiers=deepcopy(model_module.fc.weight.detach())
                 
                 self.dummy_classifiers=F.normalize(self.dummy_classifiers[self.args.base_class:,:],p=2,dim=-1)
                 self.old_classifiers=self.dummy_classifiers[:self.args.base_class,:]
@@ -134,10 +149,12 @@ class FSCILTrainer(Trainer):
             else:  # incremental learning sessions
                 print("training session: [%d]" % session)
 
-                self.model.module.mode = self.args.new_mode
+                model_module = self.model.module if isinstance(self.model, nn.DataParallel) else self.model
+                model_module.mode = self.args.new_mode
                 self.model.eval()
-                trainloader.dataset.transform = testloader.dataset.transform
-                self.model.module.update_fc(trainloader, np.unique(train_set.targets), session)
+                if hasattr(testloader.dataset, "transform"):
+                    trainloader.dataset.transform = testloader.dataset.transform
+                model_module.update_fc(trainloader, np.unique(train_set.targets), session)
 
                 #tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
                 #tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
@@ -166,14 +183,18 @@ class FSCILTrainer(Trainer):
 
     def test_intergrate(self, model, testloader, epoch,args, session,validation=True):
         test_class = args.base_class + session * args.way
+        if args.dataset == "CICIDS2017_improved":
+            test_class = args.num_classes
         model = model.eval()
+        # DataParallelの場合はmodule、そうでない場合はmodel自体を使用
+        model_module = model.module if isinstance(model, nn.DataParallel) else model
         vl = Averager()
         va = Averager()
         va5= Averager()
         lgt=torch.tensor([])
         lbs=torch.tensor([])
 
-        proj_matrix=torch.mm(self.dummy_classifiers,F.normalize(torch.transpose(model.module.fc.weight[:test_class, :],1,0),p=2,dim=-1))
+        proj_matrix=torch.mm(self.dummy_classifiers,F.normalize(torch.transpose(model_module.fc.weight[:test_class, :],1,0),p=2,dim=-1))
         
         eta=args.eta
         
@@ -181,17 +202,18 @@ class FSCILTrainer(Trainer):
 
         with torch.no_grad():
             for i, batch in enumerate(testloader, 1):
-                data, test_label = [_.cuda() for _ in batch]
+                data, test_label = [_.to(self.device) for _ in batch]
                 
-                emb=model.module.encode(data)
+                emb=model_module.encode(data)
             
                 proj=torch.mm(F.normalize(emb,p=2,dim=-1),torch.transpose(self.dummy_classifiers,1,0))
-                topk, indices = torch.topk(proj, 40)
+                k = min(40, proj.size(1))
+                topk, indices = torch.topk(proj, k)
                 res = (torch.zeros_like(proj))
                 res_logit = res.scatter(1, indices, topk)
 
                 logits1=torch.mm(res_logit,proj_matrix)
-                logits2 = model.module.forpass_fc(data)[:, :test_class] 
+                logits2 = model_module.forpass_fc(data)[:, :test_class] 
                 logits=eta*F.softmax(logits1,dim=1)+(1-eta)*F.softmax(logits2,dim=1)
             
                 loss = F.cross_entropy(logits, test_label)

@@ -74,6 +74,55 @@ def set_up_datasets(args):
         args.shot = 5
         args.sessions = 9
 
+    if args.dataset == 'CICIDS2017_improved':
+        # CICIDS2017_improvedデータセットの設定
+        import dataloader.cicids2017.cicids2017 as Dataset
+        
+        # パラメータが設定されていない場合はデフォルト値を使用
+        if not hasattr(args, 'base_class') or args.base_class is None:
+            args.base_class = 5  # デフォルト値
+        if not hasattr(args, 'num_classes') or args.num_classes is None:
+            args.num_classes = 10  # デフォルト値
+        if not hasattr(args, 'way') or args.way is None:
+            args.way = 1  # デフォルト値
+        if not hasattr(args, 'shot') or args.shot is None:
+            args.shot = 5  # デフォルト値
+        # セッション数を計算（base_class + way * sessions = num_classes）
+        if not hasattr(args, 'sessions') or args.sessions is None:
+            num_new_classes = args.num_classes - args.base_class
+            args.sessions = (num_new_classes // args.way) + 1  # +1はベースセッション
+        
+        print(f"CICIDS2017_improved設定: base_class={args.base_class}, num_classes={args.num_classes}, way={args.way}, shot={args.shot}, sessions={args.sessions}")
+        
+        # 入力次元数を設定（特徴量の数）
+        # データローダーから実際の特徴量数を取得
+        if not hasattr(args, 'input_dim') or args.input_dim is None:
+            # 一時的にデータローダーを作成して特徴量数を取得
+            try:
+                temp_dataset = Dataset.CICIDS2017(
+                    root=args.dataroot,
+                    train=True,
+                    index=[0],  # ダミーインデックス（存在しないクラスでもエラーにならないように）
+                    base_sess=True,
+                    label_column=getattr(args, 'label_column', 'Label'),
+                    normalize_method=getattr(args, 'normalize_method', 'standard')
+                )
+                args.input_dim = temp_dataset.data.shape[1]
+                print(f"自動検出された特徴量数: {args.input_dim}")
+                del temp_dataset
+            except Exception as e:
+                print(f"Warning: 特徴量数の自動取得に失敗しました: {e}")
+                # デフォルト値: 67（column_names.txtから推測）
+                args.input_dim = 67
+                print(f"デフォルト値を使用: input_dim={args.input_dim}")
+
+    # Datasetが定義されていない場合のエラーチェック
+    if 'Dataset' not in locals():
+        raise ValueError(
+            f"データセット '{args.dataset}' の設定が見つかりません。\n"
+            f"data_utils.pyのset_up_datasets関数に'{args.dataset}'の処理を追加してください。"
+        )
+    
     args.Dataset=Dataset
     return args
 
@@ -87,6 +136,7 @@ def get_dataloader(args,session):
 def get_base_dataloader(args):
     txt_path = "data/index_list/" + args.dataset + "/session_" + str(0 + 1) + '.txt'
     class_index = np.arange(args.base_class)
+    print(f"get_base_dataloader: base_class={args.base_class}, class_index={class_index}")
     if args.dataset == 'cifar100':
 
         trainset = args.Dataset.CIFAR100(root=args.dataroot, train=True, download=True,
@@ -109,10 +159,42 @@ def get_base_dataloader(args):
                                              index=class_index, base_sess=True)
         testset = args.Dataset.ImageNet(root=args.dataroot, train=False, index=class_index)
 
-    trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=args.batch_size_base, shuffle=True,
-                                              num_workers=8, pin_memory=True)
+    if args.dataset == 'CICIDS2017_improved':
+        # CICIDS2017_improvedデータローダー
+        normalize_method = getattr(args, 'normalize_method', 'standard')
+        label_column = getattr(args, 'label_column', 'Label')
+        
+        trainset = args.Dataset.CICIDS2017(
+            root=args.dataroot,
+            train=True,
+            index=class_index,
+            base_sess=True,
+            label_column=label_column,
+            normalize_method=normalize_method
+        )
+        testset = args.Dataset.CICIDS2017(
+            root=args.dataroot,
+            train=False,
+            index=class_index,
+            base_sess=True,
+            label_column=label_column,
+            normalize_method=normalize_method
+        )
+
+    trainloader = torch.utils.data.DataLoader(
+        dataset=trainset,
+        batch_size=args.batch_size_base,
+        shuffle=True,
+        num_workers=args.num_workers,
+        pin_memory=True
+    )
     testloader = torch.utils.data.DataLoader(
-        dataset=testset, batch_size=args.test_batch_size, shuffle=False, num_workers=8, pin_memory=True)
+        dataset=testset,
+        batch_size=args.test_batch_size,
+        shuffle=False,
+        num_workers=args.num_workers,
+        pin_memory=True
+    )
 
     return trainset, trainloader, testloader
 
@@ -167,6 +249,23 @@ def get_new_dataloader(args,session):
         trainset = args.Dataset.ImageNet(root=args.dataroot, train=True,
                                        index_path=txt_path)
 
+    if args.dataset == 'CICIDS2017_improved':
+        # CICIDS2017_improvedデータローダー
+        normalize_method = getattr(args, 'normalize_method', 'standard')
+        label_column = getattr(args, 'label_column', 'Label')
+        
+        # セッションファイルからデータインデックスを読み込む
+        data_indices = [int(line.strip()) for line in open(txt_path).read().splitlines() if line.strip()]
+        
+        trainset = args.Dataset.CICIDS2017(
+            root=args.dataroot,
+            train=True,
+            index=data_indices,
+            base_sess=False,
+            label_column=label_column,
+            normalize_method=normalize_method
+        )
+
     if args.batch_size_new == 0:
         batch_size_new = trainset.__len__()
         trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=batch_size_new, shuffle=False,
@@ -190,6 +289,18 @@ def get_new_dataloader(args,session):
     if args.dataset == 'imagenet100' or args.dataset == 'imagenet1000':
         testset = args.Dataset.ImageNet(root=args.dataroot, train=False,
                                       index=class_new)
+    if args.dataset == 'CICIDS2017_improved':
+        normalize_method = getattr(args, 'normalize_method', 'standard')
+        label_column = getattr(args, 'label_column', 'Label')
+        
+        testset = args.Dataset.CICIDS2017(
+            root=args.dataroot,
+            train=False,
+            index=class_new,
+            base_sess=False,
+            label_column=label_column,
+            normalize_method=normalize_method
+        )
 
     testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=args.test_batch_size, shuffle=False,
                                              num_workers=args.num_workers, pin_memory=True)
