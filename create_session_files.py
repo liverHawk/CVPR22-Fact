@@ -34,7 +34,13 @@ def load_dataset(csv_path: str, label_column: str = 'Label') -> Tuple[pl.DataFra
         (データフレーム, クラスリスト)
     """
     print(f"データセットを読み込み中: {csv_path}")
-    df = pl.read_csv(csv_path)
+    if os.path.isdir(csv_path):
+        csv_files = list(Path(csv_path).glob("*.csv"))
+        if len(csv_files) == 0:
+            raise FileNotFoundError(f"CSVファイルが見つかりません: {csv_path}")
+        df = pl.concat([pl.read_csv(csv_file) for csv_file in csv_files])
+    else:
+        df = pl.read_csv(csv_path)
     
     if label_column not in df.columns:
         raise ValueError(f"ラベル列 '{label_column}' が見つかりません。利用可能な列: {df.columns}")
@@ -211,8 +217,8 @@ def main():
     parser.add_argument(
         '--train-csv',
         type=str,
-        default=yaml_params.get('train_csv', None),
-        help='訓練データのCSVファイルパス'
+        default=None,
+        help='訓練データのCSVファイルパス（指定しない場合はdata/{dataset_name}/trainを自動使用）'
     )
     parser.add_argument(
         '--label-column',
@@ -288,10 +294,13 @@ def main():
     args = parser.parse_args()
     
     # 必須パラメータのチェック
-    if args.train_csv is None:
-        raise ValueError("--train-csv または params.yaml の create_sessions.train_csv を指定してください")
     if args.dataset_name is None:
         raise ValueError("--dataset-name または params.yaml の create_sessions.dataset_name を指定してください")
+    
+    # train_csvが指定されていない場合、dataset_nameから自動的に構築
+    if args.train_csv is None:
+        args.train_csv = f"data/{args.dataset_name}/train"
+        print(f"train_csvが指定されていないため、dataset_nameから自動構築: {args.train_csv}")
     if args.base_labels is None and args.base_class is None:
         raise ValueError("--base-class または --base-labels を指定してください（params.yamlでも可）")
     if args.num_classes is None:

@@ -43,16 +43,36 @@ class CICIDS2017(Dataset):
         self.label_column = label_column
         self.normalize_method = normalize_method
         
-        # CSVファイルのパス
-        csv_filename = 'train.csv' if train else 'test.csv'
-        csv_path = os.path.join(self.root, csv_filename)
+        # CSVファイルのパス（train/またはtest/ディレクトリから読み込む）
+        data_dir = os.path.join(self.root, 'train' if train else 'test')
         
-        if not os.path.exists(csv_path):
-            raise FileNotFoundError(f"CSVファイルが見つかりません: {csv_path}")
-        
-        # CSVファイルを読み込む
-        print(f"Loading {csv_filename}...")
-        df = pd.read_csv(csv_path)
+        # ディレクトリ内のCSVファイルを検索
+        if os.path.isdir(data_dir):
+            csv_files = [f for f in os.listdir(data_dir) if f.endswith('.csv')]
+            if len(csv_files) == 0:
+                raise FileNotFoundError(f"CSVファイルが見つかりません: {data_dir}")
+            
+            # 複数のCSVファイルがある場合はマージ
+            print(f"Loading CSV files from {data_dir}...")
+            dfs = []
+            for csv_file in sorted(csv_files):
+                csv_path = os.path.join(data_dir, csv_file)
+                print(f"  Reading {csv_file}...")
+                dfs.append(pd.read_csv(csv_path))
+            
+            if len(dfs) == 1:
+                df = dfs[0]
+            else:
+                print(f"  Merging {len(dfs)} CSV files...")
+                df = pd.concat(dfs, ignore_index=True)
+        else:
+            # 後方互換性: ルートディレクトリにtrain.csv/test.csvがある場合
+            csv_filename = 'train.csv' if train else 'test.csv'
+            csv_path = os.path.join(self.root, csv_filename)
+            if not os.path.exists(csv_path):
+                raise FileNotFoundError(f"CSVファイルまたはディレクトリが見つかりません: {data_dir} または {csv_path}")
+            print(f"Loading {csv_filename}...")
+            df = pd.read_csv(csv_path)
         
         if label_column not in df.columns:
             raise ValueError(

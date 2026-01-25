@@ -37,13 +37,18 @@ def get_command_line_parser():
                         default=yaml_params.get('project', PROJECT),
                         choices=['base', 'fact'],
                         help='使用するプロジェクト (base: ベースライン, fact: FACT手法)')
-    parser.add_argument('-d', '--dataset', type=str, 
-                        default=yaml_params.get('dataset', 'cifar100'),
+    parser.add_argument('-d', '--dataset-type', type=str, 
+                        default=yaml_params.get('dataset_type', 'cifar100'),
                         choices=['mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved'],
-                        help='データセット名')
+                        dest='dataset_type',
+                        help='データセットタイプ（データローダーの種類を決定）')
+    parser.add_argument('-n', '--dataset-name', type=str, 
+                        default=yaml_params.get('dataset_name', None),
+                        dest='dataset_name',
+                        help='データセット名（パス構築に使用、指定しない場合はdataset_typeと同じ値）')
     parser.add_argument('--dataroot', type=str, 
-                        default=yaml_params.get('dataroot', DATA_DIR),
-                        help='データセットのルートディレクトリ')
+                        default=DATA_DIR,
+                        help='データセットのルートディレクトリ（デフォルト: data/）')
     parser.add_argument('--encoder', type=str,
                         default=yaml_params.get('encoder', 'mlp'),
                         choices=['mlp', 'cnn1d'],
@@ -208,8 +213,17 @@ if __name__ == '__main__':
     if '--debug' not in sys.argv:
         args.debug = yaml_params.get('debug', False)
     
+    # dataset_nameが指定されていない場合、dataset_typeと同じ値を使用
+    if args.dataset_name is None:
+        args.dataset_name = args.dataset_type
+    
+    # 後方互換性のため、args.datasetも設定（既存コードでargs.datasetを使用している場合）
+    args.dataset = args.dataset_type
+    
     set_seed(args.seed)
     pprint(vars(args))
     args.num_gpu = set_gpu(args)
+    # pin_memoryはGPUが利用可能な場合のみTrueにする
+    args.pin_memory = args.num_gpu > 0
     trainer = importlib.import_module('models.%s.fscil_trainer' % (args.project)).FSCILTrainer(args)
     trainer.train()

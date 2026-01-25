@@ -3,7 +3,8 @@
 
 # 基本設定
 project: 'fact'  # 'base' または 'fact'
-dataset: 'CICIDS2017_improved'  # 'mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved'
+dataset_type: 'CICIDS2017_improved'  # 'mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved'
+dataset_name: 'CICIDS2017_flow_improved'  # 'CICIDS2017_flow_improved', 'CICIDS2017_improved'
 dataroot: 'data/'
 encoder: 'mlp'  # 'mlp' または 'cnn1d'（CICIDS2017_improved用）
 normalize_method: 'standard'  # 'standard', 'minmax', 'moving_minmax'
@@ -62,10 +63,9 @@ comet_disabled: false  # Comet MLを無効化する場合はtrue
 
 # セッションファイル生成設定
 create_sessions:
-  train_csv: 'data/train.csv'  # 訓練データのCSVファイルパス
   label_column: 'Label'  # ラベル列の名前
   output_dir: 'data/index_list'  # セッションファイルの出力ディレクトリ
-  dataset_name: 'CICIDS2017_improved'  # データセット名
+  dataset_name: 'CICIDS2017_flow_improved'  # データセット名
   base_class: 5  # ベースクラス数
   num_classes: 10  # 総クラス数
   way: 1  # 各新規セッションのクラス数

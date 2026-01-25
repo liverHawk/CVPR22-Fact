@@ -1,8 +1,17 @@
+import os
 import numpy as np
 import torch
 from dataloader.sampler import CategoriesSampler
 
 def set_up_datasets(args):
+    # dataset_nameが指定されていない場合、dataset_typeと同じ値を使用
+    if not hasattr(args, 'dataset_name') or args.dataset_name is None:
+        args.dataset_name = getattr(args, 'dataset_type', args.dataset)
+    
+    # 後方互換性のため、args.datasetが存在しない場合はargs.dataset_typeを使用
+    if not hasattr(args, 'dataset'):
+        args.dataset = getattr(args, 'dataset_type', 'cifar100')
+    
     if args.dataset == 'cifar100':
         import dataloader.cifar100.cifar as Dataset
         args.base_class = 60
@@ -99,8 +108,11 @@ def set_up_datasets(args):
         if not hasattr(args, 'input_dim') or args.input_dim is None:
             # 一時的にデータローダーを作成して特徴量数を取得
             try:
+                # rootは data/dataset_name の形式
+                dataset_name = getattr(args, 'dataset_name', args.dataset)
+                root = os.path.join(args.dataroot, dataset_name)
                 temp_dataset = Dataset.CICIDS2017(
-                    root=args.dataroot,
+                    root=root,
                     train=True,
                     index=[0],  # ダミーインデックス（存在しないクラスでもエラーにならないように）
                     base_sess=True,
@@ -111,10 +123,9 @@ def set_up_datasets(args):
                 print(f"自動検出された特徴量数: {args.input_dim}")
                 del temp_dataset
             except Exception as e:
-                print(f"Warning: 特徴量数の自動取得に失敗しました: {e}")
+                raise ValueError(f"特徴量数の自動取得に失敗しました: {e}")
                 # デフォルト値: 67（column_names.txtから推測）
-                args.input_dim = 67
-                print(f"デフォルト値を使用: input_dim={args.input_dim}")
+
 
     # Datasetが定義されていない場合のエラーチェック
     if 'Dataset' not in locals():
@@ -134,7 +145,11 @@ def get_dataloader(args,session):
     return trainset, trainloader, testloader
 
 def get_base_dataloader(args):
-    txt_path = "data/index_list/" + args.dataset + "/session_" + str(0 + 1) + '.txt'
+    # dataset_nameが指定されていない場合、dataset_typeと同じ値を使用
+    if not hasattr(args, 'dataset_name') or args.dataset_name is None:
+        args.dataset_name = args.dataset_type
+    
+    txt_path = "data/index_list/" + args.dataset_name + "/session_" + str(0 + 1) + '.txt'
     class_index = np.arange(args.base_class)
     print(f"get_base_dataloader: base_class={args.base_class}, class_index={class_index}")
     if args.dataset == 'cifar100':
@@ -164,8 +179,11 @@ def get_base_dataloader(args):
         normalize_method = getattr(args, 'normalize_method', 'standard')
         label_column = getattr(args, 'label_column', 'Label')
         
+        # rootは data/dataset_name の形式
+        root = os.path.join(args.dataroot, args.dataset_name)
+        
         trainset = args.Dataset.CICIDS2017(
-            root=args.dataroot,
+            root=root,
             train=True,
             index=class_index,
             base_sess=True,
@@ -173,7 +191,7 @@ def get_base_dataloader(args):
             normalize_method=normalize_method
         )
         testset = args.Dataset.CICIDS2017(
-            root=args.dataroot,
+            root=root,
             train=False,
             index=class_index,
             base_sess=True,
@@ -181,19 +199,20 @@ def get_base_dataloader(args):
             normalize_method=normalize_method
         )
 
+    pin_memory = getattr(args, 'pin_memory', args.num_gpu > 0 if hasattr(args, 'num_gpu') else False)
     trainloader = torch.utils.data.DataLoader(
         dataset=trainset,
         batch_size=args.batch_size_base,
         shuffle=True,
         num_workers=args.num_workers,
-        pin_memory=True
+        pin_memory=pin_memory
     )
     testloader = torch.utils.data.DataLoader(
         dataset=testset,
         batch_size=args.test_batch_size,
         shuffle=False,
         num_workers=args.num_workers,
-        pin_memory=True
+        pin_memory=pin_memory
     )
 
     return trainset, trainloader, testloader
@@ -201,7 +220,11 @@ def get_base_dataloader(args):
 
 
 def get_base_dataloader_meta(args):
-    txt_path = "data/index_list/" + args.dataset + "/session_" + str(0 + 1) + '.txt'
+    # dataset_nameが指定されていない場合、dataset_typeと同じ値を使用
+    if not hasattr(args, 'dataset_name') or args.dataset_name is None:
+        args.dataset_name = args.dataset_type
+    
+    txt_path = "data/index_list/" + args.dataset_name + "/session_" + str(0 + 1) + '.txt'
     class_index = np.arange(args.base_class)
     if args.dataset == 'cifar100':
         trainset = args.Dataset.CIFAR100(root=args.dataroot, train=True, download=True,
@@ -225,16 +248,22 @@ def get_base_dataloader_meta(args):
     sampler = CategoriesSampler(trainset.targets, args.train_episode, args.episode_way,
                                 args.episode_shot + args.episode_query)
 
+    pin_memory = getattr(args, 'pin_memory', args.num_gpu > 0 if hasattr(args, 'num_gpu') else False)
     trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_sampler=sampler, num_workers=args.num_workers,
-                                              pin_memory=True)
+                                              pin_memory=pin_memory)
 
+    pin_memory = getattr(args, 'pin_memory', args.num_gpu > 0 if hasattr(args, 'num_gpu') else False)
     testloader = torch.utils.data.DataLoader(
-        dataset=testset, batch_size=args.test_batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
+        dataset=testset, batch_size=args.test_batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=pin_memory)
 
     return trainset, trainloader, testloader
 
 def get_new_dataloader(args,session):
-    txt_path = "data/index_list/" + args.dataset + "/session_" + str(session + 1) + '.txt'
+    # dataset_nameが指定されていない場合、dataset_typeと同じ値を使用
+    if not hasattr(args, 'dataset_name') or args.dataset_name is None:
+        args.dataset_name = args.dataset_type
+    
+    txt_path = "data/index_list/" + args.dataset_name + "/session_" + str(session + 1) + '.txt'
     if args.dataset == 'cifar100':
         class_index = open(txt_path).read().splitlines()
         trainset = args.Dataset.CIFAR100(root=args.dataroot, train=True, download=False,
@@ -254,11 +283,14 @@ def get_new_dataloader(args,session):
         normalize_method = getattr(args, 'normalize_method', 'standard')
         label_column = getattr(args, 'label_column', 'Label')
         
+        # rootは data/dataset_name の形式
+        root = os.path.join(args.dataroot, args.dataset_name)
+        
         # セッションファイルからデータインデックスを読み込む
         data_indices = [int(line.strip()) for line in open(txt_path).read().splitlines() if line.strip()]
         
         trainset = args.Dataset.CICIDS2017(
-            root=args.dataroot,
+            root=root,
             train=True,
             index=data_indices,
             base_sess=False,
@@ -266,13 +298,14 @@ def get_new_dataloader(args,session):
             normalize_method=normalize_method
         )
 
+    pin_memory = getattr(args, 'pin_memory', args.num_gpu > 0 if hasattr(args, 'num_gpu') else False)
     if args.batch_size_new == 0:
         batch_size_new = trainset.__len__()
         trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=batch_size_new, shuffle=False,
-                                                  num_workers=args.num_workers, pin_memory=True)
+                                                  num_workers=args.num_workers, pin_memory=pin_memory)
     else:
         trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=args.batch_size_new, shuffle=True,
-                                                  num_workers=args.num_workers, pin_memory=True)
+                                                  num_workers=args.num_workers, pin_memory=pin_memory)
 
     # test on all encountered classes
     class_new = get_session_classes(args, session)
@@ -293,8 +326,11 @@ def get_new_dataloader(args,session):
         normalize_method = getattr(args, 'normalize_method', 'standard')
         label_column = getattr(args, 'label_column', 'Label')
         
+        # rootは data/dataset_name の形式
+        root = os.path.join(args.dataroot, args.dataset_name)
+        
         testset = args.Dataset.CICIDS2017(
-            root=args.dataroot,
+            root=root,
             train=False,
             index=class_new,
             base_sess=True,  # treat index as class list to include all seen classes
@@ -302,8 +338,9 @@ def get_new_dataloader(args,session):
             normalize_method=normalize_method
         )
 
+    pin_memory = getattr(args, 'pin_memory', args.num_gpu > 0 if hasattr(args, 'num_gpu') else False)
     testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=args.test_batch_size, shuffle=False,
-                                             num_workers=args.num_workers, pin_memory=True)
+                                             num_workers=args.num_workers, pin_memory=pin_memory)
 
     return trainset, trainloader, testloader
 
