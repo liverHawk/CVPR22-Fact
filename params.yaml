@@ -55,6 +55,11 @@ not_data_init: false
 set_no_val: false
 debug: false
 
+# Comet ML設定
+comet_project: null  # プロジェクト名（nullの場合はdataset名を使用）
+comet_workspace: null  # ワークスペース名（nullの場合はデフォルト）
+comet_disabled: false  # Comet MLを無効化する場合はtrue
+
 # セッションファイル生成設定
 create_sessions:
   train_csv: 'data/train.csv'  # 訓練データのCSVファイルパス

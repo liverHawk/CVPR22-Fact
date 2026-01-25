@@ -5,6 +5,7 @@ import torch
 
 from .helper import base_train, test, replace_base_fc
 from utils import Averager, count_acc, confmatrix, get_dataset_label_names
+from utils import init_comet_experiment, log_metrics_to_comet, log_confusion_matrix_to_comet
 from dataloader.data_utils import get_base_dataloader, get_new_dataloader, set_up_datasets
 import numpy as np
 import time
@@ -21,6 +22,9 @@ class FSCILTrainer(Trainer):
         self.args = args
         self.set_save_path()
         self.args = set_up_datasets(self.args)
+
+        # Comet ML実験を初期化
+        self.comet_exp = init_comet_experiment(self.args)
 
         self.model = MYNET(self.args, mode=self.args.base_mode)
         if self.args.num_gpu > 0 and torch.cuda.is_available():
@@ -112,6 +116,21 @@ class FSCILTrainer(Trainer):
                     self.trlog['test_loss'].append(tsl)
                     self.trlog['test_acc'].append(tsa)
                     lrc = scheduler.get_last_lr()[0]
+                    
+                    # Comet MLにメトリクスをログ
+                    log_metrics_to_comet(
+                        self.comet_exp,
+                        {
+                            'train_loss': tl,
+                            'train_acc': ta,
+                            'test_loss': tsl,
+                            'test_acc': tsa,
+                            'learning_rate': lrc
+                        },
+                        epoch=epoch,
+                        session=session
+                    )
+                    
                     result_list.append(
                         'epoch:%03d,lr:%.4f,training_loss:%.5f,training_acc:%.5f,test_loss:%.5f,test_acc:%.5f' % (
                             epoch, lrc, tl, ta, tsl, tsa))
@@ -122,6 +141,16 @@ class FSCILTrainer(Trainer):
 
                 result_list.append('Session {}, Test Best Epoch {},\nbest test Acc {:.4f}\n'.format(
                     session, self.trlog['max_acc_epoch'], self.trlog['max_acc'][session], ))
+                
+                # Comet MLにセッションごとの最高精度をログ
+                log_metrics_to_comet(
+                    self.comet_exp,
+                    {
+                        'max_acc': self.trlog['max_acc'][session] / 100.0,
+                        'max_acc_epoch': self.trlog['max_acc_epoch']
+                    },
+                    session=session
+                )
 
                 if not args.not_data_init:
                     self.model.load_state_dict(self.best_model_dict)
@@ -146,7 +175,17 @@ class FSCILTrainer(Trainer):
                 self.dummy_classifiers=F.normalize(self.dummy_classifiers[self.args.base_class:,:],p=2,dim=-1)
                 self.old_classifiers=self.dummy_classifiers[:self.args.base_class,:]
                 model_module.mode = 'avg_cos'
-                test(self.model, testloader, 0, args, session, validation=False)
+                tsl_final, tsa_final = test(self.model, testloader, 0, args, session, validation=False)
+                
+                # セッション0の最終テスト結果をComet MLにログ
+                log_metrics_to_comet(
+                    self.comet_exp,
+                    {
+                        'final_test_loss': tsl_final,
+                        'final_test_acc': tsa_final
+                    },
+                    session=session
+                )
 
             else:  # incremental learning sessions
                 print("training session: [%d]" % session)
@@ -170,6 +209,17 @@ class FSCILTrainer(Trainer):
                 print('Saving model to :%s' % save_model_dir)
                 print('  test acc={:.3f}'.format(self.trlog['max_acc'][session]))
 
+                # Comet MLにセッションごとの精度をログ
+                log_metrics_to_comet(
+                    self.comet_exp,
+                    {
+                        'test_acc': tsa,
+                        'test_loss': tsl,
+                        'max_acc': self.trlog['max_acc'][session] / 100.0
+                    },
+                    session=session
+                )
+
                 result_list.append('Session {}, test Acc {:.3f}\n'.format(session, self.trlog['max_acc'][session]))
 
         result_list.append('Base Session Best Epoch {}\n'.format(self.trlog['max_acc_epoch']))
@@ -177,10 +227,32 @@ class FSCILTrainer(Trainer):
         print(self.trlog['max_acc'])
         save_list_to_txt(os.path.join(args.save_path, 'results.txt'), result_list)
 
+        # 最終結果をComet MLにログ
+        log_metrics_to_comet(
+            self.comet_exp,
+            {
+                'total_time_minutes': (time.time() - t_start_time) / 60,
+                'best_epoch': self.trlog['max_acc_epoch']
+            }
+        )
+        
+        # 全セッションの最高精度をログ
+        for sess_idx, max_acc in enumerate(self.trlog['max_acc']):
+            log_metrics_to_comet(
+                self.comet_exp,
+                {'session_max_acc': max_acc / 100.0},
+                session=sess_idx
+            )
+
         t_end_time = time.time()
         total_time = (t_end_time - t_start_time) / 60
         print('Base Session Best epoch:', self.trlog['max_acc_epoch'])
         print('Total time used %.2f mins' % total_time)
+        
+        # Comet ML実験を終了
+        if self.comet_exp is not None:
+            self.comet_exp.end()
+            print('Comet ML experiment ended')
 
 
     def test_intergrate(self, model, testloader, epoch,args, session,validation=True):
@@ -243,6 +315,27 @@ class FSCILTrainer(Trainer):
             unseen_slice = perclassacc[args.base_class:]
             unseenac=np.mean(unseen_slice) if len(unseen_slice) > 0 else float('nan')
             print('Seen Acc:',seenac, 'Unseen ACC:', unseenac)
+            
+            # Comet MLに混同行列をログ（log_confusion_matrix APIを使用）
+            pred = torch.argmax(lgt, dim=1)
+            log_confusion_matrix_to_comet(
+                self.comet_exp,
+                y_true=lbs,
+                y_pred=pred,
+                labels=label_names,
+                session=session,
+                title=f"Session {session} Confusion Matrix"
+            )
+            
+            # Seen/Unseen精度をログ
+            log_metrics_to_comet(
+                self.comet_exp,
+                {
+                    'seen_acc': seenac if not np.isnan(seenac) else 0.0,
+                    'unseen_acc': unseenac if not np.isnan(unseenac) else 0.0
+                },
+                session=session
+            )
 
         return vl, va
 

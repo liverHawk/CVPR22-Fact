@@ -1,3 +1,8 @@
+try:
+    import comet_ml
+    COMET_AVAILABLE = True
+except ImportError:
+    COMET_AVAILABLE = False
 import random
 import torch
 import os
@@ -224,5 +229,167 @@ def save_list_to_txt(name, input_list):
     for item in input_list:
         f.write(str(item) + '\n')
     f.close()
+
+
+# Comet ML統合用のユーティリティ関数
+
+def init_comet_experiment(args):
+    """
+    Comet ML実験を初期化する
+    
+    Args:
+        args: コマンドライン引数オブジェクト
+        
+    Returns:
+        comet_ml.Experiment: Comet実験オブジェクト、またはNone（Cometが無効な場合）
+    """
+    if not COMET_AVAILABLE:
+        print("Comet ML is not available. Install with: pip install comet-ml")
+        return None
+    
+    # Cometが無効化されている場合はNoneを返す
+    if hasattr(args, 'comet_disabled') and args.comet_disabled:
+        return None
+    
+    try:
+        # 初回実行時にインタラクティブログイン
+        try:
+            comet_ml.login()
+        except Exception:
+            # 既にログイン済みの場合はスキップ
+            pass
+        
+        # プロジェクト名と実験名を設定
+        project_name = getattr(args, 'comet_project', args.dataset)
+        experiment_name = f"{args.project}_{args.dataset}_{args.base_mode}_{args.new_mode}"
+        
+        # 実験を開始
+        exp = comet_ml.Experiment(
+            project_name=project_name,
+            experiment_name=experiment_name,
+            auto_param_logging=False,  # 手動でパラメータをログ
+            auto_metric_logging=False,  # 手動でメトリクスをログ
+            disabled=getattr(args, 'comet_disabled', False)
+        )
+        
+        # ハイパーパラメータをログ
+        params_dict = {}
+        for key, value in vars(args).items():
+            # オブジェクトや関数は除外
+            if not key.startswith('_') and not callable(value):
+                try:
+                    # シリアライズ可能な値のみログ
+                    if isinstance(value, (str, int, float, bool, type(None))):
+                        params_dict[key] = value
+                    elif isinstance(value, (list, tuple)):
+                        params_dict[key] = list(value)
+                except Exception:
+                    pass
+        
+        exp.log_parameters(params_dict)
+        
+        print(f"Comet ML experiment started: {experiment_name}")
+        return exp
+        
+    except Exception as e:
+        print(f"Failed to initialize Comet ML: {e}")
+        return None
+
+
+def log_metrics_to_comet(exp, metrics, epoch=None, session=None, step=None):
+    """
+    Comet MLにメトリクスをログする
+    
+    Args:
+        exp: Comet実験オブジェクト（Noneの場合は何もしない）
+        metrics: メトリクスの辞書
+        epoch: エポック番号（オプション）
+        session: セッション番号（オプション）
+        step: ステップ番号（オプション、epochとsessionから自動計算される）
+    """
+    if exp is None:
+        return
+    
+    try:
+        # ステップ番号を決定
+        if step is None:
+            if epoch is not None and session is not None:
+                step = session * 1000 + epoch  # セッションごとに1000エポック分のオフセット
+            elif epoch is not None:
+                step = epoch
+            elif session is not None:
+                step = session * 1000
+            else:
+                step = None
+        
+        # メトリクスをログ
+        if step is not None:
+            exp.log_metrics(metrics, step=step)
+        else:
+            exp.log_metrics(metrics)
+            
+        # コンテキスト情報を追加
+        if epoch is not None:
+            exp.log_metrics({f"epoch": epoch}, step=step if step is not None else epoch)
+        if session is not None:
+            exp.log_metrics({f"session": session}, step=step if step is not None else session * 1000)
+            
+    except Exception as e:
+        print(f"Failed to log metrics to Comet ML: {e}")
+
+
+def log_confusion_matrix_to_comet(exp, y_true, y_pred, labels=None, session=None, title=None):
+    """
+    Comet MLに混同行列をログする（log_confusion_matrix APIを使用）
+    
+    Args:
+        exp: Comet実験オブジェクト（Noneの場合は何もしない）
+        y_true: 真のラベルのリストまたはnumpy配列
+        y_pred: 予測ラベルのリストまたはnumpy配列
+        labels: ラベル名のリスト（オプション）
+        session: セッション番号（オプション）
+        title: 混同行列のタイトル（オプション）
+    """
+    if exp is None:
+        return
+    
+    try:
+        # numpy配列またはTensorを整数のリストに変換
+        # Comet MLは整数のラベルを要求するため、明示的に整数型に変換
+        if isinstance(y_true, torch.Tensor):
+            # Tensorから直接整数型のリストに変換
+            y_true = y_true.cpu().long().numpy().astype(np.int64).tolist()
+        elif isinstance(y_true, np.ndarray):
+            y_true = y_true.astype(np.int64).tolist()
+        else:
+            # リストやその他のイテラブルの場合
+            y_true = [int(float(x)) for x in y_true]
+            
+        if isinstance(y_pred, torch.Tensor):
+            # Tensorから直接整数型のリストに変換
+            y_pred = y_pred.cpu().long().numpy().astype(np.int64).tolist()
+        elif isinstance(y_pred, np.ndarray):
+            y_pred = y_pred.astype(np.int64).tolist()
+        else:
+            # リストやその他のイテラブルの場合
+            y_pred = [int(float(x)) for x in y_pred]
+        
+        # タイトルを設定
+        if title is None:
+            if session is not None:
+                title = f"Session {session} Confusion Matrix"
+            else:
+                title = "Confusion Matrix"
+        
+        # Comet MLのlog_confusion_matrix APIを使用
+        exp.log_confusion_matrix(
+            y_true=y_true,
+            y_predicted=y_pred,
+            labels=labels,
+            title=title
+        )
+        
+    except Exception as e:
+        print(f"Failed to log confusion matrix to Comet ML: {e}")
 
 

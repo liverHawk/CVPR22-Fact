@@ -2,3 +2,4 @@ __pycache__
 checkpoint
 data/*
 !data/index_list/*
+.dvc

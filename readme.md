@@ -31,6 +31,10 @@ The following packages are required to run the scripts:
 
 - tqdm
 
+- comet-ml (for experiment tracking)
+
+- dvc (for data version control)
+
 ## Dataset
 We provide the source code on three benchmark datasets, i.e., CIFAR100, CUB200 and miniImageNet. Please follow the guidelines in [CEC](https://github.com/icoz69/CEC-CVPR2021) to prepare them.
 
@@ -64,6 +68,63 @@ There are four parts in the code.
 Remember to change `YOURDATAROOT` into your own data root, or you will encounter errors.
 
 Using the definitely same scripts above, you are supposed to reproduce the results in [CIFAR-FACT.txt](https://github.com/zhoudw-zdw/CVPR22-Fact/blob/main/imgs/CIFAR-FACT.txt), [CUB-FACT.txt](https://github.com/zhoudw-zdw/CVPR22-Fact/blob/main/imgs/CUB-FACT.txt), and [MINI-FACT.txt](https://github.com/zhoudw-zdw/CVPR22-Fact/blob/main/imgs/MINI-FACT.txt).
+
+## Experiment Tracking with Comet ML
+
+This project integrates [Comet ML](https://www.comet.com/) for experiment tracking. Comet ML automatically logs:
+
+- **Hyperparameters**: All training parameters from `params.yaml` and command-line arguments
+- **Metrics**: Training and test loss/accuracy for each epoch and session
+- **Confusion Matrices**: Per-session confusion matrices using Comet ML's `log_confusion_matrix()` API
+- **Session-level metrics**: Maximum accuracy, seen/unseen accuracy, and other session-specific metrics
+
+### Setup
+
+1. Install Comet ML (if not already installed):
+   ```bash
+   pip install comet-ml
+   ```
+
+2. On first run, Comet ML will prompt you to log in interactively. Follow the instructions to authenticate.
+
+3. Configure Comet ML in `params.yaml` (optional):
+   ```yaml
+   comet_project: "my-project"  # Project name (default: dataset name)
+   comet_workspace: "my-workspace"  # Workspace name (optional)
+   comet_disabled: false  # Set to true to disable Comet ML
+   ```
+
+### Usage
+
+Comet ML tracking is enabled by default. To disable it, set `comet_disabled: true` in `params.yaml` or use the `--comet-disabled` flag (if implemented).
+
+View your experiments at [https://www.comet.com/](https://www.comet.com/)
+
+## Data Version Control with DVC
+
+This project uses [DVC](https://dvc.org/) for version control of configuration files.
+
+### Setup
+
+1. DVC is already initialized in this repository.
+
+2. The `params.yaml` file is tracked by DVC. To update the tracked version:
+   ```bash
+   dvc add params.yaml
+   ```
+
+3. View DVC status:
+   ```bash
+   dvc status
+   ```
+
+### Usage
+
+- **Track changes**: When you modify `params.yaml`, DVC will track the changes
+- **View history**: Use `dvc diff` to see differences between versions
+- **Reproduce experiments**: DVC helps ensure reproducibility by tracking parameter versions
+
+For more information, see the [DVC documentation](https://dvc.org/doc).
 
  
 ## Acknowledgment
