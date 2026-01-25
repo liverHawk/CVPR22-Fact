@@ -300,7 +300,6 @@ def main():
     # train_csvが指定されていない場合、dataset_nameから自動的に構築
     if args.train_csv is None:
         args.train_csv = f"data/{args.dataset_name}/train"
-        print(f"train_csvが指定されていないため、dataset_nameから自動構築: {args.train_csv}")
     if args.base_labels is None and args.base_class is None:
         raise ValueError("--base-class または --base-labels を指定してください（params.yamlでも可）")
     if args.num_classes is None:

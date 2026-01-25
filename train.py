@@ -147,7 +147,7 @@ def get_command_line_parser():
     parser.add_argument('--num-workers', type=int, 
                         default=yaml_params.get('num_workers', 8),
                         dest='num_workers',
-                        help='データローダーのワーカー数')
+                        help='データローダーのワーカー数（システム推奨値を超える場合は自動調整）')
     parser.add_argument('-g', '--gpu', type=str, 
                         default=yaml_params.get('gpu', '0'),
                         help='使用するGPU（カンマ区切り、例: 0,1,2,3）。CPUを使用する場合は "cpu" を指定')
@@ -219,6 +219,13 @@ if __name__ == '__main__':
     
     # 後方互換性のため、args.datasetも設定（既存コードでargs.datasetを使用している場合）
     args.dataset = args.dataset_type
+    
+    # num_workersをシステム推奨値に調整（警告を防ぐため）
+    import os
+    max_workers = min(os.cpu_count() or 1, 4)  # システム推奨値は通常CPUコア数以下
+    if args.num_workers > max_workers:
+        print(f"Warning: num_workers ({args.num_workers}) exceeds system recommendation ({max_workers}). Adjusting to {max_workers}.")
+        args.num_workers = max_workers
     
     set_seed(args.seed)
     pprint(vars(args))

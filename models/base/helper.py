@@ -44,7 +44,7 @@ def replace_base_fc(trainset, transform, model, args):
     model_module = model.module if isinstance(model, nn.DataParallel) else model
 
     trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=128,
-                                              num_workers=8, pin_memory=getattr(args, 'pin_memory', False), shuffle=False)
+                                              num_workers=getattr(args, 'num_workers', 4), pin_memory=getattr(args, 'pin_memory', False), shuffle=False)
     if transform is not None:
         trainloader.dataset.transform = transform
     embedding_list = []

@@ -1,0 +1,65 @@
+stages:
+  split_dataset:
+    cmd: uv run split_dataset_by_label.py --output-dir data/${dataset_name}
+    deps:
+      - split_dataset_by_label.py
+    params:
+      - params.yaml:
+          - dataset_name
+          - create_sessions.dataset_name
+    outs:
+      - data/${dataset_name}/train
+      - data/${dataset_name}/test
+  create_sessions:
+    cmd: uv run create_session_files.py
+    deps:
+      - create_session_files.py
+    params:
+      - params.yaml:
+          - dataset_name
+          - create_sessions.dataset_name
+    outs:
+      - data/index_list/${dataset_name}
+  train:
+    cmd: uv run train.py
+    deps:
+      - train.py
+      - data/index_list/${dataset_name}
+    params:
+      - params.yaml:
+          - project
+          - dataset_type
+          - dataset_name
+          - encoder
+          - epochs_base
+          - epochs_new
+          - lr_base
+          - lr_new
+          - batch_size_base
+          - batch_size_new
+          - test_batch_size
+          - base_mode
+          - new_mode
+          - schedule
+          - milestones
+          - step
+          - decay
+          - gamma
+          - momentum
+          - temperature
+          - balance
+          - alpha
+          - eta
+          - loss_iter
+          - start_session
+          - num_workers
+          - gpu
+          - seed
+          - normalize_method
+          - label_column
+          - base_class
+          - num_classes
+          - way
+          - shot
+    outs:
+      - checkpoint/

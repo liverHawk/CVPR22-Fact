@@ -176,9 +176,10 @@ class FSCILTrainer(Trainer):
                     self.model.load_state_dict(self.best_model_dict)
                     dataset_transform = getattr(testloader.dataset, "transform", None)
                     self.model = replace_base_fc(train_set, dataset_transform, self.model, args)
-                    print('Replace the fc with average embedding, and save it to :%s' % args.save_path)
+                    best_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
+                    print('Replace the fc with average embedding, and save it to :%s' % best_model_dir)
                     self.best_model_dict = deepcopy(self.model.state_dict())
-                    torch.save(dict(params=self.model.state_dict()), args.save_path)
+                    torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
                     model_module = self.model.module if isinstance(self.model, nn.DataParallel) else self.model
                     model_module.mode = 'avg_cos'
@@ -366,38 +367,8 @@ class FSCILTrainer(Trainer):
         return vl, va
 
     def set_save_path(self):
-        mode = self.args.base_mode + '-' + self.args.new_mode
-        if not self.args.not_data_init:
-            mode = mode + '-' + 'data_init'
-
-        self.args.save_path = '%s/' % self.args.dataset
-        self.args.save_path = self.args.save_path + '%s/' % self.args.project
-
-        self.args.save_path = self.args.save_path + '%s-start_%d/' % (mode, self.args.start_session)
-        if self.args.schedule == 'Milestone':
-            mile_stone = str(self.args.milestones).replace(" ", "").replace(',', '_')[1:-1]
-            self.args.save_path = self.args.save_path + 'Epo_%d-Lr_%.4f-MS_%s-Gam_%.2f-Bs_%d-Mom_%.2f' % (
-                self.args.epochs_base, self.args.lr_base, mile_stone, self.args.gamma, self.args.batch_size_base,
-                self.args.momentum)
-            self.args.save_path = self.args.save_path + 'Bal%.2f-LossIter%d' % (
-                self.args.balance, self.args.loss_iter)
-        elif self.args.schedule == 'Step':
-            self.args.save_path = self.args.save_path + 'Epo_%d-Lr_%.4f-Step_%d-Gam_%.2f-Bs_%d-Mom_%.2f' % (
-                self.args.epochs_base, self.args.lr_base, self.args.step, self.args.gamma, self.args.batch_size_base,
-                self.args.momentum)
-        elif self.args.schedule == 'Cosine':
-            self.args.save_path = self.args.save_path + 'Cosine-Epo_%d-Lr_%.4f' % (
-                self.args.epochs_base, self.args.lr_base)
-            self.args.save_path = self.args.save_path + 'Bal%.2f-LossIter%d' % (
-                self.args.balance, self.args.loss_iter)
-
-        if 'cos' in mode:
-            self.args.save_path = self.args.save_path + '-T_%.2f' % (self.args.temperature)
-
-        if 'ft' in self.args.new_mode:
-            self.args.save_path = self.args.save_path + '-ftLR_%.3f-ftEpoch_%d' % (
-                self.args.lr_new, self.args.epochs_new)
-
+        self.args.save_path = '%s/' % self.args.dataset_name
+        
         if self.args.debug:
             self.args.save_path = os.path.join('debug', self.args.save_path)
 
