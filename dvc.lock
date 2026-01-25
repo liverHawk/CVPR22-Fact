@@ -1,13 +1,16 @@
 schema: '2.0'
 stages:
   split_dataset:
-    cmd: uv run split_dataset_by_label.py --output-dir 
-      data/CICIDS2017_flow_improved
+    cmd: uv run split_dataset_by_label.py
     deps:
+    - path: params.yaml
+      hash: md5
+      md5: 31bd49f9c9c22a46f256ea74a05686fa
+      size: 2891
     - path: split_dataset_by_label.py
       hash: md5
-      md5: 82a934e6a02defa5af1ecb8f309e3b0a
-      size: 10034
+      md5: f05d159733230f8d1ffde77c75553ad5
+      size: 10825
     params:
       params.yaml:
         create_sessions.dataset_name: CICIDS2017_flow_improved
@@ -65,7 +68,7 @@ stages:
         decay: 0.0005
         encoder: mlp
         epochs_base: 1
-        epochs_new: 2
+        epochs_new: 5
         eta: 0.1
         gamma: 0.25
         gpu: cpu
@@ -97,6 +100,6 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: 3fda6981de8787cf63125f8a07cb1f31.dir
+      md5: 35f710c527affcb921b1c2c4c306895b.dir
       size: 2057720
       nfiles: 9

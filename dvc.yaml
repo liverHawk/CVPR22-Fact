@@ -3,7 +3,6 @@ stages:
     cmd: uv run split_dataset_by_label.py
     deps:
       - split_dataset_by_label.py
-      - params.yaml
     params:
       - params.yaml:
           - dataset_name
