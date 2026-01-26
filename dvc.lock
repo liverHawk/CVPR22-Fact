@@ -63,7 +63,7 @@ stages:
         dataset_type: CICIDS2017_improved
         decay: 0.0005
         encoder: mlp
-        epochs_base: 1
+        epochs_base: 20
         epochs_new: 1
         eta: 0.1
         gamma: 0.25
@@ -73,12 +73,9 @@ stages:
         lr_base: 0.005
         lr_new: 0.1
         milestones:
-        - 50
-        - 100
-        - 150
-        - 200
-        - 250
-        - 300
+        - 5
+        - 10
+        - 15
         momentum: 0.9
         new_mode: avg_cos
         normalize_method: standard
@@ -96,6 +93,6 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: 17620690116f3b91a9e08b99cff0cf31.dir
-      size: 2063964
+      md5: f8ae33d1bcc1dde7d50c1a631b0ee376.dir
+      size: 2064010
       nfiles: 9
