@@ -10,7 +10,8 @@ import os.path as osp
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-import pandas as pd
+import polars as pl
+from pathlib import Path
 from typing import Optional, List, Union
 
 
@@ -98,11 +99,18 @@ class CICIDS2017(Dataset):
             self.data, self.targets = self.SelectfromClasses(features, labels, index)
         else:
             # 新規セッション: セッションファイルからデータインデックスを読み込み
+            # セッションファイルのインデックスは、concatした後の全体データフレームに対するインデックス
             if index_path is not None:
                 self.data, self.targets = self.SelectfromTxt(features, labels, index_path)
             elif index is not None:
                 # データインデックスのリストが直接指定された場合
                 index_array = np.array(index, dtype=np.int64)
+                # インデックスの範囲チェック
+                if len(index_array) > 0 and (index_array.max() >= len(features) or index_array.min() < 0):
+                    raise ValueError(
+                        f"データインデックスの範囲が不正です: "
+                        f"min={index_array.min()}, max={index_array.max()}, data_len={len(features)}"
+                    )
                 self.data = features[index_array]
                 self.targets = labels[index_array]
             else:
@@ -127,65 +135,63 @@ class CICIDS2017(Dataset):
         # 訓練データの読み込み
         train_dir = os.path.join(root, 'train')
         if os.path.isdir(train_dir):
-            csv_files = [f for f in os.listdir(train_dir) if f.endswith('.csv')]
+            csv_files = sorted(Path(train_dir).glob("*.csv"))
             if len(csv_files) == 0:
                 raise FileNotFoundError(f"CSVファイルが見つかりません: {train_dir}")
             
             print(f"Loading CSV files from {train_dir}...")
             dfs = []
-            for csv_file in sorted(csv_files):
-                csv_path = os.path.join(train_dir, csv_file)
-                print(f"  Reading {csv_file}...")
-                dfs.append(pd.read_csv(csv_path))
+            for csv_path in csv_files:
+                print(f"  Reading {csv_path.name}...")
+                dfs.append(pl.read_csv(csv_path))
             
             if len(dfs) == 1:
                 train_df = dfs[0]
             else:
                 print(f"  Merging {len(dfs)} CSV files...")
-                train_df = pd.concat(dfs, ignore_index=True)
+                train_df = pl.concat(dfs)
         else:
             train_csv_path = os.path.join(root, 'train.csv')
             if not os.path.exists(train_csv_path):
                 raise FileNotFoundError(f"CSVファイルまたはディレクトリが見つかりません: {train_dir} または {train_csv_path}")
             print(f"Loading train.csv...")
-            train_df = pd.read_csv(train_csv_path)
+            train_df = pl.read_csv(train_csv_path)
         
         # テストデータの読み込み
         test_dir = os.path.join(root, 'test')
         if os.path.isdir(test_dir):
-            csv_files = [f for f in os.listdir(test_dir) if f.endswith('.csv')]
+            csv_files = sorted(Path(test_dir).glob("*.csv"))
             if len(csv_files) == 0:
                 raise FileNotFoundError(f"CSVファイルが見つかりません: {test_dir}")
             
             print(f"Loading CSV files from {test_dir}...")
             dfs = []
-            for csv_file in sorted(csv_files):
-                csv_path = os.path.join(test_dir, csv_file)
-                print(f"  Reading {csv_file}...")
-                dfs.append(pd.read_csv(csv_path))
+            for csv_path in csv_files:
+                print(f"  Reading {csv_path.name}...")
+                dfs.append(pl.read_csv(csv_path))
             
             if len(dfs) == 1:
                 test_df = dfs[0]
             else:
                 print(f"  Merging {len(dfs)} CSV files...")
-                test_df = pd.concat(dfs, ignore_index=True)
+                test_df = pl.concat(dfs)
         else:
             test_csv_path = os.path.join(root, 'test.csv')
             if not os.path.exists(test_csv_path):
                 raise FileNotFoundError(f"CSVファイルまたはディレクトリが見つかりません: {test_dir} または {test_csv_path}")
             print(f"Loading test.csv...")
-            test_df = pd.read_csv(test_csv_path)
+            test_df = pl.read_csv(test_csv_path)
         
         # ラベル列のチェック
         if label_column not in train_df.columns:
             raise ValueError(
                 f"ラベル列 '{label_column}' が見つかりません。"
-                f"利用可能な列: {train_df.columns.tolist()}"
+                f"利用可能な列: {train_df.columns}"
             )
         if label_column not in test_df.columns:
             raise ValueError(
                 f"ラベル列 '{label_column}' が見つかりません。"
-                f"利用可能な列: {test_df.columns.tolist()}"
+                f"利用可能な列: {test_df.columns}"
             )
         
         # 特徴量列を取得（ラベル列と非数値列を除外）
@@ -193,13 +199,16 @@ class CICIDS2017(Dataset):
             label_column, 'id', 'Flow ID', 'Src IP', 'Src Port', 'Dst IP', 'Dst Port',
             'Timestamp', 'Attempted Category'
         ]
+        # polarsのdtypeをチェック
         feature_columns = [
             col for col in train_df.columns
-            if col not in exclude_columns and train_df[col].dtype in ['int64', 'float64']
+            if col not in exclude_columns and train_df[col].dtype in [pl.Int64, pl.Int32, pl.Float64, pl.Float32]
         ]
         
         # ラベルを数値インデックスに変換（訓練データとテストデータで統一）
-        all_labels = sorted(set(list(train_df[label_column].unique()) + list(test_df[label_column].unique())))
+        train_labels_unique = train_df[label_column].unique().to_list()
+        test_labels_unique = test_df[label_column].unique().to_list()
+        all_labels = sorted(set(train_labels_unique + test_labels_unique))
         label_to_idx = {label: idx for idx, label in enumerate(all_labels)}
         idx_to_label = {idx: label for label, idx in label_to_idx.items()}
         
@@ -208,13 +217,13 @@ class CICIDS2017(Dataset):
         print(f"Label to index mapping (first 10): {dict(list(label_to_idx.items())[:10])}")
         
         # 訓練データの特徴量とラベルを抽出
-        train_features = train_df[feature_columns].values.astype(np.float32)
-        train_labels_str = train_df[label_column].values
+        train_features = train_df.select(feature_columns).to_numpy().astype(np.float32)
+        train_labels_str = train_df[label_column].to_numpy()
         train_labels = np.array([label_to_idx[label] for label in train_labels_str], dtype=np.int64)
         
         # テストデータの特徴量とラベルを抽出
-        test_features = test_df[feature_columns].values.astype(np.float32)
-        test_labels_str = test_df[label_column].values
+        test_features = test_df.select(feature_columns).to_numpy().astype(np.float32)
+        test_labels_str = test_df[label_column].to_numpy()
         test_labels = np.array([label_to_idx[label] for label in test_labels_str], dtype=np.int64)
         
         # NaNや無限大の値を処理

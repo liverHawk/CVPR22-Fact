@@ -230,7 +230,18 @@ class FSCILTrainer(Trainer):
                 all_classes = np.unique(train_set.targets)
                 new_classes_in_data = np.intersect1d(all_classes, new_classes)
                 if len(new_classes_in_data) == 0:
-                    raise ValueError(f"Session {session}: No new classes found in training data. Expected classes {new_classes}, but found {all_classes}")
+                    # より詳細なエラーメッセージを提供
+                    session_file = f"data/index_list/{args.dataset_name}/session_{session + 1}.txt"
+                    error_msg = (
+                        f"Session {session}: No new classes found in training data.\n"
+                        f"  Expected classes: {new_classes.tolist()}\n"
+                        f"  Found classes in training data: {all_classes.tolist()}\n"
+                        f"  Training samples loaded: {len(train_set)}\n"
+                        f"  Session file: {session_file}\n"
+                        f"  This usually means the session file contains wrong data indices.\n"
+                        f"  Please regenerate session files using: uv run create_session_files.py"
+                    )
+                    raise ValueError(error_msg)
                 model_module.update_fc(trainloader, new_classes_in_data, session)
 
                 #tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
