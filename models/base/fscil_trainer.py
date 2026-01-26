@@ -160,7 +160,16 @@ class FSCILTrainer(Trainer):
                 self.model.eval()
                 if hasattr(testloader.dataset, "transform"):
                     trainloader.dataset.transform = testloader.dataset.transform
-                model_module.update_fc(trainloader, np.unique(train_set.targets), session)
+                # 新規セッションでは、新しいクラスのみを処理
+                new_class_start = args.base_class + args.way * (session - 1)
+                new_class_end = args.base_class + args.way * session
+                new_classes = np.arange(new_class_start, new_class_end)
+                # 訓練セット内の新しいクラスのみを抽出
+                all_classes = np.unique(train_set.targets)
+                new_classes_in_data = np.intersect1d(all_classes, new_classes)
+                if len(new_classes_in_data) == 0:
+                    raise ValueError(f"Session {session}: No new classes found in training data. Expected classes {new_classes}, but found {all_classes}")
+                model_module.update_fc(trainloader, new_classes_in_data, session)
 
                 tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
 
