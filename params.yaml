@@ -54,7 +54,7 @@ shot: 5  # 各クラスのショット数（Few-Shot用）
 start_session: 0
 model_dir:       # nullまたはモデルパラメータのディレクトリ
 num_workers: 8
-gpu: cpu  # カンマ区切りで複数指定可能（例: '0,1,2,3'）
+gpu: '0'  # カンマ区切りで複数指定可能（例: '0,1,2,3'）
 seed: 1
 
 # フラグ

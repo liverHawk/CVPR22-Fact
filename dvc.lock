@@ -3,14 +3,10 @@ stages:
   split_dataset:
     cmd: uv run split_dataset_by_label.py
     deps:
-    - path: params.yaml
-      hash: md5
-      md5: 31bd49f9c9c22a46f256ea74a05686fa
-      size: 2891
     - path: split_dataset_by_label.py
       hash: md5
-      md5: f05d159733230f8d1ffde77c75553ad5
-      size: 10825
+      md5: c7577604f4f40bfffe27eb39bfcd5a25
+      size: 10821
     params:
       params.yaml:
         create_sessions.dataset_name: CICIDS2017_flow_improved
@@ -18,13 +14,13 @@ stages:
     outs:
     - path: data/CICIDS2017_flow_improved/test
       hash: md5
-      md5: cd59bb5013bab93e0d756263ae8298e3.dir
-      size: 219199768
+      md5: 57399a6dc1cd084feb791806fb652873.dir
+      size: 219183218
       nfiles: 5
     - path: data/CICIDS2017_flow_improved/train
       hash: md5
-      md5: 120489a76a74d21e8af57a5ce83dee49.dir
-      size: 876902478
+      md5: 5eef6e6d77a6ef55078beee5c1e96615.dir
+      size: 876919028
       nfiles: 17
   create_sessions:
     cmd: uv run create_session_files.py
@@ -40,16 +36,16 @@ stages:
     outs:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 5ac6daee90f25911936cbf9f1d6a3b27.dir
-      size: 11353814
+      md5: 100f208640b4c2922360228059503a10.dir
+      size: 11353918
       nfiles: 6
   train:
     cmd: uv run train.py
     deps:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 5ac6daee90f25911936cbf9f1d6a3b27.dir
-      size: 11353814
+      md5: 100f208640b4c2922360228059503a10.dir
+      size: 11353918
       nfiles: 6
     - path: train.py
       hash: md5
@@ -68,10 +64,10 @@ stages:
         decay: 0.0005
         encoder: mlp
         epochs_base: 1
-        epochs_new: 5
+        epochs_new: 1
         eta: 0.1
         gamma: 0.25
-        gpu: cpu
+        gpu: '0'
         label_column: Label
         loss_iter: 0
         lr_base: 0.005
@@ -100,6 +96,6 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: 35f710c527affcb921b1c2c4c306895b.dir
-      size: 2057720
+      md5: 17620690116f3b91a9e08b99cff0cf31.dir
+      size: 2063964
       nfiles: 9
