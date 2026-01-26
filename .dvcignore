@@ -8,10 +8,6 @@ __pycache__/
 dist/
 build/
 
-# Checkpoints and models
-*.pth
-*.pt
-*.ckpt
 
 # Data (tracked separately if needed)
 # data/*

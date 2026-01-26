@@ -34,6 +34,9 @@ class FSCILTrainer(Trainer):
             if args.start_session > 0:
                 print('WARING: Random init weights for new sessions!')
             self.best_model_dict = deepcopy(self.model.state_dict())
+        
+        # データセットキャッシュ（重複読み込みを防ぐ）
+        self.dataset_cache = {}
 
     def get_optimizer_base(self):
 
@@ -48,10 +51,27 @@ class FSCILTrainer(Trainer):
         return optimizer, scheduler
 
     def get_dataloader(self, session):
+        # キャッシュキーを生成
+        cache_key = f"session_{session}"
+        
+        # キャッシュに存在する場合は再利用
+        if cache_key in self.dataset_cache:
+            print(f"Using cached dataset for session {session}")
+            return self.dataset_cache[cache_key]
+        
+        # データセットを読み込む
         if session == 0:
             trainset, trainloader, testloader = get_base_dataloader(self.args)
         else:
             trainset, trainloader, testloader = get_new_dataloader(self.args, session)
+        
+        # キャッシュに保存
+        self.dataset_cache[cache_key] = (trainset, trainloader, testloader)
+        
+        # ベースセッションのテストデータをキャッシュ（全セッションで再利用）
+        if session == 0:
+            self.base_testloader = testloader
+        
         return trainset, trainloader, testloader
 
     def train(self):
@@ -119,10 +139,17 @@ class FSCILTrainer(Trainer):
 
                     model_module = self.model.module if isinstance(self.model, nn.DataParallel) else self.model
                     model_module.mode = 'avg_cos'
-                    tsl, tsa = test(self.model, testloader, 0, args, session)
-                    if (tsa * 100) >= self.trlog['max_acc'][session]:
-                        self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
+                    # ベースセッションの最終評価（validation=Falseで実行）
+                    tsl_final, tsa_final = test(self.model, testloader, 0, args, session, validation=False)
+                    if (tsa_final * 100) >= self.trlog['max_acc'][session]:
+                        self.trlog['max_acc'][session] = float('%.3f' % (tsa_final * 100))
                         print('The new best test acc of base session={:.3f}'.format(self.trlog['max_acc'][session]))
+                    
+                    # ベースセッションの最終評価結果を記録
+                    result_list.append('Session {} Final Test, loss={:.4f}, acc={:.4f}\n'.format(
+                        session, tsl_final, tsa_final * 100))
+                    print('Session {} Final Test: loss={:.4f}, acc={:.4f}'.format(
+                        session, tsl_final, tsa_final * 100))
 
 
             else:  # incremental learning sessions
@@ -158,30 +185,8 @@ class FSCILTrainer(Trainer):
         print('Total time used %.2f mins' % total_time)
 
     def set_save_path(self):
-        mode = self.args.base_mode + '-' + self.args.new_mode
-        if not self.args.not_data_init:
-            mode = mode + '-' + 'data_init'
-
-        self.args.save_path = '%s/' % self.args.dataset
-        self.args.save_path = self.args.save_path + '%s/' % self.args.project
-
-        self.args.save_path = self.args.save_path + '%s-start_%d/' % (mode, self.args.start_session)
-        if self.args.schedule == 'Milestone':
-            mile_stone = str(self.args.milestones).replace(" ", "").replace(',', '_')[1:-1]
-            self.args.save_path = self.args.save_path + 'Epo_%d-Lr_%.4f-MS_%s-Gam_%.2f-Bs_%d-Mom_%.2f' % (
-                self.args.epochs_base, self.args.lr_base, mile_stone, self.args.gamma, self.args.batch_size_base,
-                self.args.momentum)
-        elif self.args.schedule == 'Step':
-            self.args.save_path = self.args.save_path + 'Epo_%d-Lr_%.4f-Step_%d-Gam_%.2f-Bs_%d-Mom_%.2f' % (
-                self.args.epochs_base, self.args.lr_base, self.args.step, self.args.gamma, self.args.batch_size_base,
-                self.args.momentum)
-        if 'cos' in mode:
-            self.args.save_path = self.args.save_path + '-T_%.2f' % (self.args.temperature)
-
-        if 'ft' in self.args.new_mode:
-            self.args.save_path = self.args.save_path + '-ftLR_%.3f-ftEpoch_%d' % (
-                self.args.lr_new, self.args.epochs_new)
-
+        self.args.save_path = '%s/' % self.args.dataset_name
+        
         if self.args.debug:
             self.args.save_path = os.path.join('debug', self.args.save_path)
 

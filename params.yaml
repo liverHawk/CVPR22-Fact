@@ -2,16 +2,17 @@
 # 設定ファイル - このファイルからデフォルト値を読み込みます
 
 # 基本設定
-project: 'fact'  # 'base' または 'fact'
-dataset: 'CICIDS2017_improved'  # 'mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved'
-dataroot: 'data/'
-encoder: 'mlp'  # 'mlp' または 'cnn1d'（CICIDS2017_improved用）
-normalize_method: 'standard'  # 'standard', 'minmax', 'moving_minmax'
-label_column: 'Label'  # ラベル列の名前（CICIDS2017_improved用）
+project: fact    # 'base' または 'fact'
+dataset_type: CICIDS2017_improved    # 'mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved'
+dataset_name: CICIDS2017_flow_improved    # 'CICIDS2017_flow_improved', 'CICIDS2017_improved'
+dataroot: data/
+encoder: mlp    # 'mlp' または 'cnn1d'（CICIDS2017_improved用）
+normalize_method: standard    # 'standard', 'minmax', 'moving_minmax'
+label_column: Label    # ラベル列の名前（CICIDS2017_improved用）
 
 # トレーニング設定
 epochs_base: 1
-epochs_new: 2
+epochs_new: 1
 lr_base: 0.005
 lr_new: 0.1
 batch_size_base: 256
@@ -19,12 +20,18 @@ batch_size_new: 0  # 0で全データ使用
 test_batch_size: 100
 
 # モード設定
-base_mode: 'ft_cos'  # 'ft_dot' または 'ft_cos'
-new_mode: 'avg_cos'  # 'ft_dot', 'ft_cos', または 'avg_cos'
+base_mode: ft_cos    # 'ft_dot' または 'ft_cos'
+new_mode: avg_cos    # 'ft_dot', 'ft_cos', または 'avg_cos'
 
 # 学習率スケジュール
-schedule: 'Milestone'  # 'Step', 'Milestone', 'Cosine'
-milestones: [50, 100, 150, 200, 250, 300]
+schedule: Milestone    # 'Step', 'Milestone', 'Cosine'
+milestones:
+- 50
+- 100
+- 150
+- 200
+- 250
+- 300
 step: 20
 decay: 0.0005
 gamma: 0.25
@@ -45,7 +52,7 @@ shot: 5  # 各クラスのショット数（Few-Shot用）
 
 # その他の設定
 start_session: 0
-model_dir: null  # nullまたはモデルパラメータのディレクトリ
+model_dir:       # nullまたはモデルパラメータのディレクトリ
 num_workers: 8
 gpu: cpu  # カンマ区切りで複数指定可能（例: '0,1,2,3'）
 seed: 1
@@ -56,20 +63,24 @@ set_no_val: false
 debug: false
 
 # Comet ML設定
-comet_project: null  # プロジェクト名（nullの場合はdataset名を使用）
-comet_workspace: null  # ワークスペース名（nullの場合はデフォルト）
+comet_project:       # プロジェクト名（nullの場合はdataset名を使用）
+comet_workspace:       # ワークスペース名（nullの場合はデフォルト）
 comet_disabled: false  # Comet MLを無効化する場合はtrue
 
 # セッションファイル生成設定
 create_sessions:
-  train_csv: 'data/train.csv'  # 訓練データのCSVファイルパス
-  label_column: 'Label'  # ラベル列の名前
-  output_dir: 'data/index_list'  # セッションファイルの出力ディレクトリ
-  dataset_name: 'CICIDS2017_improved'  # データセット名
+  label_column: Label    # ラベル列の名前
+  output_dir: data/index_list    # セッションファイルの出力ディレクトリ
+  dataset_name: CICIDS2017_flow_improved    # データセット名
   base_class: 5  # ベースクラス数
   num_classes: 10  # 総クラス数
   way: 1  # 各新規セッションのクラス数
   shot: 5  # 各クラスのショット数（Few-Shot用）
   seed: 42  # 乱数シード
   base_use_class_index: false  # ベースセッションファイルにクラスインデックスを使用（false: データインデックス）
-  base_labels: ["BENIGN", "Botnet", "DDoS", "DoS", "FTP-Patator"]  # ベースセッションに使用するラベルのリスト（null: 自動、リスト指定時はそのラベルのみ使用）
+  base_labels:                                                     # ベースセッションに使用するラベルのリスト（null: 自動、リスト指定時はそのラベルのみ使用）
+  - BENIGN
+  - Botnet
+  - DDoS
+  - DoS
+  - FTP-Patator

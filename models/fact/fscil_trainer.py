@@ -45,6 +45,9 @@ class FSCILTrainer(Trainer):
             if args.start_session > 0:
                 print('WARING: Random init weights for new sessions!')
             self.best_model_dict = deepcopy(self.model.state_dict())
+        
+        # データセットキャッシュ（重複読み込みを防ぐ）
+        self.dataset_cache = {}
 
     def get_optimizer_base(self):
 
@@ -61,10 +64,27 @@ class FSCILTrainer(Trainer):
         return optimizer, scheduler
 
     def get_dataloader(self, session):
+        # キャッシュキーを生成
+        cache_key = f"session_{session}"
+        
+        # キャッシュに存在する場合は再利用
+        if cache_key in self.dataset_cache:
+            print(f"Using cached dataset for session {session}")
+            return self.dataset_cache[cache_key]
+        
+        # データセットを読み込む
         if session == 0:
             trainset, trainloader, testloader = get_base_dataloader(self.args)
         else:
             trainset, trainloader, testloader = get_new_dataloader(self.args, session)
+        
+        # キャッシュに保存（ベースセッションのテストデータは全セッションで再利用可能）
+        self.dataset_cache[cache_key] = (trainset, trainloader, testloader)
+        
+        # ベースセッションのテストデータをキャッシュ（全セッションで再利用）
+        if session == 0:
+            self.base_testloader = testloader
+        
         return trainset, trainloader, testloader
 
     def train(self):
@@ -176,6 +196,7 @@ class FSCILTrainer(Trainer):
                 self.dummy_classifiers=F.normalize(self.dummy_classifiers[self.args.base_class:,:],p=2,dim=-1)
                 self.old_classifiers=self.dummy_classifiers[:self.args.base_class,:]
                 model_module.mode = 'avg_cos'
+                # ベースセッションの最終評価（validation=Falseで実行）
                 tsl_final, tsa_final = test(self.model, testloader, 0, args, session, validation=False)
                 
                 # セッション0の最終テスト結果をComet MLにログ
@@ -187,6 +208,12 @@ class FSCILTrainer(Trainer):
                     },
                     session=session
                 )
+                
+                # ベースセッションの最終評価結果を記録
+                result_list.append('Session {} Final Test, loss={:.4f}, acc={:.4f}\n'.format(
+                    session, tsl_final, tsa_final * 100))
+                print('Session {} Final Test: loss={:.4f}, acc={:.4f}'.format(
+                    session, tsl_final, tsa_final * 100))
 
             else:  # incremental learning sessions
                 print("training session: [%d]" % session)
@@ -388,7 +415,11 @@ class FSCILTrainer(Trainer):
         return vl, va
 
     def set_save_path(self):
-        # checkpoint配下に直接保存するように変更
-        self.args.save_path = 'checkpoint'
+        self.args.save_path = '%s/' % self.args.dataset_name
+        
+        if self.args.debug:
+            self.args.save_path = os.path.join('debug', self.args.save_path)
+
+        self.args.save_path = os.path.join('checkpoint', self.args.save_path)
         ensure_path(self.args.save_path)
         return None

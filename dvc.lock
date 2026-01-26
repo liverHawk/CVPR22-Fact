@@ -1,0 +1,105 @@
+schema: '2.0'
+stages:
+  split_dataset:
+    cmd: uv run split_dataset_by_label.py
+    deps:
+    - path: params.yaml
+      hash: md5
+      md5: 31bd49f9c9c22a46f256ea74a05686fa
+      size: 2891
+    - path: split_dataset_by_label.py
+      hash: md5
+      md5: f05d159733230f8d1ffde77c75553ad5
+      size: 10825
+    params:
+      params.yaml:
+        create_sessions.dataset_name: CICIDS2017_flow_improved
+        dataset_name: CICIDS2017_flow_improved
+    outs:
+    - path: data/CICIDS2017_flow_improved/test
+      hash: md5
+      md5: cd59bb5013bab93e0d756263ae8298e3.dir
+      size: 219199768
+      nfiles: 5
+    - path: data/CICIDS2017_flow_improved/train
+      hash: md5
+      md5: 120489a76a74d21e8af57a5ce83dee49.dir
+      size: 876902478
+      nfiles: 17
+  create_sessions:
+    cmd: uv run create_session_files.py
+    deps:
+    - path: create_session_files.py
+      hash: md5
+      md5: 791f91e01f6ad3fc8e9ca5f5df8e6f65
+      size: 13015
+    params:
+      params.yaml:
+        create_sessions.dataset_name: CICIDS2017_flow_improved
+        dataset_name: CICIDS2017_flow_improved
+    outs:
+    - path: data/index_list/CICIDS2017_flow_improved
+      hash: md5
+      md5: 5ac6daee90f25911936cbf9f1d6a3b27.dir
+      size: 11353814
+      nfiles: 6
+  train:
+    cmd: uv run train.py
+    deps:
+    - path: data/index_list/CICIDS2017_flow_improved
+      hash: md5
+      md5: 5ac6daee90f25911936cbf9f1d6a3b27.dir
+      size: 11353814
+      nfiles: 6
+    - path: train.py
+      hash: md5
+      md5: e39b54bad0c486eda683fa71ebf24d30
+      size: 12227
+    params:
+      params.yaml:
+        alpha: 2.0
+        balance: 0.01
+        base_class: 5
+        base_mode: ft_cos
+        batch_size_base: 256
+        batch_size_new: 0
+        dataset_name: CICIDS2017_flow_improved
+        dataset_type: CICIDS2017_improved
+        decay: 0.0005
+        encoder: mlp
+        epochs_base: 1
+        epochs_new: 5
+        eta: 0.1
+        gamma: 0.25
+        gpu: cpu
+        label_column: Label
+        loss_iter: 0
+        lr_base: 0.005
+        lr_new: 0.1
+        milestones:
+        - 50
+        - 100
+        - 150
+        - 200
+        - 250
+        - 300
+        momentum: 0.9
+        new_mode: avg_cos
+        normalize_method: standard
+        num_classes: 10
+        num_workers: 8
+        project: fact
+        schedule: Milestone
+        seed: 1
+        shot: 5
+        start_session: 0
+        step: 20
+        temperature: 16
+        test_batch_size: 100
+        way: 1
+    outs:
+    - path: checkpoint/
+      hash: md5
+      md5: 35f710c527affcb921b1c2c4c306895b.dir
+      size: 2057720
+      nfiles: 9
