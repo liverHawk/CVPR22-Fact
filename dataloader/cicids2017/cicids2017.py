@@ -26,6 +26,7 @@ class CICIDS2017(Dataset):
         base_sess: Trueの場合はベースセッション、Falseの場合は新規セッション
         label_column: ラベル列の名前（デフォルト: 'Label'）
         normalize_method: 正規化方法（'standard', 'minmax', 'moving_minmax'）
+        window_size: Moving Min-Max正規化のウィンドウサイズ（デフォルト: 1000）
     """
     
     def __init__(
@@ -37,11 +38,13 @@ class CICIDS2017(Dataset):
         base_sess: Optional[bool] = None,
         label_column: str = 'Label',
         normalize_method: str = 'standard',
+        window_size: int = 1000,
     ):
         self.root = os.path.expanduser(root)
         self.train = train
         self.label_column = label_column
         self.normalize_method = normalize_method
+        self.window_size = window_size
         
         # CSVファイルのパス（train/またはtest/ディレクトリから読み込む）
         data_dir = os.path.join(self.root, 'train' if train else 'test')
@@ -109,12 +112,17 @@ class CICIDS2017(Dataset):
         # NaNや無限大の値を処理
         features = np.nan_to_num(features, nan=0.0, posinf=0.0, neginf=0.0)
         
-        # 正規化統計量を計算（訓練データのみ）
+        # 正規化統計量を計算
         if train:
             self._compute_normalization_stats(features)
         else:
-            # テストデータの場合は、訓練データの統計量を読み込む
-            self._load_normalization_stats()
+            # テストデータの場合
+            if self.normalize_method == 'moving_minmax':
+                # Moving Min-Maxの場合は、テストデータでも統計量を計算
+                self._compute_normalization_stats(features)
+            else:
+                # その他の正規化方法の場合は、訓練データの統計量を読み込む
+                self._load_normalization_stats()
         
         # 正規化を適用
         features = self._normalize(features)
@@ -159,13 +167,57 @@ class CICIDS2017(Dataset):
             stats_path = os.path.join(self.root, 'normalization_stats.npz')
             np.savez(stats_path, min=self.min, max=self.max, method='minmax')
         elif self.normalize_method == 'moving_minmax':
-            # Moving Min-Maxは実装が複雑なため、標準的なMin-Maxを使用
-            self.min = np.min(features, axis=0, keepdims=True)
-            self.max = np.max(features, axis=0, keepdims=True)
-            self.range = self.max - self.min
-            self.range[self.range == 0] = 1.0
+            # Moving Min-Max正規化: 各データポイントに対して、その時点までのデータ（最大window_size個）でmin/maxを計算
+            # min/maxが変化する時点のみを記録
+            n_samples, n_features = features.shape
+            min_max_changes = []  # (start_index, min_values, max_values)のリスト
+            
+            print(f"Computing Moving Min-Max normalization with window_size={self.window_size}...")
+            prev_min = None
+            prev_max = None
+            
+            for i in range(n_samples):
+                # ウィンドウの範囲を決定
+                if i < self.window_size:
+                    # 最初のwindow_size個のデータ: 0からi+1まで
+                    window_start = 0
+                    window_end = i + 1
+                else:
+                    # window_size個以降: i-window_size+1からi+1まで
+                    window_start = i - self.window_size + 1
+                    window_end = i + 1
+                
+                # ウィンドウ内のmin/maxを計算
+                window_data = features[window_start:window_end]
+                current_min = np.min(window_data, axis=0)
+                current_max = np.max(window_data, axis=0)
+                
+                # 前のmin/maxと比較（浮動小数点数の比較には注意）
+                if prev_min is None or not np.allclose(current_min, prev_min) or not np.allclose(current_max, prev_max):
+                    # min/maxが変化した場合のみ記録
+                    min_max_changes.append((i, current_min.copy(), current_max.copy()))
+                    prev_min = current_min.copy()
+                    prev_max = current_max.copy()
+            
+            # 統計量を保存
+            self.min_max_changes = min_max_changes
             stats_path = os.path.join(self.root, 'normalization_stats.npz')
-            np.savez(stats_path, min=self.min, max=self.max, method='moving_minmax')
+            
+            # 変化点のリストを保存（各要素は(start_index, min_values, max_values)）
+            # npzファイルに保存するために、リストを配列に変換
+            change_indices = np.array([change[0] for change in min_max_changes], dtype=np.int64)
+            min_values_list = np.array([change[1] for change in min_max_changes])
+            max_values_list = np.array([change[2] for change in min_max_changes])
+            
+            np.savez(
+                stats_path,
+                window_size=self.window_size,
+                change_indices=change_indices,
+                min_values_list=min_values_list,
+                max_values_list=max_values_list,
+                method='moving_minmax'
+            )
+            print(f"Saved {len(min_max_changes)} min/max change points")
         else:
             raise ValueError(f"Unknown normalize_method: {self.normalize_method}")
     
@@ -183,11 +235,24 @@ class CICIDS2017(Dataset):
         if method == 'standard':
             self.mean = stats['mean']
             self.std = stats['std']
-        elif method in ['minmax', 'moving_minmax']:
+        elif method == 'minmax':
             self.min = stats['min']
             self.max = stats['max']
             self.range = self.max - self.min
             self.range[self.range == 0] = 1.0
+        elif method == 'moving_minmax':
+            # Moving Min-Max統計量を読み込む
+            self.window_size = int(stats.get('window_size', 1000))
+            change_indices = stats['change_indices']
+            min_values_list = stats['min_values_list']
+            max_values_list = stats['max_values_list']
+            
+            # 変化点のリストを再構築
+            self.min_max_changes = [
+                (int(change_indices[i]), min_values_list[i], max_values_list[i])
+                for i in range(len(change_indices))
+            ]
+            print(f"Loaded {len(self.min_max_changes)} min/max change points for Moving Min-Max normalization")
         else:
             raise ValueError(f"Unknown normalization method in stats: {method}")
     
@@ -195,8 +260,32 @@ class CICIDS2017(Dataset):
         """特徴量を正規化"""
         if self.normalize_method == 'standard':
             return (features - self.mean) / self.std
-        elif self.normalize_method in ['minmax', 'moving_minmax']:
+        elif self.normalize_method == 'minmax':
             return (features - self.min) / self.range
+        elif self.normalize_method == 'moving_minmax':
+            # Moving Min-Max正規化: 各データポイントに対して、その時点までのデータ（最大window_size個）でmin/maxを計算
+            n_samples, n_features = features.shape
+            normalized_features = np.zeros_like(features)
+            
+            # 変化点のリストから該当するmin/maxを取得するためのインデックス
+            change_indices = np.array([change[0] for change in self.min_max_changes])
+            
+            for i in range(n_samples):
+                # データポイントiが属する変化点を検索
+                # change_indicesの中で、i以下の最大のインデックスを見つける
+                idx = np.searchsorted(change_indices, i, side='right') - 1
+                if idx < 0:
+                    idx = 0
+                
+                # 該当するmin/maxを取得
+                _, min_values, max_values = self.min_max_changes[idx]
+                
+                # 正規化を適用
+                range_values = max_values - min_values
+                range_values[range_values == 0] = 1.0  # ゼロ除算を回避
+                normalized_features[i] = (features[i] - min_values) / range_values
+            
+            return normalized_features
         else:
             return features
     
