@@ -95,6 +95,34 @@ def set_up_datasets(args):
             args.way = 1  # デフォルト値
         if not hasattr(args, 'shot') or args.shot is None:
             args.shot = 5  # デフォルト値
+        
+        # base_labelsが指定されている場合、実際のベースクラス数を計算
+        dataset_name = getattr(args, 'dataset_name', args.dataset)
+        base_session_path = os.path.join("data/index_list", dataset_name, "session_1.txt")
+        if os.path.exists(base_session_path):
+            # ベースセッションファイルから実際のベースクラス数を取得
+            try:
+                # 一時的にデータローダーを作成してベースクラス数を取得
+                root = os.path.join(args.dataroot, dataset_name)
+                base_data_indices = [int(line.strip()) for line in open(base_session_path).read().splitlines() if line.strip()]
+                temp_base_dataset = Dataset.CICIDS2017(
+                    root=root,
+                    train=True,
+                    index=base_data_indices,
+                    base_sess=False,
+                    label_column=getattr(args, 'label_column', 'Label'),
+                    normalize_method=getattr(args, 'normalize_method', 'standard')
+                )
+                actual_base_classes = set(np.unique(temp_base_dataset.targets))
+                actual_base_class_count = len(actual_base_classes)
+                # args.base_classを実際のベースクラス数に更新
+                args.base_class = actual_base_class_count
+                print(f"ベースセッションファイルから実際のベースクラス数を取得: {actual_base_class_count} (クラス: {sorted(actual_base_classes)})")
+                del temp_base_dataset
+            except Exception as e:
+                print(f"警告: ベースセッションファイルからベースクラス数を取得できませんでした: {e}")
+                print(f"  設定値 args.base_class={args.base_class} を使用します")
+        
         # セッション数を計算（base_class + way * sessions = num_classes）
         if not hasattr(args, 'sessions') or args.sessions is None:
             num_new_classes = args.num_classes - args.base_class
@@ -298,21 +326,49 @@ def get_new_dataloader(args,session):
         )
         
         # トレーニングデータのクラスを検証
-        expected_new_class_start = args.base_class + args.way * (session - 1)
-        expected_new_class_end = args.base_class + args.way * session
-        expected_new_classes = set(range(expected_new_class_start, expected_new_class_end))
+        # 実際のベースクラスのインデックスを取得（ベースセッションファイルから）
+        base_session_path = "data/index_list/" + args.dataset_name + "/session_1.txt"
+        if os.path.exists(base_session_path):
+            # ベースセッションファイルからデータインデックスを読み込む
+            base_data_indices = [int(line.strip()) for line in open(base_session_path).read().splitlines() if line.strip()]
+            # 一時的にベースセッションのデータセットを作成してベースクラスのインデックスを取得
+            temp_base_trainset = args.Dataset.CICIDS2017(
+                root=root,
+                train=True,
+                index=base_data_indices,
+                base_sess=False,
+                label_column=label_column,
+                normalize_method=normalize_method
+            )
+            actual_base_classes = set(np.unique(temp_base_trainset.targets))
+            del temp_base_trainset
+        else:
+            # ベースセッションファイルが存在しない場合は、args.base_classを使用
+            actual_base_classes = set(range(args.base_class))
+        
+        # 期待される新規クラスのインデックスを計算
+        # 全クラスからベースクラスを除外し、残りのクラスをソート
+        all_classes = set(range(len(trainset.idx_to_label)))
+        new_classes_candidates = sorted(all_classes - actual_base_classes)
+        
+        # セッションごとの新規クラスを計算
+        expected_new_class_start_idx = args.way * (session - 1)
+        expected_new_class_end_idx = args.way * session
+        if expected_new_class_end_idx > len(new_classes_candidates):
+            expected_new_class_end_idx = len(new_classes_candidates)
+        expected_new_classes = set(new_classes_candidates[expected_new_class_start_idx:expected_new_class_end_idx])
         
         actual_classes = set(np.unique(trainset.targets))
         
         # ベースクラスが含まれていないか確認
-        base_classes = set(range(args.base_class))
-        base_class_overlap = actual_classes & base_classes
+        base_class_overlap = actual_classes & actual_base_classes
         
         if base_class_overlap:
             base_class_labels = [trainset.idx_to_label[idx] for idx in sorted(base_class_overlap)]
+            expected_labels = [trainset.idx_to_label[idx] for idx in sorted(expected_new_classes)]
             raise ValueError(
                 f"Session {session}: Training data contains base classes {sorted(base_class_overlap)} ({base_class_labels})! "
-                f"Expected only new classes {sorted(expected_new_classes)}. "
+                f"Expected only new classes {sorted(expected_new_classes)} ({expected_labels}). "
                 f"Session file: {txt_path}\n"
                 f"Please regenerate session files using: uv run create_session_files.py"
             )

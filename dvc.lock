@@ -5,8 +5,8 @@ stages:
     deps:
     - path: split_dataset_by_label.py
       hash: md5
-      md5: f05d159733230f8d1ffde77c75553ad5
-      size: 10825
+      md5: c7577604f4f40bfffe27eb39bfcd5a25
+      size: 10821
     params:
       params.yaml:
         create_sessions.base_labels:
@@ -20,13 +20,13 @@ stages:
     outs:
     - path: data/CICIDS2017_flow_improved/test
       hash: md5
-      md5: cd59bb5013bab93e0d756263ae8298e3.dir
-      size: 219199768
+      md5: 57399a6dc1cd084feb791806fb652873.dir
+      size: 219183218
       nfiles: 5
     - path: data/CICIDS2017_flow_improved/train
       hash: md5
-      md5: 120489a76a74d21e8af57a5ce83dee49.dir
-      size: 876902478
+      md5: 5eef6e6d77a6ef55078beee5c1e96615.dir
+      size: 876919028
       nfiles: 17
   create_sessions:
     cmd: uv run create_session_files.py
@@ -37,22 +37,25 @@ stages:
       size: 14104
     params:
       params.yaml:
+        create_sessions.base_labels:
+        - BENIGN
+        - Bot
         create_sessions.dataset_name: CICIDS2017_flow_improved
         dataset_name: CICIDS2017_flow_improved
     outs:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: b7942e145d105c8007704d954a3fe9ec.dir
-      size: 11358335
-      nfiles: 6
+      md5: e5086549bc371196852f8ad7aa523bcb.dir
+      size: 9769508
+      nfiles: 9
   train:
     cmd: uv run train.py
     deps:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: b7942e145d105c8007704d954a3fe9ec.dir
-      size: 11358335
-      nfiles: 6
+      md5: e5086549bc371196852f8ad7aa523bcb.dir
+      size: 9769508
+      nfiles: 9
     - path: train.py
       hash: md5
       md5: 3c9b69897e711a134f4f0da77d2983fa
@@ -61,7 +64,7 @@ stages:
       params.yaml:
         alpha: 2.0
         balance: 0.01
-        base_class: 5
+        base_class: 2
         base_mode: ft_cos
         batch_size_base: 256
         batch_size_new: 0
@@ -70,7 +73,7 @@ stages:
         decay: 0.0005
         encoder: mlp
         epochs_base: 1
-        epochs_new: 5
+        epochs_new: 2
         eta: 0.1
         gamma: 0.25
         gpu: '0'
@@ -83,12 +86,12 @@ stages:
         - 10
         - 15
         momentum: 0.9
-        new_mode: ft_dot
+        new_mode: avg_cos
         normalize_method: standard
         num_classes: 10
         num_workers: 8
         project: fact
-        schedule: Milestone
+        schedule: Cosine
         seed: 1
         shot: 5
         start_session: 0
@@ -99,6 +102,6 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: 663e00f137c1c69d377283d4dfd9e862.dir
-      size: 2055135
-      nfiles: 9
+      md5: d0da30f3648dbe61fb7c26fc50607d83.dir
+      size: 2117216
+      nfiles: 12

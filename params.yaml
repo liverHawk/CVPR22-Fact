@@ -12,7 +12,7 @@ label_column: Label    # ラベル列の名前（CICIDS2017_improved用）
 
 # トレーニング設定
 epochs_base: 1
-epochs_new: 5
+epochs_new: 2
 lr_base: 0.005
 lr_new: 0.1
 batch_size_base: 256
@@ -21,10 +21,10 @@ test_batch_size: 100
 
 # モード設定
 base_mode: ft_cos    # 'ft_dot' または 'ft_cos'
-new_mode: ft_dot    # 'ft_dot', 'ft_cos', または 'avg_cos'
+new_mode: avg_cos    # 'ft_dot', 'ft_cos', または 'avg_cos'
 
 # 学習率スケジュール
-schedule: Milestone    # 'Step', 'Milestone', 'Cosine'
+schedule: Cosine    # 'Step', 'Milestone', 'Cosine'
 milestones:
 - 5
 - 10
@@ -42,7 +42,7 @@ eta: 0.1
 loss_iter: 0
 
 # FSCIL用のパラメータ（CICIDS2017_improvedなどで使用）
-base_class: 5  # ベースクラス数
+base_class: 2  # ベースクラス数
 num_classes: 10  # 総クラス数
 way: 1  # 各新規セッションのクラス数
 shot: 5  # 各クラスのショット数（Few-Shot用）
@@ -75,9 +75,6 @@ create_sessions:
   shot: 5  # 各クラスのショット数（Few-Shot用）
   seed: 42  # 乱数シード
   base_use_class_index: false  # ベースセッションファイルにクラスインデックスを使用（false: データインデックス）
-  base_labels:   # ベースセッションに使用するラベルのリスト（base_classの個数に合わせる）
-    - BENIGN
-    - Bot
-    - DDoS
-    - DoS
-    - FTP-Patator
+  base_labels:                                                     # ベースセッションに使用するラベルのリスト（null: 自動、リスト指定時はそのラベルのみ使用）
+  - BENIGN
+  - Bot
