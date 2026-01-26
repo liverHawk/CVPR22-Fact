@@ -216,6 +216,8 @@ def main():
     yaml_params = load_params_yaml()
     dataset_name = yaml_params.get('dataset_name', 'CICIDS2017_flow_improved')
     default_output_dir = f"./data/{dataset_name}"
+
+    cleaned_data_path = yaml_params.get('input_dir', None) + "/" + dataset_name
     
     parser = argparse.ArgumentParser(
         description="CICIDS2017_flow_improvedデータセットをラベルごとにtrain/testに分割"
@@ -223,7 +225,7 @@ def main():
     parser.add_argument(
         "--input-dir",
         type=str,
-        default="/home/toshi/Documents/dataset/project/cleaned/CICIDS2017_flow_improved",
+        default=cleaned_data_path,
         help="入力ディレクトリのパス"
     )
     parser.add_argument(
