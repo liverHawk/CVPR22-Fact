@@ -10,7 +10,8 @@ import os.path as osp
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-import pandas as pd
+import polars as pl
+from pathlib import Path
 from typing import Optional, List, Union
 
 
@@ -28,6 +29,19 @@ class CICIDS2017(Dataset):
         normalize_method: 正規化方法（'standard', 'minmax', 'moving_minmax'）
     """
     
+    # クラス変数としてキャッシュを定義
+    _cached_train_features = None
+    _cached_train_labels = None
+    _cached_test_features = None
+    _cached_test_labels = None
+    _normalization_stats = None
+    _label_to_idx = None
+    _idx_to_label = None
+    _cache_root = None
+    _cache_label_column = None
+    _cache_normalize_method = None
+    _feature_columns = None
+    
     def __init__(
         self,
         root: str = 'data/',
@@ -43,81 +57,39 @@ class CICIDS2017(Dataset):
         self.label_column = label_column
         self.normalize_method = normalize_method
         
-        # CSVファイルのパス（train/またはtest/ディレクトリから読み込む）
-        data_dir = os.path.join(self.root, 'train' if train else 'test')
+        # キャッシュが存在し、同じroot、label_column、normalize_methodの場合は再利用
+        cache_valid = (
+            self._cached_train_features is not None and
+            self._cache_root == self.root and
+            self._cache_label_column == label_column and
+            self._cache_normalize_method == normalize_method
+        )
         
-        # ディレクトリ内のCSVファイルを検索
-        if os.path.isdir(data_dir):
-            csv_files = [f for f in os.listdir(data_dir) if f.endswith('.csv')]
-            if len(csv_files) == 0:
-                raise FileNotFoundError(f"CSVファイルが見つかりません: {data_dir}")
-            
-            # 複数のCSVファイルがある場合はマージ
-            print(f"Loading CSV files from {data_dir}...")
-            dfs = []
-            for csv_file in sorted(csv_files):
-                csv_path = os.path.join(data_dir, csv_file)
-                print(f"  Reading {csv_file}...")
-                dfs.append(pd.read_csv(csv_path))
-            
-            if len(dfs) == 1:
-                df = dfs[0]
-            else:
-                print(f"  Merging {len(dfs)} CSV files...")
-                df = pd.concat(dfs, ignore_index=True)
-        else:
-            # 後方互換性: ルートディレクトリにtrain.csv/test.csvがある場合
-            csv_filename = 'train.csv' if train else 'test.csv'
-            csv_path = os.path.join(self.root, csv_filename)
-            if not os.path.exists(csv_path):
-                raise FileNotFoundError(f"CSVファイルまたはディレクトリが見つかりません: {data_dir} または {csv_path}")
-            print(f"Loading {csv_filename}...")
-            df = pd.read_csv(csv_path)
+        if not cache_valid:
+            # キャッシュが存在しない、または異なる設定の場合は読み込む
+            self._load_and_cache_data(self.root, label_column, normalize_method)
         
-        if label_column not in df.columns:
-            raise ValueError(
-                f"ラベル列 '{label_column}' が見つかりません。"
-                f"利用可能な列: {df.columns.tolist()}"
-            )
-        
-        # 特徴量列を取得（ラベル列と非数値列を除外）
-        # id, Flow ID, Src IP, Dst IP, Timestampなどの非数値列も除外
-        exclude_columns = [
-            label_column, 'id', 'Flow ID', 'Src IP', 'Src Port', 'Dst IP', 'Dst Port',
-            'Timestamp', 'Attempted Category'
-        ]
-        feature_columns = [
-            col for col in df.columns
-            if col not in exclude_columns and df[col].dtype in ['int64', 'float64']
-        ]
-        
-        # ラベルを数値インデックスに変換
-        unique_labels = sorted(df[label_column].unique())
-        self.label_to_idx = {label: idx for idx, label in enumerate(unique_labels)}
-        self.idx_to_label = {idx: label for label, idx in self.label_to_idx.items()}
-        self.num_classes = len(unique_labels)
-        
-        # デバッグ出力
-        print(f"Found {len(unique_labels)} unique labels: {unique_labels[:10]}...")  # 最初の10個を表示
-        print(f"Label to index mapping (first 10): {dict(list(self.label_to_idx.items())[:10])}")
-        
-        # 特徴量とラベルを抽出
-        features = df[feature_columns].values.astype(np.float32)
-        labels_str = df[label_column].values
-        labels = np.array([self.label_to_idx[label] for label in labels_str], dtype=np.int64)
-        
-        # NaNや無限大の値を処理
-        features = np.nan_to_num(features, nan=0.0, posinf=0.0, neginf=0.0)
-        
-        # 正規化統計量を計算（訓練データのみ）
+        # キャッシュからデータを取得
         if train:
-            self._compute_normalization_stats(features)
+            features = self._cached_train_features
+            labels = self._cached_train_labels
         else:
-            # テストデータの場合は、訓練データの統計量を読み込む
-            self._load_normalization_stats()
+            features = self._cached_test_features
+            labels = self._cached_test_labels
         
-        # 正規化を適用
-        features = self._normalize(features)
+        # ラベルマッピングを設定
+        self.label_to_idx = self._label_to_idx
+        self.idx_to_label = self._idx_to_label
+        self.num_classes = len(self._label_to_idx)
+        
+        # 正規化統計量を設定
+        if self._normalization_stats['method'] == 'standard':
+            self.mean = self._normalization_stats['mean']
+            self.std = self._normalization_stats['std']
+        elif self._normalization_stats['method'] in ['minmax', 'moving_minmax']:
+            self.min = self._normalization_stats['min']
+            self.max = self._normalization_stats['max']
+            self.range = self._normalization_stats['range']
         
         # セッション選択
         if base_sess:
@@ -127,11 +99,18 @@ class CICIDS2017(Dataset):
             self.data, self.targets = self.SelectfromClasses(features, labels, index)
         else:
             # 新規セッション: セッションファイルからデータインデックスを読み込み
+            # セッションファイルのインデックスは、concatした後の全体データフレームに対するインデックス
             if index_path is not None:
                 self.data, self.targets = self.SelectfromTxt(features, labels, index_path)
             elif index is not None:
                 # データインデックスのリストが直接指定された場合
                 index_array = np.array(index, dtype=np.int64)
+                # インデックスの範囲チェック
+                if len(index_array) > 0 and (index_array.max() >= len(features) or index_array.min() < 0):
+                    raise ValueError(
+                        f"データインデックスの範囲が不正です: "
+                        f"min={index_array.min()}, max={index_array.max()}, data_len={len(features)}"
+                    )
                 self.data = features[index_array]
                 self.targets = labels[index_array]
             else:
@@ -140,6 +119,169 @@ class CICIDS2017(Dataset):
                 self.targets = labels
         
         print(f"Loaded {len(self.data)} samples, {len(np.unique(self.targets))} classes")
+    
+    @classmethod
+    def _load_and_cache_data(cls, root: str, label_column: str, normalize_method: str):
+        """
+        CSVファイルを読み込み、特徴量とラベルを抽出してキャッシュに保存
+        
+        Args:
+            root: データセットのルートディレクトリ
+            label_column: ラベル列の名前
+            normalize_method: 正規化方法
+        """
+        root = os.path.expanduser(root)
+        
+        # 訓練データの読み込み
+        train_dir = os.path.join(root, 'train')
+        if os.path.isdir(train_dir):
+            csv_files = sorted(Path(train_dir).glob("*.csv"))
+            if len(csv_files) == 0:
+                raise FileNotFoundError(f"CSVファイルが見つかりません: {train_dir}")
+            
+            print(f"Loading CSV files from {train_dir}...")
+            dfs = []
+            for csv_path in csv_files:
+                print(f"  Reading {csv_path.name}...")
+                dfs.append(pl.read_csv(csv_path))
+            
+            if len(dfs) == 1:
+                train_df = dfs[0]
+            else:
+                print(f"  Merging {len(dfs)} CSV files...")
+                train_df = pl.concat(dfs)
+        else:
+            train_csv_path = os.path.join(root, 'train.csv')
+            if not os.path.exists(train_csv_path):
+                raise FileNotFoundError(f"CSVファイルまたはディレクトリが見つかりません: {train_dir} または {train_csv_path}")
+            print(f"Loading train.csv...")
+            train_df = pl.read_csv(train_csv_path)
+        
+        # テストデータの読み込み
+        test_dir = os.path.join(root, 'test')
+        if os.path.isdir(test_dir):
+            csv_files = sorted(Path(test_dir).glob("*.csv"))
+            if len(csv_files) == 0:
+                raise FileNotFoundError(f"CSVファイルが見つかりません: {test_dir}")
+            
+            print(f"Loading CSV files from {test_dir}...")
+            dfs = []
+            for csv_path in csv_files:
+                print(f"  Reading {csv_path.name}...")
+                dfs.append(pl.read_csv(csv_path))
+            
+            if len(dfs) == 1:
+                test_df = dfs[0]
+            else:
+                print(f"  Merging {len(dfs)} CSV files...")
+                test_df = pl.concat(dfs)
+        else:
+            test_csv_path = os.path.join(root, 'test.csv')
+            if not os.path.exists(test_csv_path):
+                raise FileNotFoundError(f"CSVファイルまたはディレクトリが見つかりません: {test_dir} または {test_csv_path}")
+            print(f"Loading test.csv...")
+            test_df = pl.read_csv(test_csv_path)
+        
+        # ラベル列のチェック
+        if label_column not in train_df.columns:
+            raise ValueError(
+                f"ラベル列 '{label_column}' が見つかりません。"
+                f"利用可能な列: {train_df.columns}"
+            )
+        if label_column not in test_df.columns:
+            raise ValueError(
+                f"ラベル列 '{label_column}' が見つかりません。"
+                f"利用可能な列: {test_df.columns}"
+            )
+        
+        # 特徴量列を取得（ラベル列と非数値列を除外）
+        exclude_columns = [
+            label_column, 'id', 'Flow ID', 'Src IP', 'Src Port', 'Dst IP', 'Dst Port',
+            'Timestamp', 'Attempted Category'
+        ]
+        # polarsのdtypeをチェック
+        feature_columns = [
+            col for col in train_df.columns
+            if col not in exclude_columns and train_df[col].dtype in [pl.Int64, pl.Int32, pl.Float64, pl.Float32]
+        ]
+        
+        # ラベルを数値インデックスに変換（訓練データとテストデータで統一）
+        train_labels_unique = train_df[label_column].unique().to_list()
+        test_labels_unique = test_df[label_column].unique().to_list()
+        all_labels = sorted(set(train_labels_unique + test_labels_unique))
+        label_to_idx = {label: idx for idx, label in enumerate(all_labels)}
+        idx_to_label = {idx: label for label, idx in label_to_idx.items()}
+        
+        # デバッグ出力
+        print(f"Found {len(all_labels)} unique labels: {all_labels[:10]}...")
+        print(f"Label to index mapping (first 10): {dict(list(label_to_idx.items())[:10])}")
+        
+        # 訓練データの特徴量とラベルを抽出
+        train_features = train_df.select(feature_columns).to_numpy().astype(np.float32)
+        train_labels_str = train_df[label_column].to_numpy()
+        train_labels = np.array([label_to_idx[label] for label in train_labels_str], dtype=np.int64)
+        
+        # テストデータの特徴量とラベルを抽出
+        test_features = test_df.select(feature_columns).to_numpy().astype(np.float32)
+        test_labels_str = test_df[label_column].to_numpy()
+        test_labels = np.array([label_to_idx[label] for label in test_labels_str], dtype=np.int64)
+        
+        # NaNや無限大の値を処理
+        train_features = np.nan_to_num(train_features, nan=0.0, posinf=0.0, neginf=0.0)
+        test_features = np.nan_to_num(test_features, nan=0.0, posinf=0.0, neginf=0.0)
+        
+        # 正規化統計量を計算（訓練データのみ）
+        if normalize_method == 'standard':
+            mean = np.mean(train_features, axis=0, keepdims=True)
+            std = np.std(train_features, axis=0, keepdims=True) + 1e-6
+            normalization_stats = {'mean': mean, 'std': std, 'method': 'standard'}
+            # 統計量をファイルに保存
+            stats_path = os.path.join(root, 'normalization_stats.npz')
+            np.savez(stats_path, mean=mean, std=std, method='standard')
+        elif normalize_method == 'minmax':
+            min_val = np.min(train_features, axis=0, keepdims=True)
+            max_val = np.max(train_features, axis=0, keepdims=True)
+            range_val = max_val - min_val
+            range_val[range_val == 0] = 1.0
+            normalization_stats = {'min': min_val, 'max': max_val, 'range': range_val, 'method': 'minmax'}
+            # 統計量をファイルに保存
+            stats_path = os.path.join(root, 'normalization_stats.npz')
+            np.savez(stats_path, min=min_val, max=max_val, method='minmax')
+        elif normalize_method == 'moving_minmax':
+            min_val = np.min(train_features, axis=0, keepdims=True)
+            max_val = np.max(train_features, axis=0, keepdims=True)
+            range_val = max_val - min_val
+            range_val[range_val == 0] = 1.0
+            normalization_stats = {'min': min_val, 'max': max_val, 'range': range_val, 'method': 'moving_minmax'}
+            # 統計量をファイルに保存
+            stats_path = os.path.join(root, 'normalization_stats.npz')
+            np.savez(stats_path, min=min_val, max=max_val, method='moving_minmax')
+        else:
+            raise ValueError(f"Unknown normalize_method: {normalize_method}")
+        
+        # 正規化を適用
+        if normalize_method == 'standard':
+            train_features = (train_features - normalization_stats['mean']) / normalization_stats['std']
+            test_features = (test_features - normalization_stats['mean']) / normalization_stats['std']
+        elif normalize_method in ['minmax', 'moving_minmax']:
+            train_features = (train_features - normalization_stats['min']) / normalization_stats['range']
+            test_features = (test_features - normalization_stats['min']) / normalization_stats['range']
+        
+        # キャッシュに保存
+        cls._cached_train_features = train_features
+        cls._cached_train_labels = train_labels
+        cls._cached_test_features = test_features
+        cls._cached_test_labels = test_labels
+        cls._normalization_stats = normalization_stats
+        cls._label_to_idx = label_to_idx
+        cls._idx_to_label = idx_to_label
+        cls._cache_root = root
+        cls._cache_label_column = label_column
+        cls._cache_normalize_method = normalize_method
+        cls._feature_columns = feature_columns
+        
+        print(f"Cached train data: {len(train_features)} samples, {len(np.unique(train_labels))} classes")
+        print(f"Cached test data: {len(test_features)} samples, {len(np.unique(test_labels))} classes")
     
     def _compute_normalization_stats(self, features: np.ndarray):
         """正規化統計量を計算して保存"""

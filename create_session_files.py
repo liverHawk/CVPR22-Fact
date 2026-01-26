@@ -35,7 +35,7 @@ def load_dataset(csv_path: str, label_column: str = 'Label') -> Tuple[pl.DataFra
     """
     print(f"データセットを読み込み中: {csv_path}")
     if os.path.isdir(csv_path):
-        csv_files = list(Path(csv_path).glob("*.csv"))
+        csv_files = sorted(Path(csv_path).glob("*.csv"))
         if len(csv_files) == 0:
             raise FileNotFoundError(f"CSVファイルが見つかりません: {csv_path}")
         df = pl.concat([pl.read_csv(csv_file) for csv_file in csv_files])

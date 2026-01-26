@@ -11,8 +11,8 @@ normalize_method: standard    # 'standard', 'minmax', 'moving_minmax'
 label_column: Label    # ラベル列の名前（CICIDS2017_improved用）
 
 # トレーニング設定
-epochs_base: 20
-epochs_new: 1
+epochs_base: 5
+epochs_new: 5
 lr_base: 0.005
 lr_new: 0.1
 batch_size_base: 256
@@ -21,7 +21,7 @@ test_batch_size: 100
 
 # モード設定
 base_mode: ft_cos    # 'ft_dot' または 'ft_cos'
-new_mode: avg_cos    # 'ft_dot', 'ft_cos', または 'avg_cos'
+new_mode: ft_dot    # 'ft_dot', 'ft_cos', または 'avg_cos'
 
 # 学習率スケジュール
 schedule: Milestone    # 'Step', 'Milestone', 'Cosine'

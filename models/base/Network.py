@@ -133,5 +133,12 @@ class MYNET(nn.Module):
                 optimizer.step()
                 pass
 
+        # new_fcの形状を確認してからコピー
+        expected_shape = (self.args.way, self.num_features)
+        if new_fc.shape != expected_shape:
+            raise ValueError(
+                f"Session {session}: new_fc shape mismatch. Expected {expected_shape}, got {new_fc.shape}. "
+                f"class_list should contain exactly {self.args.way} new class(es)."
+            )
         self.fc.weight.data[self.args.base_class + self.args.way * (session - 1):self.args.base_class + self.args.way * session, :].copy_(new_fc.data)
 
