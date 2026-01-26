@@ -5,8 +5,8 @@ stages:
     deps:
     - path: split_dataset_by_label.py
       hash: md5
-      md5: c7577604f4f40bfffe27eb39bfcd5a25
-      size: 10821
+      md5: f05d159733230f8d1ffde77c75553ad5
+      size: 10825
     params:
       params.yaml:
         create_sessions.dataset_name: CICIDS2017_flow_improved
@@ -14,21 +14,21 @@ stages:
     outs:
     - path: data/CICIDS2017_flow_improved/test
       hash: md5
-      md5: 57399a6dc1cd084feb791806fb652873.dir
-      size: 219183218
+      md5: cd59bb5013bab93e0d756263ae8298e3.dir
+      size: 219199768
       nfiles: 5
     - path: data/CICIDS2017_flow_improved/train
       hash: md5
-      md5: 5eef6e6d77a6ef55078beee5c1e96615.dir
-      size: 876919028
+      md5: 120489a76a74d21e8af57a5ce83dee49.dir
+      size: 876902478
       nfiles: 17
   create_sessions:
     cmd: uv run create_session_files.py
     deps:
     - path: create_session_files.py
       hash: md5
-      md5: 791f91e01f6ad3fc8e9ca5f5df8e6f65
-      size: 13015
+      md5: 15afb750a4bba401d4d50c1f2c498ce1
+      size: 14104
     params:
       params.yaml:
         create_sessions.dataset_name: CICIDS2017_flow_improved
@@ -36,21 +36,21 @@ stages:
     outs:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 100f208640b4c2922360228059503a10.dir
-      size: 11353918
+      md5: b7942e145d105c8007704d954a3fe9ec.dir
+      size: 11358335
       nfiles: 6
   train:
     cmd: uv run train.py
     deps:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 100f208640b4c2922360228059503a10.dir
-      size: 11353918
+      md5: b7942e145d105c8007704d954a3fe9ec.dir
+      size: 11358335
       nfiles: 6
     - path: train.py
       hash: md5
-      md5: e39b54bad0c486eda683fa71ebf24d30
-      size: 12227
+      md5: 821a142acfbec06e6d7e1c06b01b9307
+      size: 12987
     params:
       params.yaml:
         alpha: 2.0
@@ -77,7 +77,7 @@ stages:
         - 10
         - 15
         momentum: 0.9
-        new_mode: avg_cos
+        new_mode: ft_dot
         normalize_method: standard
         num_classes: 10
         num_workers: 8
@@ -93,6 +93,6 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: d0bdeb03402334715dba2f3e835348f2.dir
-      size: 2057319
+      md5: dab4c0c04c33b04c71802490d8b7c331.dir
+      size: 2054072
       nfiles: 9

@@ -77,7 +77,7 @@ create_sessions:
   base_use_class_index: false  # ベースセッションファイルにクラスインデックスを使用（false: データインデックス）
   base_labels:                                                     # ベースセッションに使用するラベルのリスト（null: 自動、リスト指定時はそのラベルのみ使用）
   - BENIGN
-  - Botnet
+  - Bot
   - DDoS
   - DoS
   - FTP-Patator

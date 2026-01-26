@@ -297,6 +297,40 @@ def get_new_dataloader(args,session):
             label_column=label_column,
             normalize_method=normalize_method
         )
+        
+        # トレーニングデータのクラスを検証
+        expected_new_class_start = args.base_class + args.way * (session - 1)
+        expected_new_class_end = args.base_class + args.way * session
+        expected_new_classes = set(range(expected_new_class_start, expected_new_class_end))
+        
+        actual_classes = set(np.unique(trainset.targets))
+        
+        # ベースクラスが含まれていないか確認
+        base_classes = set(range(args.base_class))
+        base_class_overlap = actual_classes & base_classes
+        
+        if base_class_overlap:
+            base_class_labels = [trainset.idx_to_label[idx] for idx in sorted(base_class_overlap)]
+            raise ValueError(
+                f"Session {session}: Training data contains base classes {sorted(base_class_overlap)} ({base_class_labels})! "
+                f"Expected only new classes {sorted(expected_new_classes)}. "
+                f"Session file: {txt_path}\n"
+                f"Please regenerate session files using: uv run create_session_files.py"
+            )
+        
+        # 期待される新規クラス以外が含まれていないか確認
+        unexpected_classes = actual_classes - expected_new_classes
+        if unexpected_classes:
+            unexpected_labels = [trainset.idx_to_label[idx] for idx in sorted(unexpected_classes)]
+            expected_labels = [trainset.idx_to_label[idx] for idx in sorted(expected_new_classes)]
+            raise ValueError(
+                f"Session {session}: Training data contains unexpected classes {sorted(unexpected_classes)} ({unexpected_labels})! "
+                f"Expected only {sorted(expected_new_classes)} ({expected_labels}). "
+                f"Session file: {txt_path}\n"
+                f"Please regenerate session files using: uv run create_session_files.py"
+            )
+        
+        print(f"✓ Session {session} training data validation passed: contains only new classes {sorted(actual_classes)}")
 
     pin_memory = getattr(args, 'pin_memory', args.num_gpu > 0 if hasattr(args, 'num_gpu') else False)
     if args.batch_size_new == 0:

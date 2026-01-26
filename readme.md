@@ -126,6 +126,93 @@ This project uses [DVC](https://dvc.org/) for version control of configuration f
 
 For more information, see the [DVC documentation](https://dvc.org/doc).
 
+## Working with CICIDS2017 Dataset
+
+### Session File Generation
+
+For custom datasets like CICIDS2017, session files need to be generated to split the data into base and incremental sessions.
+
+#### Configuration
+
+Configure session parameters in `params.yaml`:
+
+```yaml
+create_sessions:
+  dataset_name: CICIDS2017_flow_improved
+  label_column: Label
+  base_class: 5  # Number of base classes
+  num_classes: 10  # Total number of classes
+  way: 1  # Number of new classes per session
+  shot: 5  # Number of samples per class (Few-Shot)
+  seed: 42
+  base_labels:  # Optional: Specify base class labels
+    - BENIGN
+    - Bot
+    - DDoS
+    - DoS
+    - FTP-Patator
+```
+
+#### Generating Session Files
+
+**Option 1: Using DVC (Recommended)**
+```bash
+dvc repro create_sessions
+```
+
+**Option 2: Direct Script Execution**
+```bash
+uv run create_session_files.py
+```
+
+#### Regenerating Session Files
+
+If you encounter errors like "Training data contains base classes" or "Training data contains unexpected classes", regenerate the session files:
+
+1. Remove existing session files:
+   ```bash
+   rm -rf data/index_list/CICIDS2017_flow_improved/
+   ```
+
+2. Regenerate using DVC or direct script execution:
+   ```bash
+   dvc repro create_sessions
+   # or
+   uv run create_session_files.py
+   ```
+
+3. Verify the generated files:
+   ```bash
+   # Check that session files contain correct class indices
+   ls -lh data/index_list/CICIDS2017_flow_improved/
+   ```
+
+#### Validation
+
+The session file generation includes automatic validation to ensure:
+- Each new session file contains only samples from the expected new classes
+- No base class samples are included in new session files
+- Data indices are valid and within range
+
+If validation fails, the script will raise an error with details about the mismatch.
+
+### Training with CICIDS2017
+
+**Train Base Session:**
+```bash
+uv run train_base.py
+```
+
+**Train New Sessions:**
+```bash
+uv run train_new.py --model-dir checkpoint/CICIDS2017_flow_improved/session0_max_acc.pth
+```
+
+**Full Pipeline with DVC:**
+```bash
+dvc repro
+```
+
  
 ## Acknowledgment
 We thank the following repos providing helpful components/functions in our work.
