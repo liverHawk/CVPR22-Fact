@@ -42,7 +42,7 @@ eta: 0.1
 loss_iter: 0
 
 # FSCIL用のパラメータ（CICIDS2017_improvedなどで使用）
-base_class: 5  # ベースクラス数
+base_class: 2  # ベースクラス数
 num_classes: 10  # 総クラス数
 way: 1  # 各新規セッションのクラス数
 shot: 5  # 各クラスのショット数（Few-Shot用）
