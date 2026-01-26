@@ -95,9 +95,11 @@ class FSCILTrainer(Trainer):
 
         #gen_mask
         masknum=3
+        # masknumがbase_classより大きい場合はbase_classに制限
+        actual_masknum = min(masknum, args.base_class)
         mask=np.zeros((args.base_class,args.num_classes))
         for i in range(args.num_classes-args.base_class):
-            picked_dummy=np.random.choice(args.base_class,masknum,replace=False)
+            picked_dummy=np.random.choice(args.base_class, actual_masknum, replace=False)
             mask[:,i+args.base_class][picked_dummy]=1
         mask=torch.tensor(mask).to(self.device)
 

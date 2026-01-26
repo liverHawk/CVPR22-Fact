@@ -18,6 +18,7 @@ stages:
       - params.yaml:
           - dataset_name
           - create_sessions.dataset_name
+          - create_sessions.base_labels
     outs:
       - data/index_list/${dataset_name}
   train:

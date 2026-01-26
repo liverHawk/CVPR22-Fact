@@ -108,7 +108,10 @@ def count_acc(logits, label):
         return (pred == label).type(torch.FloatTensor).mean().item()
 
 def count_acc_topk(x,y,k=5):
-    _,maxk = torch.topk(x,k,dim=-1)
+    # kがクラス数より大きい場合はクラス数に制限
+    num_classes = x.size(1)
+    actual_k = min(k, num_classes)
+    _,maxk = torch.topk(x,actual_k,dim=-1)
     total = y.size(0)
     test_labels = y.view(-1,1) 
     #top1=(test_labels == maxk[:,0:1]).sum().item()
