@@ -1,0 +1,14 @@
+stages:
+  train:
+    cmd: python train.py
+    deps:
+      - train.py
+      - params.yaml
+      - utils.py
+      - models/
+      - dataloader/
+    params:
+      - params.yaml:
+    metrics:
+      - checkpoint/*/results.txt:
+          cache: false

@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import os
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 
 def _get_label_names_for_loader(loader, num_classes):
@@ -157,6 +158,50 @@ def test(model, testloader, epoch,args, session,validation=True):
             seenac=np.mean(perclassacc[:args.base_class])
             unseenac=np.mean(perclassacc[args.base_class:])
             print('Seen Acc:',seenac, 'Unseen ACC:', unseenac)
+            
+            # 予測ラベルを取得
+            pred = torch.argmax(lgt, dim=1)
+            
+            # y_trueとy_predをnumpy配列に変換
+            y_true_np = lbs.numpy() if isinstance(lbs, torch.Tensor) else lbs
+            y_pred_np = pred.numpy() if isinstance(pred, torch.Tensor) else pred
+            
+            # accuracy, precision, recall, f1-scoreを計算
+            accuracy = accuracy_score(y_true_np, y_pred_np)
+            precision = precision_score(y_true_np, y_pred_np, average='macro', zero_division=0)
+            recall = recall_score(y_true_np, y_pred_np, average='macro', zero_division=0)
+            f1 = f1_score(y_true_np, y_pred_np, average='macro', zero_division=0)
+            
+            # クラスごとのprecision, recall, f1-scoreも計算
+            precision_per_class = precision_score(y_true_np, y_pred_np, average=None, zero_division=0)
+            recall_per_class = recall_score(y_true_np, y_pred_np, average=None, zero_division=0)
+            f1_per_class = f1_score(y_true_np, y_pred_np, average=None, zero_division=0)
+            
+            print(f'Session {session} Metrics:')
+            print(f'  Accuracy: {accuracy:.4f}')
+            print(f'  Precision (macro): {precision:.4f}')
+            print(f'  Recall (macro): {recall:.4f}')
+            print(f'  F1-score (macro): {f1:.4f}')
+            
+            # メトリクスをファイルに保存
+            metrics_file = os.path.join(args.save_path, f'session_{session}_metrics.txt')
+            with open(metrics_file, 'w') as f:
+                f.write(f'Session {session} Evaluation Metrics\n')
+                f.write('=' * 50 + '\n\n')
+                f.write(f'Overall Metrics:\n')
+                f.write(f'  Accuracy: {accuracy:.4f}\n')
+                f.write(f'  Precision (macro): {precision:.4f}\n')
+                f.write(f'  Recall (macro): {recall:.4f}\n')
+                f.write(f'  F1-score (macro): {f1:.4f}\n\n')
+                f.write(f'Per-class Metrics:\n')
+                for i, (p, r, f1_val) in enumerate(zip(precision_per_class, recall_per_class, f1_per_class)):
+                    class_name = label_names[i] if label_names and i < len(label_names) else f'Class {i}'
+                    f.write(f'  {class_name}:\n')
+                    f.write(f'    Precision: {p:.4f}\n')
+                    f.write(f'    Recall: {r:.4f}\n')
+                    f.write(f'    F1-score: {f1_val:.4f}\n')
+                f.write(f'\nSeen Classes Accuracy: {seenac:.4f}\n')
+                f.write(f'Unseen Classes Accuracy: {unseenac:.4f}\n')
     return vl, va
 
 
@@ -197,4 +242,48 @@ def test_withfc(model, testloader, epoch,args, session,validation=True):
             seenac=np.mean(perclassacc[:args.base_class])
             unseenac=np.mean(perclassacc[args.base_class:])
             print('Seen Acc:',seenac, 'Unseen ACC:', unseenac)
+            
+            # 予測ラベルを取得
+            pred = torch.argmax(lgt, dim=1)
+            
+            # y_trueとy_predをnumpy配列に変換
+            y_true_np = lbs.numpy() if isinstance(lbs, torch.Tensor) else lbs
+            y_pred_np = pred.numpy() if isinstance(pred, torch.Tensor) else pred
+            
+            # accuracy, precision, recall, f1-scoreを計算
+            accuracy = accuracy_score(y_true_np, y_pred_np)
+            precision = precision_score(y_true_np, y_pred_np, average='macro', zero_division=0)
+            recall = recall_score(y_true_np, y_pred_np, average='macro', zero_division=0)
+            f1 = f1_score(y_true_np, y_pred_np, average='macro', zero_division=0)
+            
+            # クラスごとのprecision, recall, f1-scoreも計算
+            precision_per_class = precision_score(y_true_np, y_pred_np, average=None, zero_division=0)
+            recall_per_class = recall_score(y_true_np, y_pred_np, average=None, zero_division=0)
+            f1_per_class = f1_score(y_true_np, y_pred_np, average=None, zero_division=0)
+            
+            print(f'Session {session} Metrics (test_withfc):')
+            print(f'  Accuracy: {accuracy:.4f}')
+            print(f'  Precision (macro): {precision:.4f}')
+            print(f'  Recall (macro): {recall:.4f}')
+            print(f'  F1-score (macro): {f1:.4f}')
+            
+            # メトリクスをファイルに保存
+            metrics_file = os.path.join(args.save_path, f'session_{session}_metrics_withfc.txt')
+            with open(metrics_file, 'w') as f:
+                f.write(f'Session {session} Evaluation Metrics (test_withfc)\n')
+                f.write('=' * 50 + '\n\n')
+                f.write(f'Overall Metrics:\n')
+                f.write(f'  Accuracy: {accuracy:.4f}\n')
+                f.write(f'  Precision (macro): {precision:.4f}\n')
+                f.write(f'  Recall (macro): {recall:.4f}\n')
+                f.write(f'  F1-score (macro): {f1:.4f}\n\n')
+                f.write(f'Per-class Metrics:\n')
+                for i, (p, r, f1_val) in enumerate(zip(precision_per_class, recall_per_class, f1_per_class)):
+                    class_name = label_names[i] if label_names and i < len(label_names) else f'Class {i}'
+                    f.write(f'  {class_name}:\n')
+                    f.write(f'    Precision: {p:.4f}\n')
+                    f.write(f'    Recall: {r:.4f}\n')
+                    f.write(f'    F1-score: {f1_val:.4f}\n')
+                f.write(f'\nSeen Classes Accuracy: {seenac:.4f}\n')
+                f.write(f'Unseen Classes Accuracy: {unseenac:.4f}\n')
     return vl, va

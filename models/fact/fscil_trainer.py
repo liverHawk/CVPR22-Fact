@@ -14,6 +14,7 @@ from utils import ensure_path, save_list_to_txt
 import torch.nn.functional as F
 from utils import count_acc_topk
 from models.fact.Network import MYNET
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 
 class FSCILTrainer(Trainer):
@@ -316,8 +317,51 @@ class FSCILTrainer(Trainer):
             unseenac=np.mean(unseen_slice) if len(unseen_slice) > 0 else float('nan')
             print('Seen Acc:',seenac, 'Unseen ACC:', unseenac)
             
-            # Comet MLに混同行列をログ（log_confusion_matrix APIを使用）
+            # 予測ラベルを取得
             pred = torch.argmax(lgt, dim=1)
+            
+            # y_trueとy_predをnumpy配列に変換
+            y_true_np = lbs.numpy() if isinstance(lbs, torch.Tensor) else lbs
+            y_pred_np = pred.numpy() if isinstance(pred, torch.Tensor) else pred
+            
+            # accuracy, precision, recall, f1-scoreを計算
+            accuracy = accuracy_score(y_true_np, y_pred_np)
+            precision = precision_score(y_true_np, y_pred_np, average='macro', zero_division=0)
+            recall = recall_score(y_true_np, y_pred_np, average='macro', zero_division=0)
+            f1 = f1_score(y_true_np, y_pred_np, average='macro', zero_division=0)
+            
+            # クラスごとのprecision, recall, f1-scoreも計算
+            precision_per_class = precision_score(y_true_np, y_pred_np, average=None, zero_division=0)
+            recall_per_class = recall_score(y_true_np, y_pred_np, average=None, zero_division=0)
+            f1_per_class = f1_score(y_true_np, y_pred_np, average=None, zero_division=0)
+            
+            print(f'Session {session} Metrics:')
+            print(f'  Accuracy: {accuracy:.4f}')
+            print(f'  Precision (macro): {precision:.4f}')
+            print(f'  Recall (macro): {recall:.4f}')
+            print(f'  F1-score (macro): {f1:.4f}')
+            
+            # メトリクスをファイルに保存
+            metrics_file = os.path.join(args.save_path, f'session_{session}_metrics.txt')
+            with open(metrics_file, 'w') as f:
+                f.write(f'Session {session} Evaluation Metrics\n')
+                f.write('=' * 50 + '\n\n')
+                f.write(f'Overall Metrics:\n')
+                f.write(f'  Accuracy: {accuracy:.4f}\n')
+                f.write(f'  Precision (macro): {precision:.4f}\n')
+                f.write(f'  Recall (macro): {recall:.4f}\n')
+                f.write(f'  F1-score (macro): {f1:.4f}\n\n')
+                f.write(f'Per-class Metrics:\n')
+                for i, (p, r, f1_val) in enumerate(zip(precision_per_class, recall_per_class, f1_per_class)):
+                    class_name = label_names[i] if label_names and i < len(label_names) else f'Class {i}'
+                    f.write(f'  {class_name}:\n')
+                    f.write(f'    Precision: {p:.4f}\n')
+                    f.write(f'    Recall: {r:.4f}\n')
+                    f.write(f'    F1-score: {f1_val:.4f}\n')
+                f.write(f'\nSeen Classes Accuracy: {seenac:.4f}\n')
+                f.write(f'Unseen Classes Accuracy: {unseenac:.4f}\n')
+            
+            # Comet MLに混同行列をログ（log_confusion_matrix APIを使用）
             log_confusion_matrix_to_comet(
                 self.comet_exp,
                 y_true=lbs,
@@ -327,10 +371,14 @@ class FSCILTrainer(Trainer):
                 title=f"Session {session} Confusion Matrix"
             )
             
-            # Seen/Unseen精度をログ
+            # Comet MLにメトリクスをログ
             log_metrics_to_comet(
                 self.comet_exp,
                 {
+                    'accuracy': accuracy,
+                    'precision_macro': precision,
+                    'recall_macro': recall,
+                    'f1_score_macro': f1,
                     'seen_acc': seenac if not np.isnan(seenac) else 0.0,
                     'unseen_acc': unseenac if not np.isnan(unseenac) else 0.0
                 },
@@ -340,41 +388,7 @@ class FSCILTrainer(Trainer):
         return vl, va
 
     def set_save_path(self):
-        mode = self.args.base_mode + '-' + self.args.new_mode
-        if not self.args.not_data_init:
-            mode = mode + '-' + 'data_init'
-
-        self.args.save_path = '%s/' % self.args.dataset
-        self.args.save_path = self.args.save_path + '%s/' % self.args.project
-
-        self.args.save_path = self.args.save_path + '%s-start_%d/' % (mode, self.args.start_session)
-        if self.args.schedule == 'Milestone':
-            mile_stone = str(self.args.milestones).replace(" ", "").replace(',', '_')[1:-1]
-            self.args.save_path = self.args.save_path + 'Epo_%d-Lr_%.4f-MS_%s-Gam_%.2f-Bs_%d-Mom_%.2f' % (
-                self.args.epochs_base, self.args.lr_base, mile_stone, self.args.gamma, self.args.batch_size_base,
-                self.args.momentum)
-            self.args.save_path = self.args.save_path + 'Bal%.2f-LossIter%d' % (
-                self.args.balance, self.args.loss_iter)
-        elif self.args.schedule == 'Step':
-            self.args.save_path = self.args.save_path + 'Epo_%d-Lr_%.4f-Step_%d-Gam_%.2f-Bs_%d-Mom_%.2f' % (
-                self.args.epochs_base, self.args.lr_base, self.args.step, self.args.gamma, self.args.batch_size_base,
-                self.args.momentum)
-        elif self.args.schedule == 'Cosine':
-            self.args.save_path = self.args.save_path + 'Cosine-Epo_%d-Lr_%.4f' % (
-                self.args.epochs_base, self.args.lr_base)
-            self.args.save_path = self.args.save_path + 'Bal%.2f-LossIter%d' % (
-                self.args.balance, self.args.loss_iter)
-
-        if 'cos' in mode:
-            self.args.save_path = self.args.save_path + '-T_%.2f' % (self.args.temperature)
-
-        if 'ft' in self.args.new_mode:
-            self.args.save_path = self.args.save_path + '-ftLR_%.3f-ftEpoch_%d' % (
-                self.args.lr_new, self.args.epochs_new)
-
-        if self.args.debug:
-            self.args.save_path = os.path.join('debug', self.args.save_path)
-
-        self.args.save_path = os.path.join('checkpoint', self.args.save_path)
+        # checkpoint配下に直接保存するように変更
+        self.args.save_path = 'checkpoint'
         ensure_path(self.args.save_path)
         return None

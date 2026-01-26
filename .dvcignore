@@ -9,7 +9,6 @@ dist/
 build/
 
 # Checkpoints and models
-checkpoint/
 *.pth
 *.pt
 *.ckpt
