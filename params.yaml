@@ -12,7 +12,7 @@ label_column: Label    # ラベル列の名前（CICIDS2017_improved用）
 
 # トレーニング設定
 epochs_base: 1
-epochs_new: 5
+epochs_new: 1
 lr_base: 0.005
 lr_new: 0.1
 batch_size_base: 256
