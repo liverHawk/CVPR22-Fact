@@ -117,7 +117,8 @@ def set_up_datasets(args):
                     index=[0],  # ダミーインデックス（存在しないクラスでもエラーにならないように）
                     base_sess=True,
                     label_column=getattr(args, 'label_column', 'Label'),
-                    normalize_method=getattr(args, 'normalize_method', 'standard')
+                    normalize_method=getattr(args, 'normalize_method', 'standard'),
+                    window_size=getattr(args, 'window_size', 1000)
                 )
                 args.input_dim = temp_dataset.data.shape[1]
                 print(f"自動検出された特徴量数: {args.input_dim}")
@@ -178,6 +179,7 @@ def get_base_dataloader(args):
         # CICIDS2017_improvedデータローダー
         normalize_method = getattr(args, 'normalize_method', 'standard')
         label_column = getattr(args, 'label_column', 'Label')
+        window_size = getattr(args, 'window_size', 1000)
         
         # rootは data/dataset_name の形式
         root = os.path.join(args.dataroot, args.dataset_name)
@@ -188,7 +190,8 @@ def get_base_dataloader(args):
             index=class_index,
             base_sess=True,
             label_column=label_column,
-            normalize_method=normalize_method
+            normalize_method=normalize_method,
+            window_size=window_size
         )
         testset = args.Dataset.CICIDS2017(
             root=root,
@@ -196,7 +199,8 @@ def get_base_dataloader(args):
             index=class_index,
             base_sess=True,
             label_column=label_column,
-            normalize_method=normalize_method
+            normalize_method=normalize_method,
+            window_size=window_size
         )
 
     pin_memory = getattr(args, 'pin_memory', args.num_gpu > 0 if hasattr(args, 'num_gpu') else False)
@@ -282,6 +286,7 @@ def get_new_dataloader(args,session):
         # CICIDS2017_improvedデータローダー
         normalize_method = getattr(args, 'normalize_method', 'standard')
         label_column = getattr(args, 'label_column', 'Label')
+        window_size = getattr(args, 'window_size', 1000)
         
         # rootは data/dataset_name の形式
         root = os.path.join(args.dataroot, args.dataset_name)
@@ -295,7 +300,8 @@ def get_new_dataloader(args,session):
             index=data_indices,
             base_sess=False,
             label_column=label_column,
-            normalize_method=normalize_method
+            normalize_method=normalize_method,
+            window_size=window_size
         )
 
     pin_memory = getattr(args, 'pin_memory', args.num_gpu > 0 if hasattr(args, 'num_gpu') else False)
@@ -325,6 +331,7 @@ def get_new_dataloader(args,session):
     if args.dataset == 'CICIDS2017_improved':
         normalize_method = getattr(args, 'normalize_method', 'standard')
         label_column = getattr(args, 'label_column', 'Label')
+        window_size = getattr(args, 'window_size', 1000)
         
         # rootは data/dataset_name の形式
         root = os.path.join(args.dataroot, args.dataset_name)
@@ -335,7 +342,8 @@ def get_new_dataloader(args,session):
             index=class_new,
             base_sess=True,  # treat index as class list to include all seen classes
             label_column=label_column,
-            normalize_method=normalize_method
+            normalize_method=normalize_method,
+            window_size=window_size
         )
 
     pin_memory = getattr(args, 'pin_memory', args.num_gpu > 0 if hasattr(args, 'num_gpu') else False)

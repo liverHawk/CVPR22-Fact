@@ -271,6 +271,7 @@ def init_comet_experiment(args):
             auto_metric_logging=False,  # 手動でメトリクスをログ
             disabled=getattr(args, 'comet_disabled', False)
         )
+        exp.add_tags(["use_moving_minmax"])
         
         # ハイパーパラメータをログ
         params_dict = {}
