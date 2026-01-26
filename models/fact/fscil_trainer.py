@@ -101,7 +101,20 @@ class FSCILTrainer(Trainer):
             mask[:,i+args.base_class][picked_dummy]=1
         mask=torch.tensor(mask).to(self.device)
 
-
+        # 新しいセッションから開始する場合、dummy_classifiersを初期化
+        if args.start_session > 0:
+            model_module = self.model.module if isinstance(self.model, nn.DataParallel) else self.model
+            # ベースモデルのfc.weightからdummy_classifiersを作成
+            # 元のコードと同じロジック：全体の重みをコピーし、base_class以降の部分のみを正規化して保存
+            dummy_all = deepcopy(model_module.fc.weight.detach())
+            self.dummy_classifiers = F.normalize(dummy_all[self.args.base_class:,:], p=2, dim=-1)
+            # old_classifiersは使われていないが、元のコードとの互換性のために設定
+            if self.dummy_classifiers.size(0) >= self.args.base_class:
+                self.old_classifiers = self.dummy_classifiers[:self.args.base_class,:]
+            else:
+                # dummy_classifiersのサイズがbase_classより小さい場合は空のtensorを設定
+                self.old_classifiers = torch.zeros(self.args.base_class, dummy_all.size(1)).to(self.device)
+            print(f"Initialized dummy_classifiers from base model (shape: {self.dummy_classifiers.shape})")
 
         for session in range(args.start_session, args.sessions):
             train_set, trainloader, testloader = self.get_dataloader(session)

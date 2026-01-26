@@ -3,10 +3,6 @@ stages:
   split_dataset:
     cmd: uv run split_dataset_by_label.py
     deps:
-    - path: params.yaml
-      hash: md5
-      md5: 31bd49f9c9c22a46f256ea74a05686fa
-      size: 2891
     - path: split_dataset_by_label.py
       hash: md5
       md5: f05d159733230f8d1ffde77c75553ad5
@@ -31,8 +27,8 @@ stages:
     deps:
     - path: create_session_files.py
       hash: md5
-      md5: 791f91e01f6ad3fc8e9ca5f5df8e6f65
-      size: 13015
+      md5: 63aceb98222946c9262229c5339ce6bd
+      size: 13017
     params:
       params.yaml:
         create_sessions.dataset_name: CICIDS2017_flow_improved
@@ -40,8 +36,8 @@ stages:
     outs:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 5ac6daee90f25911936cbf9f1d6a3b27.dir
-      size: 11353814
+      md5: b7942e145d105c8007704d954a3fe9ec.dir
+      size: 11358335
       nfiles: 6
   train:
     cmd: uv run train.py
@@ -103,3 +99,103 @@ stages:
       md5: d0bdeb03402334715dba2f3e835348f2.dir
       size: 2057319
       nfiles: 9
+  train_base:
+    cmd: uv run train_base.py
+    deps:
+    - path: data/index_list/CICIDS2017_flow_improved
+      hash: md5
+      md5: b7942e145d105c8007704d954a3fe9ec.dir
+      size: 11358335
+      nfiles: 6
+    - path: train_base.py
+      hash: md5
+      md5: 41d13bdbaa5890c3ab332977c6ecaacc
+      size: 13814
+    params:
+      params.yaml:
+        alpha: 2.0
+        balance: 0.01
+        base_class: 5
+        base_mode: ft_cos
+        batch_size_base: 256
+        dataset_name: CICIDS2017_flow_improved
+        dataset_type: CICIDS2017_improved
+        decay: 0.0005
+        encoder: mlp
+        epochs_base: 5
+        eta: 0.1
+        gamma: 0.25
+        gpu: cpu
+        label_column: Label
+        loss_iter: 0
+        lr_base: 0.005
+        milestones:
+        - 50
+        - 100
+        - 150
+        - 200
+        - 250
+        - 300
+        momentum: 0.9
+        normalize_method: standard
+        num_classes: 10
+        num_workers: 8
+        project: fact
+        schedule: Milestone
+        seed: 1
+        shot: 5
+        step: 20
+        temperature: 16
+        test_batch_size: 100
+        way: 1
+    outs:
+    - path: checkpoint/CICIDS2017_flow_improved/optimizer_best.pth
+      hash: md5
+      md5: 7f0b7ccdfc9c9d9790c41ac2523df083
+      size: 969145
+    - path: checkpoint/CICIDS2017_flow_improved/session0_max_acc.pth
+      hash: md5
+      md5: 3266ee56107a53a6643f2dd48dd6d966
+      size: 977471
+  train_new:
+    cmd: uv run train_new.py --model-dir 
+      checkpoint/CICIDS2017_flow_improved/session0_max_acc.pth
+    deps:
+    - path: checkpoint/CICIDS2017_flow_improved/session0_max_acc.pth
+      hash: md5
+      md5: 3266ee56107a53a6643f2dd48dd6d966
+      size: 977471
+    - path: data/index_list/CICIDS2017_flow_improved
+      hash: md5
+      md5: b7942e145d105c8007704d954a3fe9ec.dir
+      size: 11358335
+      nfiles: 6
+    - path: train_new.py
+      hash: md5
+      md5: b596c3e05395551912783dc5349a582a
+      size: 14321
+    params:
+      params.yaml:
+        alpha: 2.0
+        balance: 0.01
+        base_class: 5
+        batch_size_new: 0
+        dataset_name: CICIDS2017_flow_improved
+        dataset_type: CICIDS2017_improved
+        encoder: mlp
+        epochs_new: 5
+        eta: 0.1
+        gpu: cpu
+        label_column: Label
+        loss_iter: 0
+        lr_new: 0.1
+        new_mode: ft_dot
+        normalize_method: standard
+        num_classes: 10
+        num_workers: 8
+        project: fact
+        seed: 1
+        shot: 5
+        temperature: 16
+        test_batch_size: 100
+        way: 1

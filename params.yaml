@@ -66,6 +66,8 @@ debug: false
 comet_project:       # プロジェクト名（nullの場合はdataset名を使用）
 comet_workspace:       # ワークスペース名（nullの場合はデフォルト）
 comet_disabled: false  # Comet MLを無効化する場合はtrue
+comet_tags:
+  - split_base_new
 
 # セッションファイル生成設定
 create_sessions:
@@ -80,7 +82,7 @@ create_sessions:
   base_use_class_index: false  # ベースセッションファイルにクラスインデックスを使用（false: データインデックス）
   base_labels:                                                     # ベースセッションに使用するラベルのリスト（null: 自動、リスト指定時はそのラベルのみ使用）
   - BENIGN
-  - Botnet
+  - Bot
   - DDoS
   - DoS
   - FTP-Patator

@@ -20,10 +20,51 @@ stages:
           - create_sessions.dataset_name
     outs:
       - data/index_list/${dataset_name}
-  train:
-    cmd: uv run train.py
+  # train:
+  #   cmd: uv run train.py
+  #   deps:
+  #     - train.py
+  #     - data/index_list/${dataset_name}
+  #   params:
+  #     - params.yaml:
+  #         - project
+  #         - dataset_type
+  #         - dataset_name
+  #         - encoder
+  #         - epochs_base
+  #         - epochs_new
+  #         - lr_base
+  #         - lr_new
+  #         - batch_size_base
+  #         - batch_size_new
+  #         - test_batch_size
+  #         - base_mode
+  #         - new_mode
+  #         - schedule
+  #         - milestones
+  #         - step
+  #         - decay
+  #         - gamma
+  #         - momentum
+  #         - temperature
+  #         - balance
+  #         - alpha
+  #         - eta
+  #         - loss_iter
+  #         - start_session
+  #         - num_workers
+  #         - gpu
+  #         - seed
+  #         - normalize_method
+  #         - label_column
+  #         - base_class
+  #         - num_classes
+  #         - way
+  #         - shot
+  train_base:
+    cmd: uv run train_base.py
     deps:
-      - train.py
+      - train_base.py
       - data/index_list/${dataset_name}
     params:
       - params.yaml:
@@ -32,14 +73,10 @@ stages:
           - dataset_name
           - encoder
           - epochs_base
-          - epochs_new
           - lr_base
-          - lr_new
           - batch_size_base
-          - batch_size_new
           - test_batch_size
           - base_mode
-          - new_mode
           - schedule
           - milestones
           - step
@@ -51,7 +88,6 @@ stages:
           - alpha
           - eta
           - loss_iter
-          - start_session
           - num_workers
           - gpu
           - seed
@@ -62,4 +98,36 @@ stages:
           - way
           - shot
     outs:
-      - checkpoint/
+      - checkpoint/${dataset_name}/session0_max_acc.pth
+      - checkpoint/${dataset_name}/optimizer_best.pth
+  train_new:
+    cmd: uv run train_new.py --model-dir checkpoint/${dataset_name}/session0_max_acc.pth
+    deps:
+      - train_new.py
+      - data/index_list/${dataset_name}
+      - checkpoint/${dataset_name}/session0_max_acc.pth
+    params:
+      - params.yaml:
+          - project
+          - dataset_type
+          - dataset_name
+          - encoder
+          - epochs_new
+          - lr_new
+          - batch_size_new
+          - test_batch_size
+          - new_mode
+          - temperature
+          - balance
+          - alpha
+          - eta
+          - loss_iter
+          - num_workers
+          - gpu
+          - seed
+          - normalize_method
+          - label_column
+          - base_class
+          - num_classes
+          - way
+          - shot
