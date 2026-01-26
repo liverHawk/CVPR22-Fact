@@ -12,9 +12,6 @@ stages:
         create_sessions.base_labels:
         - BENIGN
         - Bot
-        - DDoS
-        - DoS
-        - FTP-Patator
         create_sessions.dataset_name: CICIDS2017_flow_improved
         dataset_name: CICIDS2017_flow_improved
     outs:
@@ -102,6 +99,6 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: d0da30f3648dbe61fb7c26fc50607d83.dir
-      size: 2117216
+      md5: f48b8fd97d00e6f0f1ae8f645895f1e5.dir
+      size: 2119551
       nfiles: 12
