@@ -260,8 +260,12 @@ def init_comet_experiment(args):
             pass
         
         # プロジェクト名と実験名を設定
-        project_name = getattr(args, 'comet_project', args.dataset)
-        experiment_name = f"{args.project}_{args.dataset}_{args.base_mode}_{args.new_mode}"
+        dataset = getattr(args, 'dataset', getattr(args, 'dataset_name', 'unknown'))
+        project_name = getattr(args, 'comet_project', dataset)
+        project = getattr(args, 'project', 'unknown')
+        base_mode = getattr(args, 'base_mode', 'unknown')
+        new_mode = getattr(args, 'new_mode', 'unknown')
+        experiment_name = f"{project}_{dataset}_{base_mode}_{new_mode}"
         
         # 実験を開始
         exp = comet_ml.Experiment(
@@ -269,9 +273,11 @@ def init_comet_experiment(args):
             experiment_name=experiment_name,
             auto_param_logging=False,  # 手動でパラメータをログ
             auto_metric_logging=False,  # 手動でメトリクスをログ
-            disabled=getattr(args, 'comet_disabled', False)
+            disabled=getattr(args, 'comet_disabled', False),
         )
-        exp.add_tags(["use_moving_minmax"])
+        comet_tags = getattr(args, 'comet_tags', None)
+        if comet_tags:
+            exp.add_tags(comet_tags)
         
         # ハイパーパラメータをログ
         params_dict = {}

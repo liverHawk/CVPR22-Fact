@@ -103,8 +103,13 @@ def replace_base_fc(trainset, transform, model, args):
             model_module.mode = 'encoder'
             embedding = model(data)
 
-            embedding_list.append(embedding.cpu())
-            label_list.append(label.cpu())
+            # CPU環境では既にCPU上にあるため、.cpu()は不要
+            if device.type == 'cuda':
+                embedding_list.append(embedding.cpu())
+                label_list.append(label.cpu())
+            else:
+                embedding_list.append(embedding)
+                label_list.append(label)
     embedding_list = torch.cat(embedding_list, dim=0)
     label_list = torch.cat(label_list, dim=0)
 
@@ -141,8 +146,13 @@ def test(model, testloader, epoch,args, session,validation=True):
             acc = count_acc(logits, test_label)
             vl.add(loss.item())
             va.add(acc)
-            lgt=torch.cat([lgt,logits.cpu()])
-            lbs=torch.cat([lbs,test_label.cpu()])
+            # CPU環境では既にCPU上にあるため、.cpu()は不要
+            if device.type == 'cuda':
+                lgt=torch.cat([lgt,logits.cpu()])
+                lbs=torch.cat([lbs,test_label.cpu()])
+            else:
+                lgt=torch.cat([lgt,logits])
+                lbs=torch.cat([lbs,test_label])
         vl = vl.item()
         va = va.item()
         print('epo {}, test, loss={:.4f} acc={:.4f}'.format(epoch, vl, va))
@@ -225,8 +235,13 @@ def test_withfc(model, testloader, epoch,args, session,validation=True):
             acc = count_acc(logits, test_label)
             vl.add(loss.item())
             va.add(acc)
-            lgt=torch.cat([lgt,logits.cpu()])
-            lbs=torch.cat([lbs,test_label.cpu()])
+            # CPU環境では既にCPU上にあるため、.cpu()は不要
+            if device.type == 'cuda':
+                lgt=torch.cat([lgt,logits.cpu()])
+                lbs=torch.cat([lbs,test_label.cpu()])
+            else:
+                lgt=torch.cat([lgt,logits])
+                lbs=torch.cat([lbs,test_label])
         vl = vl.item()
         va = va.item()
         print('epo {}, test, loss={:.4f} acc={:.4f}'.format(epoch, vl, va))

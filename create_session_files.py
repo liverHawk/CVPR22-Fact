@@ -35,7 +35,7 @@ def load_dataset(csv_path: str, label_column: str = 'Label') -> Tuple[pl.DataFra
     """
     print(f"データセットを読み込み中: {csv_path}")
     if os.path.isdir(csv_path):
-        csv_files = list(Path(csv_path).glob("*.csv"))
+        csv_files = sorted(Path(csv_path).glob("*.csv"))
         if len(csv_files) == 0:
             raise FileNotFoundError(f"CSVファイルが見つかりません: {csv_path}")
         df = pl.concat([pl.read_csv(csv_file) for csv_file in csv_files])
@@ -187,7 +187,26 @@ def create_new_session_file(
         for idx in selected_indices:
             f.write(f"{idx}\n")
     
+    # 生成されたインデックスのラベルを検証
+    actual_labels_in_file = []
+    for idx in selected_indices:
+        label = df_with_index.filter(pl.col("row_index") == idx)[label_column][0]
+        actual_labels_in_file.append(label)
+    
+    unique_actual_labels = set(actual_labels_in_file)
+    expected_labels = set(session_classes)
+    
+    if unique_actual_labels != expected_labels:
+        print(f"⚠️  警告: 生成されたセッションファイルに予期しないラベルが含まれています")
+        print(f"  期待されるラベル: {sorted(expected_labels)}")
+        print(f"  実際のラベル: {sorted(unique_actual_labels)}")
+        raise ValueError(
+            f"セッションファイル {output_path} の検証に失敗しました。"
+            f"期待されるラベル {sorted(expected_labels)} と実際のラベル {sorted(unique_actual_labels)} が一致しません。"
+        )
+    
     print(f"新規セッションファイルを作成: {output_path} (データインデックス: {len(selected_indices)}件)")
+    print(f"  ✓ 検証完了: すべてのサンプルが期待されるクラス {sorted(session_classes)} に属しています")
 
 
 def load_params_yaml(yaml_path: str = 'params.yaml') -> dict:

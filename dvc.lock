@@ -3,10 +3,6 @@ stages:
   split_dataset:
     cmd: uv run split_dataset_by_label.py
     deps:
-    - path: params.yaml
-      hash: md5
-      md5: 31bd49f9c9c22a46f256ea74a05686fa
-      size: 2891
     - path: split_dataset_by_label.py
       hash: md5
       md5: f05d159733230f8d1ffde77c75553ad5
@@ -31,8 +27,8 @@ stages:
     deps:
     - path: create_session_files.py
       hash: md5
-      md5: 791f91e01f6ad3fc8e9ca5f5df8e6f65
-      size: 13015
+      md5: 15afb750a4bba401d4d50c1f2c498ce1
+      size: 14104
     params:
       params.yaml:
         create_sessions.dataset_name: CICIDS2017_flow_improved
@@ -40,21 +36,21 @@ stages:
     outs:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 5ac6daee90f25911936cbf9f1d6a3b27.dir
-      size: 11353814
+      md5: b7942e145d105c8007704d954a3fe9ec.dir
+      size: 11358335
       nfiles: 6
   train:
     cmd: uv run train.py
     deps:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 5ac6daee90f25911936cbf9f1d6a3b27.dir
-      size: 11353814
+      md5: b7942e145d105c8007704d954a3fe9ec.dir
+      size: 11358335
       nfiles: 6
     - path: train.py
       hash: md5
-      md5: e39b54bad0c486eda683fa71ebf24d30
-      size: 12227
+      md5: 821a142acfbec06e6d7e1c06b01b9307
+      size: 12987
     params:
       params.yaml:
         alpha: 2.0
@@ -67,24 +63,21 @@ stages:
         dataset_type: CICIDS2017_improved
         decay: 0.0005
         encoder: mlp
-        epochs_base: 1
+        epochs_base: 5
         epochs_new: 5
         eta: 0.1
         gamma: 0.25
-        gpu: cpu
+        gpu: '0'
         label_column: Label
         loss_iter: 0
         lr_base: 0.005
         lr_new: 0.1
         milestones:
-        - 50
-        - 100
-        - 150
-        - 200
-        - 250
-        - 300
+        - 5
+        - 10
+        - 15
         momentum: 0.9
-        new_mode: avg_cos
+        new_mode: ft_dot
         normalize_method: standard
         num_classes: 10
         num_workers: 8
@@ -100,6 +93,6 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: 35f710c527affcb921b1c2c4c306895b.dir
-      size: 2057720
+      md5: dab4c0c04c33b04c71802490d8b7c331.dir
+      size: 2054072
       nfiles: 9

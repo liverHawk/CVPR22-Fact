@@ -220,17 +220,33 @@ if __name__ == '__main__':
     # 後方互換性のため、args.datasetも設定（既存コードでargs.datasetを使用している場合）
     args.dataset = args.dataset_type
     
-    # num_workersをシステム推奨値に調整（警告を防ぐため）
-    import os
-    max_workers = min(os.cpu_count() or 1, 4)  # システム推奨値は通常CPUコア数以下
-    if args.num_workers > max_workers:
-        print(f"Warning: num_workers ({args.num_workers}) exceeds system recommendation ({max_workers}). Adjusting to {max_workers}.")
-        args.num_workers = max_workers
-    
     set_seed(args.seed)
     pprint(vars(args))
     args.num_gpu = set_gpu(args)
     # pin_memoryはGPUが利用可能な場合のみTrueにする
     args.pin_memory = args.num_gpu > 0
+    
+    # CPU環境での最適化
+    if args.num_gpu == 0:  # CPU環境
+        import torch
+        # PyTorchスレッド数の最適化
+        num_threads = os.cpu_count() or 1
+        torch.set_num_threads(num_threads)
+        torch.set_num_interop_threads(min(num_threads, 4))  # inter-op threads
+        print(f"CPU環境: PyTorchスレッド数を{num_threads}に設定")
+        
+        # num_workersの最適化（CPU環境）
+        max_workers = os.cpu_count() or 1
+        # データローディングと計算を並行するため、少し控えめに設定
+        optimal_workers = max(1, min(max_workers - 1, 4))
+        if args.num_workers > optimal_workers:
+            print(f"CPU環境: num_workersを{args.num_workers}から{optimal_workers}に調整")
+            args.num_workers = optimal_workers
+    else:
+        # GPU環境では既存のロジックを維持
+        max_workers = min(os.cpu_count() or 1, 4)
+        if args.num_workers > max_workers:
+            print(f"Warning: num_workers ({args.num_workers}) exceeds system recommendation ({max_workers}). Adjusting to {max_workers}.")
+            args.num_workers = max_workers
     trainer = importlib.import_module('models.%s.fscil_trainer' % (args.project)).FSCILTrainer(args)
     trainer.train()
