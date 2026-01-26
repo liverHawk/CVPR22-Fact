@@ -194,6 +194,12 @@ def get_command_line_parser():
     parser.add_argument('--shot', type=int,
                         default=yaml_params.get('shot', 5),
                         help='各クラスのショット数（Few-Shot用）')
+    create_sessions = yaml_params.get('create_sessions', {})
+    base_labels = create_sessions.get('base_labels', None)
+    print(base_labels)
+    parser.add_argument('--base-labels', type=list,
+                        default=base_labels,
+                        help='ベースセッションに使用するラベルのリスト')
     
     return parser, yaml_params
 

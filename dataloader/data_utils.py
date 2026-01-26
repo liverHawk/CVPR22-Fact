@@ -88,8 +88,7 @@ def set_up_datasets(args):
         import dataloader.cicids2017.cicids2017 as Dataset
         
         # パラメータが設定されていない場合はデフォルト値を使用
-        if not hasattr(args, 'base_class') or args.base_class is None:
-            args.base_class = 5  # デフォルト値
+        args.base_class = len(args.base_labels)  # デフォルト値
         if not hasattr(args, 'num_classes') or args.num_classes is None:
             args.num_classes = 10  # デフォルト値
         if not hasattr(args, 'way') or args.way is None:

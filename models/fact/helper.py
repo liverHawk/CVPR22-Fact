@@ -46,10 +46,8 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args,mask):
             loss2 = F.cross_entropy(logits_masked, pseudo_label)
 
             index = torch.randperm(data.size(0)).to(device)
-            if args.dataset == 'CICIDS2017_improved':
-                pre_emb1 = model_module.encode(data)
-            else:
-                pre_emb1 = model_module.pre_encode(data)
+            # すべてのデータセットでpre_encodeを使用（MLPエンコーダーも中間層まで処理）
+            pre_emb1 = model_module.pre_encode(data)
             mixed_data = beta * pre_emb1 + (1 - beta) * pre_emb1[index]
             mixed_logits = model_module.post_encode(mixed_data)
 
