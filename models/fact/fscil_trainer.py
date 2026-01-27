@@ -228,6 +228,7 @@ class FSCILTrainer(Trainer):
 
                 # 訓練セット内の新しいクラスのみを抽出
                 all_classes = np.unique(train_set.targets)
+                print(f"{all_classes.tolist()} vs {args.base_labels}")
                 # new_classes_in_data = np.intersect1d(all_classes, new_classes)
                 if all_classes.tolist() in args.base_labels:
                     # より詳細なエラーメッセージを提供
