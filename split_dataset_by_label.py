@@ -223,7 +223,7 @@ def main():
     parser.add_argument(
         "--input-dir",
         type=str,
-        default="/home/toshi/Documents/dataset/project/cleaned/CICIDS2017_flow_improved",
+        default="/home/ishibashi02/dataset/project/cleaned/CICIDS2017_flow_improved",
         help="入力ディレクトリのパス"
     )
     parser.add_argument(
