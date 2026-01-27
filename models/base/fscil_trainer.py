@@ -1,12 +1,15 @@
 from .base import Trainer
-import os.path as osp
 import torch.nn as nn
 from copy import deepcopy
 import torch
 
-from .helper import *
-from utils import *
-from dataloader.data_utils import *
+from .helper import save_list_to_txt, replace_base_fc, test, base_train
+from utils import ensure_path
+from dataloader.data_utils import set_up_datasets, get_base_dataloader, get_new_dataloader
+from .Network import MYNET
+import numpy as np
+import time
+import os
 
 
 class FSCILTrainer(Trainer):
