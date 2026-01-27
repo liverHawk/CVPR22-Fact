@@ -5,28 +5,25 @@ stages:
     deps:
     - path: split_dataset_by_label.py
       hash: md5
-      md5: c7577604f4f40bfffe27eb39bfcd5a25
-      size: 10821
+      md5: f05d159733230f8d1ffde77c75553ad5
+      size: 10825
     params:
       params.yaml:
         create_sessions.base_labels:
         - BENIGN
         - Bot
-        - DDoS
-        - DoS
-        - FTP-Patator
         create_sessions.dataset_name: CICIDS2017_flow_improved
         dataset_name: CICIDS2017_flow_improved
     outs:
     - path: data/CICIDS2017_flow_improved/test
       hash: md5
-      md5: 57399a6dc1cd084feb791806fb652873.dir
-      size: 219183218
+      md5: cd59bb5013bab93e0d756263ae8298e3.dir
+      size: 219199768
       nfiles: 5
     - path: data/CICIDS2017_flow_improved/train
       hash: md5
-      md5: 5eef6e6d77a6ef55078beee5c1e96615.dir
-      size: 876919028
+      md5: 120489a76a74d21e8af57a5ce83dee49.dir
+      size: 876902478
       nfiles: 17
   create_sessions:
     cmd: uv run create_session_files.py
@@ -102,6 +99,6 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: d0da30f3648dbe61fb7c26fc50607d83.dir
-      size: 2117216
+      md5: d82a5e7d4022bd2fdbf1a3180a811469.dir
+      size: 2110737
       nfiles: 12
