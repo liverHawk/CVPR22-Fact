@@ -29,23 +29,30 @@ class MLPEncoder(nn.Module):
     ):
         super(MLPEncoder, self).__init__()
         
-        layers = []
+        # 中間層（pre_encoder）を構築
+        pre_layers = []
         in_dim = input_dim
         
         # 隠れ層を構築
         for hidden_dim in hidden_dims:
-            layers.append(nn.Linear(in_dim, hidden_dim))
-            layers.append(nn.BatchNorm1d(hidden_dim))
-            layers.append(nn.ReLU(inplace=True))
+            pre_layers.append(nn.Linear(in_dim, hidden_dim))
+            pre_layers.append(nn.BatchNorm1d(hidden_dim))
+            pre_layers.append(nn.ReLU(inplace=True))
             if dropout > 0:
-                layers.append(nn.Dropout(dropout))
+                pre_layers.append(nn.Dropout(dropout))
             in_dim = hidden_dim
         
-        # 出力層
-        layers.append(nn.Linear(in_dim, output_dim))
+        self.pre_encoder = nn.Sequential(*pre_layers)
+        self.pre_output_dim = in_dim  # 中間層の出力次元
         
-        self.encoder = nn.Sequential(*layers)
+        # 出力層（post_encoder）を構築
+        post_layers = [nn.Linear(in_dim, output_dim)]
+        self.post_encoder = nn.Sequential(*post_layers)
         self.output_dim = output_dim
+        
+        # 後方互換性のため、全層を通すencoderも保持
+        all_layers = pre_layers + post_layers
+        self.encoder = nn.Sequential(*all_layers)
         
         # 重みの初期化
         self._initialize_weights()
@@ -63,7 +70,7 @@ class MLPEncoder(nn.Module):
     
     def forward(self, x):
         """
-        フォワードパス
+        フォワードパス（全層を通す）
         
         Args:
             x: 入力テンソル (batch_size, input_dim)
@@ -72,6 +79,30 @@ class MLPEncoder(nn.Module):
             埋め込みベクトル (batch_size, output_dim)
         """
         return self.encoder(x)
+    
+    def pre_encode(self, x):
+        """
+        中間層まで処理（pre_encoder）
+        
+        Args:
+            x: 入力テンソル (batch_size, input_dim)
+        
+        Returns:
+            中間層の出力 (batch_size, pre_output_dim)
+        """
+        return self.pre_encoder(x)
+    
+    def post_encode(self, x):
+        """
+        中間層の出力から最終出力まで処理（post_encoder）
+        
+        Args:
+            x: 中間層の出力テンソル (batch_size, pre_output_dim)
+        
+        Returns:
+            埋め込みベクトル (batch_size, output_dim)
+        """
+        return self.post_encoder(x)
 
 
 def mlp_encoder(input_dim: int, hidden_dims: list = None, output_dim: int = 256, dropout: float = 0.0):

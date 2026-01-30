@@ -12,8 +12,8 @@ label_column: Label    # ラベル列の名前（CICIDS2017_improved用）
 input_dir: /home/hawk/Documents/school/dataset/project/cleaned   # 入力ディレクトリのパス
 
 # トレーニング設定
-epochs_base: 5
-epochs_new: 5
+epochs_base: 1
+epochs_new: 2
 lr_base: 0.005
 lr_new: 0.1
 batch_size_base: 256
@@ -43,7 +43,7 @@ eta: 0.1
 loss_iter: 0
 
 # FSCIL用のパラメータ（CICIDS2017_improvedなどで使用）
-base_class: 5  # ベースクラス数
+base_class: 4  # ベースクラス数
 num_classes: 10  # 総クラス数
 way: 1  # 各新規セッションのクラス数
 shot: 5  # 各クラスのショット数（Few-Shot用）
@@ -70,7 +70,7 @@ create_sessions:
   label_column: Label    # ラベル列の名前
   output_dir: data/index_list    # セッションファイルの出力ディレクトリ
   dataset_name: CICIDS2017_flow_improved    # データセット名
-  base_class: 5  # ベースクラス数
+  base_class: 2  # ベースクラス数（トレーニング設定と一致させる）
   num_classes: 10  # 総クラス数
   way: 1  # 各新規セッションのクラス数
   shot: 5  # 各クラスのショット数（Few-Shot用）
@@ -79,6 +79,5 @@ create_sessions:
   base_labels:                                                     # ベースセッションに使用するラベルのリスト（null: 自動、リスト指定時はそのラベルのみ使用）
   - BENIGN
   - Bot
-  - DDoS
-  - DoS
-  - FTP-Patator
+  - Infiltration
+  - Web Attack

@@ -9,6 +9,11 @@ stages:
       size: 10851
     params:
       params.yaml:
+        create_sessions.base_labels:
+        - BENIGN
+        - Bot
+        - Infiltration
+        - Web Attack
         create_sessions.dataset_name: CICIDS2017_flow_improved
         dataset_name: CICIDS2017_flow_improved
     outs:
@@ -31,31 +36,36 @@ stages:
       size: 14104
     params:
       params.yaml:
+        create_sessions.base_labels:
+        - BENIGN
+        - Bot
+        - Infiltration
+        - Web Attack
         create_sessions.dataset_name: CICIDS2017_flow_improved
         dataset_name: CICIDS2017_flow_improved
     outs:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: b7942e145d105c8007704d954a3fe9ec.dir
-      size: 11358335
-      nfiles: 6
+      md5: b060d505a2c932c7ae52e76c633a8300.dir
+      size: 9770731
+      nfiles: 7
   train:
     cmd: uv run train.py
     deps:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: b7942e145d105c8007704d954a3fe9ec.dir
-      size: 11358335
-      nfiles: 6
+      md5: b060d505a2c932c7ae52e76c633a8300.dir
+      size: 9770731
+      nfiles: 7
     - path: train.py
       hash: md5
-      md5: 821a142acfbec06e6d7e1c06b01b9307
-      size: 12987
+      md5: 3c9b69897e711a134f4f0da77d2983fa
+      size: 13320
     params:
       params.yaml:
         alpha: 2.0
         balance: 0.01
-        base_class: 5
+        base_class: 4
         base_mode: ft_cos
         batch_size_base: 256
         batch_size_new: 0
@@ -63,8 +73,8 @@ stages:
         dataset_type: CICIDS2017_improved
         decay: 0.0005
         encoder: mlp
-        epochs_base: 5
-        epochs_new: 5
+        epochs_base: 1
+        epochs_new: 2
         eta: 0.1
         gamma: 0.25
         gpu: '0'

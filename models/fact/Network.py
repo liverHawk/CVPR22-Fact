@@ -100,8 +100,8 @@ class MYNET(nn.Module):
     def pre_encode(self,x):
         
         if self.args.dataset == 'CICIDS2017_improved':
-            # CICIDS2017_improvedではpre_encodeは使用しない（直接encodeを使用）
-            return x
+            # CICIDS2017_improvedではMLPエンコーダーの中間層まで処理
+            return self.encoder.pre_encode(x)
         
         if self.args.dataset in ['cifar100','manyshotcifar']:
             x = self.encoder.conv1(x)
@@ -123,7 +123,9 @@ class MYNET(nn.Module):
     
     def post_encode(self,x):
         if self.args.dataset == 'CICIDS2017_improved':
-            # CICIDS2017_improvedではpost_encodeは使用しない（直接encodeを使用）
+            # CICIDS2017_improvedではMLPエンコーダーの残りの層（出力層）を処理
+            x = self.encoder.post_encode(x)
+            # その後、分類器を適用
             if 'cos' in self.mode:
                 x = F.linear(F.normalize(x, p=2, dim=-1), F.normalize(self.fc.weight, p=2, dim=-1))
                 x = self.args.temperature * x

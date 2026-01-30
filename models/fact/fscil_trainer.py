@@ -96,9 +96,11 @@ class FSCILTrainer(Trainer):
 
         #gen_mask
         masknum=3
+        # masknumがbase_classより大きい場合はbase_classに制限
+        actual_masknum = min(masknum, args.base_class)
         mask=np.zeros((args.base_class,args.num_classes))
         for i in range(args.num_classes-args.base_class):
-            picked_dummy=np.random.choice(args.base_class,masknum,replace=False)
+            picked_dummy=np.random.choice(args.base_class, actual_masknum, replace=False)
             mask[:,i+args.base_class][picked_dummy]=1
         mask=torch.tensor(mask).to(self.device)
 
@@ -224,18 +226,17 @@ class FSCILTrainer(Trainer):
                 if hasattr(testloader.dataset, "transform"):
                     trainloader.dataset.transform = testloader.dataset.transform
                 # 新規セッションでは、新しいクラスのみを処理
-                new_class_start = args.base_class + args.way * (session - 1)
-                new_class_end = args.base_class + args.way * session
-                new_classes = np.arange(new_class_start, new_class_end)
+
                 # 訓練セット内の新しいクラスのみを抽出
                 all_classes = np.unique(train_set.targets)
-                new_classes_in_data = np.intersect1d(all_classes, new_classes)
-                if len(new_classes_in_data) == 0:
+                print(f"{all_classes.tolist()} vs {args.base_labels}")
+                # new_classes_in_data = np.intersect1d(all_classes, new_classes)
+                if all_classes.tolist() in args.base_labels:
                     # より詳細なエラーメッセージを提供
                     session_file = f"data/index_list/{args.dataset_name}/session_{session + 1}.txt"
                     error_msg = (
                         f"Session {session}: No new classes found in training data.\n"
-                        f"  Expected classes: {new_classes.tolist()}\n"
+                        f"  Expected classes: except base classes: {args.base_class.tolist()}\n"
                         f"  Found classes in training data: {all_classes.tolist()}\n"
                         f"  Training samples loaded: {len(train_set)}\n"
                         f"  Session file: {session_file}\n"
@@ -243,7 +244,8 @@ class FSCILTrainer(Trainer):
                         f"  Please regenerate session files using: uv run create_session_files.py"
                     )
                     raise ValueError(error_msg)
-                model_module.update_fc(trainloader, new_classes_in_data, session)
+                # new_classes_in_data = data of all_classes
+                model_module.update_fc(trainloader, train_set.targets, session)
 
                 #tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
                 #tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
