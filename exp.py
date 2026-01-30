@@ -180,8 +180,14 @@ def _(db, peewee):
         f1_macro = FloatField()
         seen_acc = FloatField()
         unseen_acc = FloatField()
-
     return EpochMetric, Experiment, SessionMetric
+
+
+@app.cell
+def _(Experiment):
+    exp = Experiment.select().where(Experiment.id == 2).get()
+    Experiment.delete_by_id(exp.id)
+    return
 
 
 @app.cell
@@ -208,6 +214,46 @@ def _(SessionMetric, mo, pl):
     df_session = pl.DataFrame(list(all_session))
 
     mo.ui.dataframe(df_session)
+    return (df_session,)
+
+
+@app.cell
+def _(df_session, mo):
+    import altair as alt
+
+    lines = alt.Chart(df_session).mark_line().encode(
+        x="session",
+        y="accuracy",
+        color=alt.Color("experiment").legend(None)
+    )
+
+    # 最初のセッション（最小のsession）の点を取得
+    first_session_points = alt.Chart(df_session).mark_circle().encode(
+        x=alt.X("session:Q").title("Session"),
+        y=alt.Y("accuracy:Q").title("Accuracy"),
+        color=alt.Color("experiment").legend(None)
+    ).transform_window(
+        rank="rank()",
+        sort=[alt.SortField("session", order="ascending")],
+        groupby=["experiment"]
+    ).transform_filter(
+        alt.datum.rank == 1
+    )
+
+    # ラベルを追加
+    labels = first_session_points.mark_text(
+        align="left",
+        dx=5,
+        dy=-5
+    ).encode(
+        text="experiment:N"
+    )
+
+    mo.ui.altair_chart(
+        (lines + first_session_points + labels).resolve_scale(
+            color="independent"
+        )
+    )
     return
 
 

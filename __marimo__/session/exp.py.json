@@ -18,7 +18,7 @@
       "console": []
     },
     {
-      "id": "vblA",
+      "id": "MJUe",
       "code_hash": "01396535170b5e22a7bf9b7322c81872",
       "outputs": [
         {
@@ -31,8 +31,8 @@
       "console": []
     },
     {
-      "id": "bkHC",
-      "code_hash": "c41ec5ffe1ace6c73a1952c14ce47e81",
+      "id": "vblA",
+      "code_hash": "84226bb8f3c8b42e61a5cd4e5a6c3b7c",
       "outputs": [
         {
           "type": "data",
@@ -44,48 +44,47 @@
       "console": []
     },
     {
-      "id": "rdGC",
+      "id": "bkHC",
+      "code_hash": "e9cf5f01953fc7392daa281ce5564d0c",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "lEQa",
       "code_hash": "7775ea92a7a3f639dc25a4ca57a50c13",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/html": "<marimo-ui-element object-id='rdGC-0' random-id='ac9fec57-b34f-2a22-0390-e51b7453204e'><marimo-dataframe data-initial-value='{&quot;transforms&quot;:[]}' data-label='null' data-columns='[[&quot;id&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;created_at&quot;,&quot;datetime&quot;,&quot;datetime[\u03bcs]&quot;],[&quot;save_path&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;project&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;dataset_type&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;dataset_name&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;dataroot&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;encoder&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;epochs_base&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;epochs_new&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;lr_base&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;lr_new&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;batch_size_base&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;batch_size_new&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;test_batch_size&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;base_mode&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;new_mode&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;schedule&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;step&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;decay&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;gamma&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;momentum&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;temperature&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;milestones_json&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;balance&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;alpha&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;eta&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;loss_iter&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;start_session&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;model_dir&quot;,&quot;unknown&quot;,&quot;null&quot;],[&quot;num_workers&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;gpu&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;seed&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;not_data_init&quot;,&quot;boolean&quot;,&quot;bool&quot;],[&quot;set_no_val&quot;,&quot;boolean&quot;,&quot;bool&quot;],[&quot;debug&quot;,&quot;boolean&quot;,&quot;bool&quot;],[&quot;normalize_method&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;label_column&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;base_class&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;num_classes&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;way&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;shot&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;base_labels_json&quot;,&quot;string&quot;,&quot;str&quot;]]' data-dataframe-name='&quot;df_exp&quot;' data-total='1' data-page-size='5' data-show-download='true' data-download-json-ensure-ascii='true' data-lazy='false'></marimo-dataframe></marimo-ui-element>"
-          }
-        }
-      ],
+      "outputs": [],
       "console": []
     },
     {
-      "id": "OVPI",
+      "id": "PKri",
       "code_hash": "afb11b9bf329c4546f491f4c2198a840",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/html": "<marimo-ui-element object-id='OVPI-0' random-id='a6a962bb-6024-9a69-9ec6-bbb41dcacc6c'><marimo-dataframe data-initial-value='{&quot;transforms&quot;:[]}' data-label='null' data-columns='[[&quot;id&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;experiment&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;session&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;epoch&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;train_loss&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;train_acc&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;test_loss&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;test_acc&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;learning_rate&quot;,&quot;number&quot;,&quot;f64&quot;]]' data-dataframe-name='&quot;df_epoch&quot;' data-total='1' data-page-size='5' data-show-download='true' data-download-json-ensure-ascii='true' data-lazy='false'></marimo-dataframe></marimo-ui-element>"
-          }
-        }
-      ],
+      "outputs": [],
       "console": []
     },
     {
-      "id": "voWC",
+      "id": "Xref",
       "code_hash": "847521fee92d7c0e157496dd85197440",
       "outputs": [
         {
           "type": "data",
           "data": {
-            "text/html": "<marimo-ui-element object-id='voWC-0' random-id='7635a7f8-2655-6df6-7b52-71164c80c5a6'><marimo-dataframe data-initial-value='{&quot;transforms&quot;:[]}' data-label='null' data-columns='[[&quot;id&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;experiment&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;session&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;max_acc&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;test_loss&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;accuracy&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;precision_macro&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;recall_macro&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;f1_macro&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;seen_acc&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;unseen_acc&quot;,&quot;number&quot;,&quot;f64&quot;]]' data-dataframe-name='&quot;df_session&quot;' data-total='7' data-page-size='5' data-show-download='true' data-download-json-ensure-ascii='true' data-lazy='false'></marimo-dataframe></marimo-ui-element>"
+            "text/html": "<marimo-ui-element object-id='Xref-0' random-id='7d519a05-7b2d-2812-bd5d-230d30756627'><marimo-dataframe data-initial-value='{&quot;transforms&quot;:[]}' data-label='null' data-columns='[[&quot;id&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;experiment&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;session&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;max_acc&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;test_loss&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;accuracy&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;precision_macro&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;recall_macro&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;f1_macro&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;seen_acc&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;unseen_acc&quot;,&quot;number&quot;,&quot;f64&quot;]]' data-dataframe-name='&quot;df_session&quot;' data-total='16' data-page-size='5' data-show-download='true' data-download-json-ensure-ascii='true' data-lazy='false'></marimo-dataframe></marimo-ui-element>"
           }
         }
       ],
       "console": []
     },
     {
-      "id": "xeEl",
-      "code_hash": null,
-      "outputs": [],
+      "id": "SFPL",
+      "code_hash": "b6dd60f2b081a2da51adcd515fb7d9b3",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='SFPL-0' random-id='d182bba4-e2f8-9ef8-8812-a76dc88690cb'><marimo-vega data-initial-value='{}' data-label='null' data-spec='{&quot;config&quot;:{&quot;view&quot;:{&quot;continuousWidth&quot;:300,&quot;continuousHeight&quot;:300}},&quot;layer&quot;:[{&quot;mark&quot;:{&quot;type&quot;:&quot;line&quot;},&quot;encoding&quot;:{&quot;color&quot;:{&quot;field&quot;:&quot;experiment&quot;,&quot;legend&quot;:null,&quot;type&quot;:&quot;quantitative&quot;},&quot;x&quot;:{&quot;field&quot;:&quot;session&quot;,&quot;type&quot;:&quot;quantitative&quot;},&quot;y&quot;:{&quot;field&quot;:&quot;accuracy&quot;,&quot;type&quot;:&quot;quantitative&quot;}}},{&quot;mark&quot;:{&quot;type&quot;:&quot;circle&quot;},&quot;encoding&quot;:{&quot;color&quot;:{&quot;field&quot;:&quot;experiment&quot;,&quot;legend&quot;:null,&quot;type&quot;:&quot;quantitative&quot;},&quot;x&quot;:{&quot;field&quot;:&quot;session&quot;,&quot;title&quot;:&quot;Session&quot;,&quot;type&quot;:&quot;quantitative&quot;},&quot;y&quot;:{&quot;field&quot;:&quot;accuracy&quot;,&quot;title&quot;:&quot;Accuracy&quot;,&quot;type&quot;:&quot;quantitative&quot;}},&quot;transform&quot;:[{&quot;window&quot;:[{&quot;op&quot;:&quot;rank&quot;,&quot;field&quot;:&quot;&quot;,&quot;as&quot;:&quot;rank&quot;}],&quot;groupby&quot;:[&quot;experiment&quot;],&quot;sort&quot;:[{&quot;field&quot;:&quot;session&quot;,&quot;order&quot;:&quot;ascending&quot;}]},{&quot;filter&quot;:&quot;(datum.rank === 1)&quot;}]},{&quot;mark&quot;:{&quot;type&quot;:&quot;text&quot;,&quot;align&quot;:&quot;left&quot;,&quot;dx&quot;:5,&quot;dy&quot;:-5},&quot;encoding&quot;:{&quot;color&quot;:{&quot;field&quot;:&quot;experiment&quot;,&quot;legend&quot;:null,&quot;type&quot;:&quot;quantitative&quot;},&quot;text&quot;:{&quot;field&quot;:&quot;experiment&quot;,&quot;type&quot;:&quot;nominal&quot;},&quot;x&quot;:{&quot;field&quot;:&quot;session&quot;,&quot;title&quot;:&quot;Session&quot;,&quot;type&quot;:&quot;quantitative&quot;},&quot;y&quot;:{&quot;field&quot;:&quot;accuracy&quot;,&quot;title&quot;:&quot;Accuracy&quot;,&quot;type&quot;:&quot;quantitative&quot;}},&quot;transform&quot;:[{&quot;window&quot;:[{&quot;op&quot;:&quot;rank&quot;,&quot;field&quot;:&quot;&quot;,&quot;as&quot;:&quot;rank&quot;}],&quot;groupby&quot;:[&quot;experiment&quot;],&quot;sort&quot;:[{&quot;field&quot;:&quot;session&quot;,&quot;order&quot;:&quot;ascending&quot;}]},{&quot;filter&quot;:&quot;(datum.rank === 1)&quot;}]}],&quot;data&quot;:{&quot;url&quot;:&quot;./@file/3409-39061-aJ7WCDrq.arrow&quot;,&quot;format&quot;:{&quot;type&quot;:&quot;arrow&quot;}},&quot;resolve&quot;:{&quot;scale&quot;:{&quot;color&quot;:&quot;independent&quot;}},&quot;width&quot;:&quot;container&quot;,&quot;&#36;schema&quot;:&quot;https://vega.github.io/schema/vega-lite/v6.1.0.json&quot;}' data-chart-selection='true' data-field-selection='true' data-embed-options='{}'></marimo-vega></marimo-ui-element>"
+          }
+        }
+      ],
       "console": []
     }
   ]

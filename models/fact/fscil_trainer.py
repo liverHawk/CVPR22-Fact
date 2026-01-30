@@ -16,6 +16,7 @@ from utils import count_acc_topk
 from models.fact.Network import MYNET
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from db import init_db, Experiment, EpochMetric, SessionMetric
+import math
 
 
 class FSCILTrainer(Trainer):
@@ -163,15 +164,33 @@ class FSCILTrainer(Trainer):
                     result_list.append(
                         'epoch:%03d,lr:%.4f,training_loss:%.5f,training_acc:%.5f,test_loss:%.5f,test_acc:%.5f' % (
                             epoch, lrc, tl, ta, tsl, tsa))
+                    # None値とnan値のチェックとデフォルト値の設定
+                    def safe_float(value, default=0.0):
+                        """Noneまたはnanの場合はデフォルト値を返す"""
+                        if value is None:
+                            return default
+                        try:
+                            fval = float(value)
+                            if math.isnan(fval) or math.isinf(fval):
+                                return default
+                            return fval
+                        except (ValueError, TypeError):
+                            return default
+                    
+                    train_loss = safe_float(tl, 0.0)
+                    train_acc = safe_float(ta, 0.0)
+                    test_loss = safe_float(tsl, 0.0)
+                    test_acc = safe_float(tsa, 0.0)
+                    learning_rate = safe_float(lrc, 0.0)
                     EpochMetric.create(
                         experiment=self.db_experiment_id,
                         session=session,
                         epoch=epoch,
-                        train_loss=tl,
-                        train_acc=ta,
-                        test_loss=tsl,
-                        test_acc=tsa,
-                        learning_rate=lrc,
+                        train_loss=train_loss,
+                        train_acc=train_acc,
+                        test_loss=test_loss,
+                        test_acc=test_acc,
+                        learning_rate=learning_rate,
                     )
                     print('This epoch takes %d seconds' % (time.time() - start_time),
                           '\nstill need around %.2f mins to finish this session' % (

@@ -20,4 +20,6 @@ dependencies = [
     "duckdb>=1.4.4",
     "sqlalchemy>=2.0.46",
     "marimo>=0.19.7",
+    "altair>=6.0.0",
+    "pyarrow>=23.0.0",
 ]
