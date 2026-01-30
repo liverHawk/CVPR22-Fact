@@ -11,9 +11,7 @@ stages:
       params.yaml:
         create_sessions.base_labels:
         - BENIGN
-        - Bot
-        - Infiltration
-        - Web Attack
+        - DoS
         create_sessions.dataset_name: CICIDS2017_flow_improved
         dataset_name: CICIDS2017_flow_improved
     outs:
@@ -38,25 +36,23 @@ stages:
       params.yaml:
         create_sessions.base_labels:
         - BENIGN
-        - Bot
-        - Infiltration
-        - Web Attack
+        - DoS
         create_sessions.dataset_name: CICIDS2017_flow_improved
         dataset_name: CICIDS2017_flow_improved
     outs:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: b060d505a2c932c7ae52e76c633a8300.dir
-      size: 9770731
-      nfiles: 7
+      md5: f1a6892083004e64ef868ce2c2208ddc.dir
+      size: 10772738
+      nfiles: 9
   train:
     cmd: uv run train.py
     deps:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: b060d505a2c932c7ae52e76c633a8300.dir
-      size: 9770731
-      nfiles: 7
+      md5: f1a6892083004e64ef868ce2c2208ddc.dir
+      size: 10772738
+      nfiles: 9
     - path: train.py
       hash: md5
       md5: 3c9b69897e711a134f4f0da77d2983fa
@@ -65,7 +61,7 @@ stages:
       params.yaml:
         alpha: 2.0
         balance: 0.01
-        base_class: 4
+        base_class: 2
         base_mode: ft_cos
         batch_size_base: 256
         batch_size_new: 0
@@ -103,6 +99,6 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: 3c43573c6d03fc8e945661e73f569c40.dir
-      size: 2082436
-      nfiles: 10
+      md5: 0faacc1badf2040ccc5a4866282cbce9.dir
+      size: 2116171
+      nfiles: 12
