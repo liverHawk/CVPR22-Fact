@@ -12,8 +12,8 @@ label_column: Label    # ラベル列の名前（CICIDS2017_improved用）
 input_dir: /home/hawk/Documents/school/dataset/project/cleaned   # 入力ディレクトリのパス
 
 # トレーニング設定
-epochs_base: 1
-epochs_new: 2
+epochs_base: 100
+epochs_new: 200
 lr_base: 0.005
 lr_new: 0.1
 batch_size_base: 256
