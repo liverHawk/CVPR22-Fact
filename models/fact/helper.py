@@ -210,6 +210,17 @@ def test(model, testloader, epoch,args, session,validation=True):
                     f.write(f'    F1-score: {f1_val:.4f}\n')
                 f.write(f'\nSeen Classes Accuracy: {seenac:.4f}\n')
                 f.write(f'Unseen Classes Accuracy: {unseenac:.4f}\n')
+
+            metrics_dict = {
+                'test_loss': vl,
+                'accuracy': float(accuracy),
+                'precision_macro': float(precision),
+                'recall_macro': float(recall),
+                'f1_macro': float(f1),
+                'seen_acc': float(seenac) if not np.isnan(seenac) else 0.0,
+                'unseen_acc': float(unseenac) if not np.isnan(unseenac) else 0.0,
+            }
+            return vl, va, metrics_dict
     return vl, va
 
 
@@ -299,4 +310,15 @@ def test_withfc(model, testloader, epoch,args, session,validation=True):
                     f.write(f'    F1-score: {f1_val:.4f}\n')
                 f.write(f'\nSeen Classes Accuracy: {seenac:.4f}\n')
                 f.write(f'Unseen Classes Accuracy: {unseenac:.4f}\n')
+
+            metrics_dict = {
+                'test_loss': vl,
+                'accuracy': float(accuracy),
+                'precision_macro': float(precision),
+                'recall_macro': float(recall),
+                'f1_macro': float(f1),
+                'seen_acc': float(seenac) if not np.isnan(seenac) else 0.0,
+                'unseen_acc': float(unseenac) if not np.isnan(unseenac) else 0.0,
+            }
+            return vl, va, metrics_dict
     return vl, va

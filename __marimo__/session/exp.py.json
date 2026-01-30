@@ -1,0 +1,92 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.19.7"
+  },
+  "cells": [
+    {
+      "id": "Hbol",
+      "code_hash": "ce4194fff5fe8b0eebb7a09769bc0473",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "01396535170b5e22a7bf9b7322c81872",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "c41ec5ffe1ace6c73a1952c14ce47e81",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "rdGC",
+      "code_hash": "7775ea92a7a3f639dc25a4ca57a50c13",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='rdGC-0' random-id='ac9fec57-b34f-2a22-0390-e51b7453204e'><marimo-dataframe data-initial-value='{&quot;transforms&quot;:[]}' data-label='null' data-columns='[[&quot;id&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;created_at&quot;,&quot;datetime&quot;,&quot;datetime[\u03bcs]&quot;],[&quot;save_path&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;project&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;dataset_type&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;dataset_name&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;dataroot&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;encoder&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;epochs_base&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;epochs_new&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;lr_base&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;lr_new&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;batch_size_base&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;batch_size_new&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;test_batch_size&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;base_mode&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;new_mode&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;schedule&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;step&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;decay&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;gamma&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;momentum&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;temperature&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;milestones_json&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;balance&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;alpha&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;eta&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;loss_iter&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;start_session&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;model_dir&quot;,&quot;unknown&quot;,&quot;null&quot;],[&quot;num_workers&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;gpu&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;seed&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;not_data_init&quot;,&quot;boolean&quot;,&quot;bool&quot;],[&quot;set_no_val&quot;,&quot;boolean&quot;,&quot;bool&quot;],[&quot;debug&quot;,&quot;boolean&quot;,&quot;bool&quot;],[&quot;normalize_method&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;label_column&quot;,&quot;string&quot;,&quot;str&quot;],[&quot;base_class&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;num_classes&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;way&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;shot&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;base_labels_json&quot;,&quot;string&quot;,&quot;str&quot;]]' data-dataframe-name='&quot;df_exp&quot;' data-total='1' data-page-size='5' data-show-download='true' data-download-json-ensure-ascii='true' data-lazy='false'></marimo-dataframe></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "OVPI",
+      "code_hash": "afb11b9bf329c4546f491f4c2198a840",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='OVPI-0' random-id='a6a962bb-6024-9a69-9ec6-bbb41dcacc6c'><marimo-dataframe data-initial-value='{&quot;transforms&quot;:[]}' data-label='null' data-columns='[[&quot;id&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;experiment&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;session&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;epoch&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;train_loss&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;train_acc&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;test_loss&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;test_acc&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;learning_rate&quot;,&quot;number&quot;,&quot;f64&quot;]]' data-dataframe-name='&quot;df_epoch&quot;' data-total='1' data-page-size='5' data-show-download='true' data-download-json-ensure-ascii='true' data-lazy='false'></marimo-dataframe></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "voWC",
+      "code_hash": "847521fee92d7c0e157496dd85197440",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='voWC-0' random-id='7635a7f8-2655-6df6-7b52-71164c80c5a6'><marimo-dataframe data-initial-value='{&quot;transforms&quot;:[]}' data-label='null' data-columns='[[&quot;id&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;experiment&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;session&quot;,&quot;integer&quot;,&quot;i64&quot;],[&quot;max_acc&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;test_loss&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;accuracy&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;precision_macro&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;recall_macro&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;f1_macro&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;seen_acc&quot;,&quot;number&quot;,&quot;f64&quot;],[&quot;unseen_acc&quot;,&quot;number&quot;,&quot;f64&quot;]]' data-dataframe-name='&quot;df_session&quot;' data-total='7' data-page-size='5' data-show-download='true' data-download-json-ensure-ascii='true' data-lazy='false'></marimo-dataframe></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "xeEl",
+      "code_hash": null,
+      "outputs": [],
+      "console": []
+    }
+  ]
+}

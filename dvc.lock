@@ -103,6 +103,6 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: a0892bfe999c669d63af11da7fa342b2.dir
-      size: 2070039
-      nfiles: 15
+      md5: 159e1c808e913010a3fdf248ce3fcba3.dir
+      size: 2089175
+      nfiles: 17

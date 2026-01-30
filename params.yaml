@@ -64,6 +64,8 @@ debug: false
 comet_project:       # プロジェクト名（nullの場合はdataset名を使用）
 comet_workspace:       # ワークスペース名（nullの場合はデフォルト）
 comet_disabled: false  # Comet MLを無効化する場合はtrue
+comet_tags:
+  - "orm"
 
 # セッションファイル生成設定
 create_sessions:

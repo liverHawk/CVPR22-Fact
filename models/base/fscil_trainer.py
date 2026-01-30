@@ -3,10 +3,11 @@ import torch.nn as nn
 from copy import deepcopy
 import torch
 
-from .helper import save_list_to_txt, replace_base_fc, test, base_train
-from utils import ensure_path
+from .helper import replace_base_fc, test, base_train
+from utils import ensure_path, save_list_to_txt
 from dataloader.data_utils import set_up_datasets, get_base_dataloader, get_new_dataloader
 from .Network import MYNET
+from db import init_db, Experiment, EpochMetric, SessionMetric
 import numpy as np
 import time
 import os
@@ -84,6 +85,11 @@ class FSCILTrainer(Trainer):
         # init train statistics
         result_list = [args]
 
+        # PeeWee: one experiment row per run, all params as columns
+        init_db()
+        db_exp = Experiment.from_args(args)
+        self.db_experiment_id = db_exp.id
+
         for session in range(args.start_session, args.sessions):
 
             train_set, trainloader, testloader = self.get_dataloader(session)
@@ -123,6 +129,16 @@ class FSCILTrainer(Trainer):
                     result_list.append(
                         'epoch:%03d,lr:%.4f,training_loss:%.5f,training_acc:%.5f,test_loss:%.5f,test_acc:%.5f' % (
                             epoch, lrc, tl, ta, tsl, tsa))
+                    EpochMetric.create(
+                        experiment=self.db_experiment_id,
+                        session=session,
+                        epoch=epoch,
+                        train_loss=tl,
+                        train_acc=ta,
+                        test_loss=tsl,
+                        test_acc=tsa,
+                        learning_rate=lrc,
+                    )
                     print('This epoch takes %d seconds' % (time.time() - start_time),
                           '\nstill need around %.2f mins to finish this session' % (
                                   (time.time() - start_time) * (args.epochs_base - epoch) / 60))
@@ -143,7 +159,23 @@ class FSCILTrainer(Trainer):
                     model_module = self.model.module if isinstance(self.model, nn.DataParallel) else self.model
                     model_module.mode = 'avg_cos'
                     # ベースセッションの最終評価（validation=Falseで実行）
-                    tsl_final, tsa_final = test(self.model, testloader, 0, args, session, validation=False)
+                    test_result = test(self.model, testloader, 0, args, session, validation=False)
+                    if len(test_result) == 3:
+                        tsl_final, tsa_final, metrics_dict = test_result
+                        SessionMetric.create(
+                            experiment=self.db_experiment_id,
+                            session=session,
+                            max_acc=self.trlog['max_acc'][session],
+                            test_loss=metrics_dict['test_loss'],
+                            accuracy=metrics_dict['accuracy'],
+                            precision_macro=metrics_dict['precision_macro'],
+                            recall_macro=metrics_dict['recall_macro'],
+                            f1_macro=metrics_dict['f1_macro'],
+                            seen_acc=metrics_dict['seen_acc'],
+                            unseen_acc=metrics_dict['unseen_acc'],
+                        )
+                    else:
+                        tsl_final, tsa_final = test_result
                     if (tsa_final * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa_final * 100))
                         print('The new best test acc of base session={:.3f}'.format(self.trlog['max_acc'][session]))
@@ -185,10 +217,27 @@ class FSCILTrainer(Trainer):
                     raise ValueError(error_msg)
                 model_module.update_fc(trainloader, new_classes_in_data, session)
 
-                tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
+                test_result = test(self.model, testloader, 0, args, session, validation=False)
+                if len(test_result) == 3:
+                    tsl, tsa, metrics_dict = test_result
+                else:
+                    tsl, tsa = test_result
+                self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
+                if len(test_result) == 3:
+                    SessionMetric.create(
+                        experiment=self.db_experiment_id,
+                        session=session,
+                        max_acc=self.trlog['max_acc'][session],
+                        test_loss=metrics_dict['test_loss'],
+                        accuracy=metrics_dict['accuracy'],
+                        precision_macro=metrics_dict['precision_macro'],
+                        recall_macro=metrics_dict['recall_macro'],
+                        f1_macro=metrics_dict['f1_macro'],
+                        seen_acc=metrics_dict['seen_acc'],
+                        unseen_acc=metrics_dict['unseen_acc'],
+                    )
 
                 # save model
-                self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                 save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
                 #torch.save(dict(params=self.model.state_dict()), save_model_dir)
                 self.best_model_dict = deepcopy(self.model.state_dict())

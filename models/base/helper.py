@@ -4,6 +4,8 @@ from utils import *
 from tqdm import tqdm
 import torch.nn.functional as F
 import torch.nn as nn
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+import os
 
 
 def base_train(model, trainloader, optimizer, scheduler, epoch, args):
@@ -123,9 +125,59 @@ def test(model, testloader, epoch,args, session,validation=True):
         lbs=lbs.view(-1)
         if validation is not True:
             save_model_dir = os.path.join(args.save_path, 'session' + str(session) + 'confusion_matrix')
-            cm=confmatrix(lgt,lbs,save_model_dir)
-            perclassacc=cm.diagonal()
-            seenac=np.mean(perclassacc[:args.base_class])
-            unseenac=np.mean(perclassacc[args.base_class:])
-            print('Seen Acc:',seenac, 'Unseen ACC:', unseenac)
+            label_names = get_dataset_label_names(testloader.dataset) if hasattr(testloader, 'dataset') else None
+            if label_names:
+                label_names = label_names[:test_class]
+            cm = confmatrix(lgt, lbs, save_model_dir, label_names=label_names)
+            perclassacc = cm.diagonal()
+            seenac = np.mean(perclassacc[:args.base_class])
+            unseenac = np.mean(perclassacc[args.base_class:])
+            print('Seen Acc:', seenac, 'Unseen ACC:', unseenac)
+
+            pred = torch.argmax(lgt, dim=1)
+            y_true_np = lbs.numpy() if isinstance(lbs, torch.Tensor) else lbs
+            y_pred_np = pred.numpy() if isinstance(pred, torch.Tensor) else pred
+            accuracy = accuracy_score(y_true_np, y_pred_np)
+            precision = precision_score(y_true_np, y_pred_np, average='macro', zero_division=0)
+            recall = recall_score(y_true_np, y_pred_np, average='macro', zero_division=0)
+            f1 = f1_score(y_true_np, y_pred_np, average='macro', zero_division=0)
+            precision_per_class = precision_score(y_true_np, y_pred_np, average=None, zero_division=0)
+            recall_per_class = recall_score(y_true_np, y_pred_np, average=None, zero_division=0)
+            f1_per_class = f1_score(y_true_np, y_pred_np, average=None, zero_division=0)
+
+            print(f'Session {session} Metrics:')
+            print(f'  Accuracy: {accuracy:.4f}')
+            print(f'  Precision (macro): {precision:.4f}')
+            print(f'  Recall (macro): {recall:.4f}')
+            print(f'  F1-score (macro): {f1:.4f}')
+
+            metrics_file = os.path.join(args.save_path, f'session_{session}_metrics.txt')
+            with open(metrics_file, 'w') as f:
+                f.write(f'Session {session} Evaluation Metrics\n')
+                f.write('=' * 50 + '\n\n')
+                f.write(f'Overall Metrics:\n')
+                f.write(f'  Accuracy: {accuracy:.4f}\n')
+                f.write(f'  Precision (macro): {precision:.4f}\n')
+                f.write(f'  Recall (macro): {recall:.4f}\n')
+                f.write(f'  F1-score (macro): {f1:.4f}\n\n')
+                f.write(f'Per-class Metrics:\n')
+                for i, (p, r, f1_val) in enumerate(zip(precision_per_class, recall_per_class, f1_per_class)):
+                    class_name = label_names[i] if label_names and i < len(label_names) else f'Class {i}'
+                    f.write(f'  {class_name}:\n')
+                    f.write(f'    Precision: {p:.4f}\n')
+                    f.write(f'    Recall: {r:.4f}\n')
+                    f.write(f'    F1-score: {f1_val:.4f}\n')
+                f.write(f'\nSeen Classes Accuracy: {seenac:.4f}\n')
+                f.write(f'Unseen Classes Accuracy: {unseenac:.4f}\n')
+
+            metrics_dict = {
+                'test_loss': vl,
+                'accuracy': float(accuracy),
+                'precision_macro': float(precision),
+                'recall_macro': float(recall),
+                'f1_macro': float(f1),
+                'seen_acc': float(seenac) if not np.isnan(seenac) else 0.0,
+                'unseen_acc': float(unseenac) if not np.isnan(unseenac) else 0.0,
+            }
+            return vl, va, metrics_dict
     return vl, va

@@ -15,6 +15,7 @@ import torch.nn.functional as F
 from utils import count_acc_topk
 from models.fact.Network import MYNET
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from db import init_db, Experiment, EpochMetric, SessionMetric
 
 
 class FSCILTrainer(Trainer):
@@ -94,6 +95,11 @@ class FSCILTrainer(Trainer):
         # init train statistics
         result_list = [args]
 
+        # PeeWee: one experiment row per run, all params as columns
+        init_db()
+        db_exp = Experiment.from_args(args)
+        self.db_experiment_id = db_exp.id
+
         #gen_mask
         masknum=3
         # masknumがbase_classより大きい場合はbase_classに制限
@@ -157,6 +163,16 @@ class FSCILTrainer(Trainer):
                     result_list.append(
                         'epoch:%03d,lr:%.4f,training_loss:%.5f,training_acc:%.5f,test_loss:%.5f,test_acc:%.5f' % (
                             epoch, lrc, tl, ta, tsl, tsa))
+                    EpochMetric.create(
+                        experiment=self.db_experiment_id,
+                        session=session,
+                        epoch=epoch,
+                        train_loss=tl,
+                        train_acc=ta,
+                        test_loss=tsl,
+                        test_acc=tsa,
+                        learning_rate=lrc,
+                    )
                     print('This epoch takes %d seconds' % (time.time() - start_time),
                           '\nstill need around %.2f mins to finish this session' % (
                                   (time.time() - start_time) * (args.epochs_base - epoch) / 60))
@@ -199,7 +215,23 @@ class FSCILTrainer(Trainer):
                 self.old_classifiers=self.dummy_classifiers[:self.args.base_class,:]
                 model_module.mode = 'avg_cos'
                 # ベースセッションの最終評価（validation=Falseで実行）
-                tsl_final, tsa_final = test(self.model, testloader, 0, args, session, validation=False)
+                test_result = test(self.model, testloader, 0, args, session, validation=False)
+                if len(test_result) == 3:
+                    tsl_final, tsa_final, metrics_dict = test_result
+                    SessionMetric.create(
+                        experiment=self.db_experiment_id,
+                        session=session,
+                        max_acc=self.trlog['max_acc'][session],
+                        test_loss=metrics_dict['test_loss'],
+                        accuracy=metrics_dict['accuracy'],
+                        precision_macro=metrics_dict['precision_macro'],
+                        recall_macro=metrics_dict['recall_macro'],
+                        f1_macro=metrics_dict['f1_macro'],
+                        seen_acc=metrics_dict['seen_acc'],
+                        unseen_acc=metrics_dict['unseen_acc'],
+                    )
+                else:
+                    tsl_final, tsa_final = test_result
                 
                 # セッション0の最終テスト結果をComet MLにログ
                 log_metrics_to_comet(
@@ -249,7 +281,23 @@ class FSCILTrainer(Trainer):
 
                 #tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
                 #tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
-                tsl, tsa = self.test_intergrate(self.model, testloader, 0,args, session,validation=False)
+                test_result = self.test_intergrate(self.model, testloader, 0, args, session, validation=False)
+                if len(test_result) == 3:
+                    tsl, tsa, metrics_dict = test_result
+                    SessionMetric.create(
+                        experiment=self.db_experiment_id,
+                        session=session,
+                        max_acc=self.trlog['max_acc'][session],
+                        test_loss=metrics_dict['test_loss'],
+                        accuracy=metrics_dict['accuracy'],
+                        precision_macro=metrics_dict['precision_macro'],
+                        recall_macro=metrics_dict['recall_macro'],
+                        f1_macro=metrics_dict['f1_macro'],
+                        seen_acc=metrics_dict['seen_acc'],
+                        unseen_acc=metrics_dict['unseen_acc'],
+                    )
+                else:
+                    tsl, tsa = test_result
                 
                 # save model
                 self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
@@ -439,6 +487,16 @@ class FSCILTrainer(Trainer):
                 session=session
             )
 
+            metrics_dict = {
+                'test_loss': vl,
+                'accuracy': float(accuracy),
+                'precision_macro': float(precision),
+                'recall_macro': float(recall),
+                'f1_macro': float(f1),
+                'seen_acc': float(seenac) if not np.isnan(seenac) else 0.0,
+                'unseen_acc': float(unseenac) if not np.isnan(unseenac) else 0.0,
+            }
+            return vl, va, metrics_dict
         return vl, va
 
     def set_save_path(self):
