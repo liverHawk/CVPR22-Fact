@@ -5,8 +5,8 @@ stages:
     deps:
     - path: split_dataset_by_label.py
       hash: md5
-      md5: f05d159733230f8d1ffde77c75553ad5
-      size: 10825
+      md5: ba39f33dd4066e482ea5b46065c2d744
+      size: 10851
     params:
       params.yaml:
         create_sessions.dataset_name: CICIDS2017_flow_improved
@@ -14,13 +14,13 @@ stages:
     outs:
     - path: data/CICIDS2017_flow_improved/test
       hash: md5
-      md5: cd59bb5013bab93e0d756263ae8298e3.dir
-      size: 219199768
+      md5: 32e160060df30e43ee3c5b3ea4731ad4.dir
+      size: 219165107
       nfiles: 5
     - path: data/CICIDS2017_flow_improved/train
       hash: md5
-      md5: 120489a76a74d21e8af57a5ce83dee49.dir
-      size: 876902478
+      md5: fd458e907b8c619039d6310972b4938b.dir
+      size: 876937139
       nfiles: 17
   create_sessions:
     cmd: uv run create_session_files.py
@@ -77,22 +77,22 @@ stages:
         - 10
         - 15
         momentum: 0.9
-        new_mode: ft_dot
-        normalize_method: standard
+        new_mode: avg_cos
+        normalize_method: moving_minmax
         num_classes: 10
         num_workers: 8
         project: fact
-        schedule: Milestone
+        schedule: Cosine
         seed: 1
         shot: 5
         start_session: 0
         step: 20
-        temperature: 16
+        temperature: 32
         test_batch_size: 100
         way: 1
     outs:
     - path: checkpoint/
       hash: md5
-      md5: dab4c0c04c33b04c71802490d8b7c331.dir
-      size: 2054072
-      nfiles: 9
+      md5: a0892bfe999c669d63af11da7fa342b2.dir
+      size: 2070039
+      nfiles: 15

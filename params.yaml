@@ -6,7 +6,7 @@ project: fact    # 'base' または 'fact'
 dataset_type: CICIDS2017_improved    # 'mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved'
 dataset_name: CICIDS2017_flow_improved    # 'CICIDS2017_flow_improved', 'CICIDS2017_improved'
 dataroot: data/
-encoder: cnn1d    # 'mlp' または 'cnn1d'（CICIDS2017_improved用）
+encoder: mlp   # 'mlp' または 'cnn1d'（CICIDS2017_improved用）
 normalize_method: moving_minmax    # 'standard', 'minmax', 'moving_minmax'
 label_column: Label    # ラベル列の名前（CICIDS2017_improved用）
 input_dir: /home/hawk/Documents/school/dataset/project/cleaned   # 入力ディレクトリのパス
@@ -22,7 +22,7 @@ test_batch_size: 100
 
 # モード設定
 base_mode: ft_cos    # 'ft_dot' または 'ft_cos'
-new_mode: ft_dot    # 'ft_dot', 'ft_cos', または 'avg_cos'
+new_mode: avg_cos    # 'ft_dot', 'ft_cos', または 'avg_cos'
 
 # 学習率スケジュール
 schedule: 'Cosine'    # 'Step', 'Milestone', 'Cosine'
