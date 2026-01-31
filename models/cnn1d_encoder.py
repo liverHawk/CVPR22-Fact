@@ -82,6 +82,35 @@ class CNN1DEncoder(nn.Module):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
     
+    def pre_encode(self, x):
+        """
+        畳み込み＋プールまで処理（Mixup用の中間表現）。
+        fact/helper.py の base_train で pre_encode → mixup → post_encode に必要。
+        
+        Args:
+            x: 入力テンソル (batch_size, input_dim)
+        
+        Returns:
+            中間ベクトル (batch_size, pooled_dim)
+        """
+        x = x.unsqueeze(1)
+        x = self.conv_layers(x)
+        x = F.adaptive_avg_pool1d(x, 1)
+        x = x.squeeze(-1)
+        return x
+
+    def post_encode(self, x):
+        """
+        中間表現から最終埋め込みへ（pre_encode の出力を入力とする）。
+        
+        Args:
+            x: 中間テンソル (batch_size, pooled_dim)
+        
+        Returns:
+            埋め込みベクトル (batch_size, output_dim)
+        """
+        return self.fc(x)
+
     def forward(self, x):
         """
         フォワードパス
@@ -92,19 +121,8 @@ class CNN1DEncoder(nn.Module):
         Returns:
             埋め込みベクトル (batch_size, output_dim)
         """
-        # (batch_size, input_dim) -> (batch_size, 1, input_dim)
-        x = x.unsqueeze(1)
-        
-        # 畳み込み層を通す
-        x = self.conv_layers(x)  # (batch_size, out_channels, seq_length)
-        
-        # グローバル平均プーリング
-        x = F.adaptive_avg_pool1d(x, 1)  # (batch_size, out_channels, 1)
-        x = x.squeeze(-1)  # (batch_size, out_channels)
-        
-        # 全結合層
-        x = self.fc(x)  # (batch_size, output_dim)
-        
+        x = self.pre_encode(x)
+        x = self.post_encode(x)
         return x
 
 
