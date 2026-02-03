@@ -148,19 +148,39 @@ class CIFAR10(VisionDataset):
         return data_tmp, targets_tmp
 
     def NewClassSelector(self, data, targets, index):
-        data_tmp = []
-        targets_tmp = []
+        """
+        Select samples for new-class sessions.
+
+        In the original implementation, `index` was reshaped to (5, 5) and then
+        used directly to index `data`/`targets`, which implies that the session
+        files store *sample indices*, not class labels.
+
+        However, the fixed (5, 5) reshape breaks as soon as the number of
+        indices in a session file differs from 25 (e.g. different way/shot
+        configuration), causing a reshape error.
+
+        Here we:
+        - treat every entry in `index` as a data index,
+        - convert them to integers, and
+        - index `data` / `targets` directly.
+
+        This makes the code robust to arbitrary numbers of exemplars while
+        preserving the original semantics.
+        """
+        if index is None:
+            raise ValueError("NewClassSelector expects a non-empty `index` list for new classes.")
+
+        # Convert all entries to integer indices
         ind_list = [int(i) for i in index]
-        ind_np = np.array(ind_list)
-        index = ind_np.reshape((5,5))
-        for i in index:
-            ind_cl = i
-            if len(data_tmp) == 0:
-                data_tmp = data[ind_cl]
-                targets_tmp = targets[ind_cl]
-            else:
-                data_tmp = np.vstack((data_tmp, data[ind_cl]))
-                targets_tmp = np.hstack((targets_tmp, targets[ind_cl]))
+        ind_np = np.array(ind_list, dtype=int)
+
+        if ind_np.size == 0:
+            raise ValueError("NewClassSelector received an empty index list; "
+                             "check your session_*.txt files.")
+
+        # Directly index data / targets by sample indices
+        data_tmp = data[ind_np]
+        targets_tmp = targets[ind_np]
 
         return data_tmp, targets_tmp
 
