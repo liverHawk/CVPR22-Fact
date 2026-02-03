@@ -2,6 +2,7 @@ import argparse
 import importlib
 import os
 import yaml
+import torch
 from utils import set_seed, set_gpu, pprint
 
 MODEL_DIR=None
@@ -234,7 +235,6 @@ if __name__ == '__main__':
     
     # CPU環境での最適化
     if args.num_gpu == 0:  # CPU環境
-        import torch
         # PyTorchスレッド数の最適化
         num_threads = os.cpu_count() or 1
         torch.set_num_threads(num_threads)

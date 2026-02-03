@@ -57,10 +57,15 @@ def set_gpu(args):
         return 0
     
     gpu_list = [int(x) for x in args.gpu.split(',')]
+    # DataParallel は device_ids[0] (cuda:0) にモデルがあることを要求するため、
+    # 複数GPU時もデフォルトデバイスを先頭GPUに設定する
+    if len(gpu_list) >= 1:
+        torch.cuda.set_device(gpu_list[0])
+    
     print('use gpu:', gpu_list)
     os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
-    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    return gpu_list.__len__()
+    # os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    return gpu_list
 
 
 def ensure_path(path):

@@ -23,9 +23,10 @@ class FSCILTrainer(Trainer):
 
         self.model = MYNET(self.args, mode=self.args.base_mode)
         if self.args.num_gpu > 0 and torch.cuda.is_available():
-            self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
-            self.model = self.model.cuda()
-            self.device = torch.device('cuda')
+            device_ids = list(range(self.args.num_gpu))
+            self.model = self.model.to(f'cuda:{device_ids[0]}')
+            self.model = nn.DataParallel(self.model, device_ids=device_ids)
+            self.device = torch.device(f'cuda:{device_ids[0]}')
         else:
             self.device = torch.device('cpu')
             self.model = self.model.to(self.device)

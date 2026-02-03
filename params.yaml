@@ -3,16 +3,16 @@
 
 # 基本設定
 project: fact    # 'base' または 'fact'
-dataset_type: cifar100    # 'mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved'
-dataset_name: cifar100
+dataset_type: CICIDS2017_improved    # 'mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved'
+dataset_name: CICIDS2017_flow_improved
 dataroot: data/
 encoder: mlp  # 'mlp' または 'cnn1d'（CICIDS2017_improved用）
 normalize_method: moving_minmax    # 'standard', 'minmax', 'moving_minmax'
 label_column: Label    # ラベル列の名前（CICIDS2017_improved用）
-input_dir: /home/hawk/Documents/school/dataset/project/cleaned   # 入力ディレクトリのパス
+input_dir: /home/ishibashi02/dataset/project/cleaned   # 入力ディレクトリのパス
 
 # トレーニング
-epochs_base: 600
+epochs_base: 10
 epochs_new: 100
 lr_base: 0.1
 lr_new: 0.1
@@ -51,7 +51,7 @@ shot: 5  # 各クラスのショット数（Few-Shot用）
 start_session: 0
 model_dir:       # nullまたはモデルパラメータのディレクトリ
 num_workers: 8
-gpu: '0'  # カンマ区切りで複数指定可能（例: '0,1,2,3'）
+gpu: '3'  # カンマ区切りで複数指定可能（例: '0,1,2,3'）
 seed: 1
 
 # フラグ

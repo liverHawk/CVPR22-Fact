@@ -17,13 +17,13 @@ stages:
     outs:
     - path: data/CICIDS2017_flow_improved/test
       hash: md5
-      md5: 32e160060df30e43ee3c5b3ea4731ad4.dir
-      size: 219165107
+      md5: 57399a6dc1cd084feb791806fb652873.dir
+      size: 219183218
       nfiles: 5
     - path: data/CICIDS2017_flow_improved/train
       hash: md5
-      md5: fd458e907b8c619039d6310972b4938b.dir
-      size: 876937139
+      md5: 5eef6e6d77a6ef55078beee5c1e96615.dir
+      size: 876919028
       nfiles: 17
   create_sessions:
     cmd: uv run create_session_files.py
