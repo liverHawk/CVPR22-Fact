@@ -290,6 +290,7 @@ class FSCILTrainer(Trainer):
                     error_msg = (
                         f"Session {session}: No new classes found in training data.\n"
                         f"  Expected classes: except base classes: {args.base_class.tolist()}\n"
+                        f"  Expected classes: except base classes: {args.base_class.tolist()}\n"
                         f"  Found classes in training data: {all_classes.tolist()}\n"
                         f"  Training samples loaded: {len(train_set)}\n"
                         f"  Session file: {session_file}\n"
