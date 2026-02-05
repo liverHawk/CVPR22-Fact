@@ -230,7 +230,7 @@ def get_base_dataloader(args):
             window_size=window_size
         )
 
-    pin_memory = getattr(args, 'pin_memory', args.num_gpu > 0 if hasattr(args, 'num_gpu') else False)
+    pin_memory = getattr(args, 'pin_memory', len(args.num_gpu) > 0 if hasattr(args, 'num_gpu') else False)
     trainloader = torch.utils.data.DataLoader(
         dataset=trainset,
         batch_size=args.batch_size_base,
@@ -279,11 +279,11 @@ def get_base_dataloader_meta(args):
     sampler = CategoriesSampler(trainset.targets, args.train_episode, args.episode_way,
                                 args.episode_shot + args.episode_query)
 
-    pin_memory = getattr(args, 'pin_memory', args.num_gpu > 0 if hasattr(args, 'num_gpu') else False)
+    pin_memory = getattr(args, 'pin_memory', len(args.num_gpu) > 0 if hasattr(args, 'num_gpu') else False)
     trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_sampler=sampler, num_workers=args.num_workers,
                                               pin_memory=pin_memory)
 
-    pin_memory = getattr(args, 'pin_memory', args.num_gpu > 0 if hasattr(args, 'num_gpu') else False)
+    pin_memory = getattr(args, 'pin_memory', len(args.num_gpu) > 0 if hasattr(args, 'num_gpu') else False)
     testloader = torch.utils.data.DataLoader(
         dataset=testset, batch_size=args.test_batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=pin_memory)
 
@@ -393,7 +393,7 @@ def get_new_dataloader(args,session):
         
         print(f"✓ Session {session} training data validation passed: contains only new classes {sorted(actual_classes)}")
 
-    pin_memory = getattr(args, 'pin_memory', args.num_gpu > 0 if hasattr(args, 'num_gpu') else False)
+    pin_memory = getattr(args, 'pin_memory', len(args.num_gpu) > 0 if hasattr(args, 'num_gpu') else False)
     if args.batch_size_new == 0:
         batch_size_new = trainset.__len__()
         trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=batch_size_new, shuffle=False,
@@ -435,7 +435,7 @@ def get_new_dataloader(args,session):
             window_size=window_size
         )
 
-    pin_memory = getattr(args, 'pin_memory', args.num_gpu > 0 if hasattr(args, 'num_gpu') else False)
+    pin_memory = getattr(args, 'pin_memory', len(args.num_gpu) > 0 if hasattr(args, 'num_gpu') else False)
     testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=args.test_batch_size, shuffle=False,
                                              num_workers=args.num_workers, pin_memory=pin_memory)
 

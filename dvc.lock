@@ -5,8 +5,8 @@ stages:
     deps:
     - path: split_dataset_by_label.py
       hash: md5
-      md5: c7577604f4f40bfffe27eb39bfcd5a25
-      size: 10821
+      md5: ba39f33dd4066e482ea5b46065c2d744
+      size: 10851
     params:
       params.yaml:
         create_sessions.base_labels:
@@ -55,12 +55,12 @@ stages:
       nfiles: 9
     - path: train.py
       hash: md5
-      md5: 3c9b69897e711a134f4f0da77d2983fa
-      size: 13320
+      md5: 45a3b0eb457b7640f5b0ac18f1ec4e53
+      size: 13322
     params:
       params.yaml:
-        alpha: 2.0
-        balance: 0.01
+        alpha: 0.5
+        balance: 0.001
         base_class: 2
         base_mode: ft_cos
         batch_size_base: 256
@@ -72,19 +72,18 @@ stages:
         epochs_base: 1
         epochs_new: 2
         eta: 0.1
-        gamma: 0.25
-        gpu: '0'
+        gamma: 0.1
+        gpu: '3'
         label_column: Label
         loss_iter: 0
         lr_base: 0.005
         lr_new: 0.1
         milestones:
-        - 5
-        - 10
-        - 15
+        - 60
+        - 70
         momentum: 0.9
         new_mode: avg_cos
-        normalize_method: standard
+        normalize_method: moving_minmax
         num_classes: 10
         num_workers: 8
         project: fact
@@ -93,12 +92,12 @@ stages:
         shot: 5
         start_session: 0
         step: 20
-        temperature: 32
+        temperature: 16
         test_batch_size: 100
         way: 1
     outs:
     - path: checkpoint/
       hash: md5
-      md5: 0faacc1badf2040ccc5a4866282cbce9.dir
-      size: 2116171
-      nfiles: 12
+      md5: d062ffc0f5fec098d761fabfcf6f8147.dir
+      size: 2125162
+      nfiles: 21

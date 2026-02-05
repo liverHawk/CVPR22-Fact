@@ -30,9 +30,9 @@ class FSCILTrainer(Trainer):
         self.comet_exp = init_comet_experiment(self.args)
 
         self.model = MYNET(self.args, mode=self.args.base_mode)
-        if self.args.num_gpu > 0 and torch.cuda.is_available():
+        if len(self.args.num_gpu) > 0 and torch.cuda.is_available():
             # DataParallel は全パラメータが device_ids[0] (cuda:0) にあることを要求する
-            device_ids = list(range(self.args.num_gpu))
+            device_ids = self.args.num_gpu
             self.model = self.model.to(f'cuda:{device_ids[0]}')
             self.model = nn.DataParallel(self.model, device_ids=device_ids)
             self.device = torch.device(f'cuda:{device_ids[0]}')

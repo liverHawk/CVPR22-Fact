@@ -231,10 +231,10 @@ if __name__ == '__main__':
     pprint(vars(args))
     args.num_gpu = set_gpu(args)
     # pin_memoryはGPUが利用可能な場合のみTrueにする
-    args.pin_memory = args.num_gpu > 0
+    args.pin_memory = len(args.num_gpu) > 0
     
     # CPU環境での最適化
-    if args.num_gpu == 0:  # CPU環境
+    if len(args.num_gpu) == 0:  # CPU環境
         # PyTorchスレッド数の最適化
         num_threads = os.cpu_count() or 1
         torch.set_num_threads(num_threads)
