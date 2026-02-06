@@ -64,4 +64,4 @@ stages:
           - way
           - shot
     outs:
-      - checkpoint/
+      - checkpoint/${dataset_name}
