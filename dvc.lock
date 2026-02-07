@@ -5,13 +5,21 @@ stages:
     deps:
     - path: split_dataset_by_label.py
       hash: md5
-      md5: 0f498922ad2f21be47033a0da6106507
-      size: 14729
+      md5: 60ca2e09b294f3b447d34f4031dd70a3
+      size: 14726
     params:
       params.yaml:
         create_sessions.base_labels:
         - BENIGN
-        - DoS GoldenEye
+        - DrDoS_NetBIOS
+        - LDAP
+        - DrDoS_SSDP
+        - WebDDoS
+        - Syn
+        - UDP
+        - UDPLag
+        - UDP-lag
+        - DrDoS_DNS
         create_sessions.dataset_name: CSECICIDS2018_improved
         dataset_name: CICDDoS2019
     outs:
@@ -30,48 +38,56 @@ stages:
     deps:
     - path: create_session_files.py
       hash: md5
-      md5: 8a1323467a157aa4905d03ae972547af
-      size: 18190
+      md5: 215093d4560ba4e11c06c7ac077b73b9
+      size: 18194
     params:
       params.yaml:
         create_sessions:
-          label_column: Label
-          output_dir: data/index_list
-          dataset_name: CSECICIDS2018_improved
-          base_class: 5
-          num_classes: 10
-          way: 1
-          shot: 5
-          seed: 42
-          max_samples_per_label: 10000000
-          base_use_class_index: false
+          base_class: 10
           base_labels:
           - BENIGN
+          - DDoS-LOIC-UDP
+          - Infiltration - NMAP Portscan
+          - Infiltration - Dropbox Download
+          - Web Attack - SQL
+          - DDoS-HOIC
           - DoS GoldenEye
+          - Infiltration - Communication Victim Attacker
+          - Botnet Ares
+          - Web Attack - Brute Force
+          base_use_class_index: false
+          dataset_name: CSECICIDS2018_improved
+          label_column: Label
+          max_samples_per_label: 10000000
+          num_classes: 15
+          output_dir: data/index_list
+          seed: 42
+          shot: 5
+          way: 5
         dataset_name: CSECICIDS2018_improved
     outs:
     - path: data/index_list/CSECICIDS2018_improved
       hash: md5
-      md5: 220e476d0223a1234cb47da65b756a4d.dir
-      size: 63934720
-      nfiles: 14
+      md5: c2c79135f931d744dd42c3829962eb65.dir
+      size: 15681875
+      nfiles: 2
   train:
     cmd: uv run train.py
     deps:
     - path: data/index_list/CSECICIDS2018_improved
       hash: md5
-      md5: 220e476d0223a1234cb47da65b756a4d.dir
-      size: 63934720
-      nfiles: 14
+      md5: c2c79135f931d744dd42c3829962eb65.dir
+      size: 15681875
+      nfiles: 2
     - path: train.py
       hash: md5
-      md5: dcfbdfec880b9ca828ca80be8e72fa5b
-      size: 13632
+      md5: db57eeb62d764dabde3256ce645140c9
+      size: 13673
     params:
       params.yaml:
         alpha: 0.5
         balance: 0.001
-        base_class: 3
+        base_class: 10
         base_mode: ft_cos
         batch_size_base: 2048
         batch_size_new: 0
@@ -98,16 +114,16 @@ stages:
         num_workers: 8
         project: fact
         schedule: Cosine
-        seed: 1
+        seed: 42
         shot: 5
         start_session: 0
         step: 20
         temperature: 32
-        test_batch_size: 100
-        way: 1
+        test_batch_size: 1024
+        way: 5
     outs:
     - path: checkpoint/CSECICIDS2018_improved
       hash: md5
-      md5: 82aff635566f791e38b1cfb65d3f8139.dir
-      size: 2307145
-      nfiles: 31
+      md5: fd256aa0f2f2f74fc61fc5b69bb7c52e.dir
+      size: 2032200
+      nfiles: 7

@@ -148,9 +148,9 @@ def split_dataset_by_label(
     all_labels = merged_df[label_column].unique().to_list()
     path = "dataset_metadata"
     os.makedirs(path, exist_ok=True)
-    with open(f"{path}/{input_path.name}.json", "w") as f:
+    with open(f"{path}/{input_path.name}.txt", "w") as f:
         for label in all_labels:
-            f.write(f"- {label}\n")
+            f.write(f"{label}\n")
     
     # ラベルの分布を確認
     label_counts = merged_df[label_column].value_counts().sort("count", descending=True)

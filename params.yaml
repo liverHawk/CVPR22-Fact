@@ -1,81 +1,69 @@
-# FACT: Forward Compatible Few-Shot Class-Incremental Learning
-# 設定ファイル - このファイルからデフォルト値を読み込みます
-
-# 基本設定
-project: fact    # 'base' または 'fact'
-dataset_type: CICIDS2017_improved    # 'mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved'
-dataset_name: CICDDoS2019
+alpha: 0.5
+balance: 0.001
+base_class: 10
+base_mode: ft_cos
+batch_size_base: 2048
+batch_size_new: 0
+comet_disabled: true
+comet_project: null
+comet_tags:
+- orm
+comet_workspace: null
+create_sessions:
+  base_class: 10
+  base_labels:
+  - BENIGN
+  - DrDoS_NetBIOS
+  - LDAP
+  - DrDoS_SSDP
+  - WebDDoS
+  - Syn
+  - UDP
+  - UDPLag
+  - UDP-lag
+  - DrDoS_DNS
+  base_use_class_index: false
+  dataset_name: CSECICIDS2018_improved
+  label_column: Label
+  max_samples_per_label: 10000000
+  num_classes: 19
+  output_dir: data/index_list
+  seed: 62
+  shot: 5
+  way: 5
 dataroot: data/
-encoder: mlp  # 'mlp' または 'cnn1d'（CICIDS2017_improved用）
-normalize_method: moving_minmax    # 'standard', 'minmax', 'moving_minmax'
-label_column: Label    # ラベル列の名前（CICIDS2017_improved用）
-input_dir: /home/ishibashi02/dataset/project/sampled/n_1000000_s_42   # 入力ディレクトリのパス
-
-# トレーニング設定
+dataset_name: CICDDoS2019
+dataset_type: CICIDS2017_improved
+debug: false
+decay: 0.0005
+encoder: mlp
 epochs_base: 1
 epochs_new: 100
+eta: 0.1
+gamma: 0.1
+gpu: '0'
+input_dir: /home/ishibashi02/dataset/project/sampled/n_1000000_s_42
+label_column: Label
+loss_iter: 0
 lr_base: 0.005
 lr_new: 0.1
-batch_size_base: 2048
-batch_size_new: 0  # 0で全データ使用
-test_batch_size: 100
-
-# モード設定
-base_mode: ft_cos    # 'ft_dot' または 'ft_cos'
-new_mode: avg_cos    # 'ft_dot', 'ft_cos', または 'avg_cos'
-
-# 学習率スケジュール
-schedule: Cosine    # 'Step', 'Milestone', 'Cosine'
 milestones:
 - 60
 - 70
-step: 20
-decay: 0.0005
-gamma: 0.1
+model_dir: null
 momentum: 0.9
-temperature: 32
-
-# FACT固有のパラメータ
-balance: 0.001
-alpha: 0.5
-eta: 0.1
-loss_iter: 0
-
-# FSCIL用のパラメータ（CICIDS2017_improvedなどで使用）
-base_class: 3  # ベースクラス数
-num_classes: 15  # 総クラス数
-way: 1 # 各新規セッションのクラス数
-shot: 5  # 各クラスのショット数（Few-Shot用）
-
-# その他の設定
-start_session: 0
-model_dir:       # nullまたはモデルパラメータのディレクトリ
-num_workers: 8
-gpu: '0'  # カンマ区切りで複数指定可能（例: '0,1,2,3'）
-seed: 1
-
-# フラグ
+new_mode: avg_cos
+normalize_method: moving_minmax
 not_data_init: false
+num_classes: 19
+num_workers: 8
+project: fact
+schedule: Cosine
+seed: 62
 set_no_val: false
-debug: false
-
-# Comet ML設定
-comet_project:       # プロジェクト名（nullの場合はdataset名を使用）
-comet_workspace:       # ワークスペース名（nullの場合はデフォルト）
-comet_disabled: true  # Comet MLを無効化する場合はtrue
-comet_tags:
-- orm
-create_sessions:
-  label_column: Label    # ラベル列の名前
-  output_dir: data/index_list    # セッションファイルの出力ディレクトリ
-  dataset_name: CSECICIDS2018_improved    # データセット名
-  base_class: 5  # ベースクラス数（トレーニング設定と一致させる）
-  num_classes: 10  # 総クラス数
-  way: 1  # 各新規セッションのクラス数
-  shot: 5  # 各クラスのショット数（Few-Shot用）
-  seed: 42  # 乱数シード
-  max_samples_per_label: 10000000  # ラベルごとのデータ数上限（指定時は処理前にサンプリング。未指定は無制限）
-  base_use_class_index: false  # ベースセッションファイルにクラスインデックスを使用（false: データインデックス）
-  base_labels:                                                     # ベースセッションに使用するラベルのリスト（null: 自動、リスト指定時はそのラベルのみ使用）
-  - BENIGN
-  - DoS GoldenEye
+shot: 5
+start_session: 0
+step: 20
+temperature: 32
+test_batch_size: 1024
+way: 5
