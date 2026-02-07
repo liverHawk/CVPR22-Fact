@@ -1,7 +1,12 @@
+import logging
 import os
+
 import numpy as np
 import torch
 from dataloader.sampler import CategoriesSampler
+
+
+logger = logging.getLogger(__name__)
 
 def set_up_datasets(args):
     # dataset_nameが指定されていない場合、dataset_typeと同じ値を使用
@@ -104,31 +109,48 @@ def set_up_datasets(args):
             try:
                 # 一時的にデータローダーを作成してベースクラス数を取得
                 root = os.path.join(args.dataroot, dataset_name)
-                base_data_indices = [int(line.strip()) for line in open(base_session_path).read().splitlines() if line.strip()]
+                base_data_indices = [
+                    int(line.strip())
+                    for line in open(base_session_path).read().splitlines()
+                    if line.strip()
+                ]
                 temp_base_dataset = Dataset.CICIDS2017(
                     root=root,
                     train=True,
                     index=base_data_indices,
                     base_sess=False,
                     label_column=getattr(args, 'label_column', 'Label'),
-                    normalize_method=getattr(args, 'normalize_method', 'standard')
+                    normalize_method=getattr(args, 'normalize_method', 'standard'),
                 )
                 actual_base_classes = set(np.unique(temp_base_dataset.targets))
                 actual_base_class_count = len(actual_base_classes)
                 # args.base_classを実際のベースクラス数に更新
                 args.base_class = actual_base_class_count
-                print(f"ベースセッションファイルから実際のベースクラス数を取得: {actual_base_class_count} (クラス: {sorted(actual_base_classes)})")
+                logger.info(
+                    "ベースセッションファイルから実際のベースクラス数を取得: %d (クラス: %s)",
+                    actual_base_class_count,
+                    sorted(actual_base_classes),
+                )
                 del temp_base_dataset
             except Exception as e:
-                print(f"警告: ベースセッションファイルからベースクラス数を取得できませんでした: {e}")
-                print(f"  設定値 args.base_class={args.base_class} を使用します")
+                logger.warning(
+                    "ベースセッションファイルからベースクラス数を取得できませんでした: %s", e
+                )
+                logger.warning("  設定値 args.base_class=%s を使用します", args.base_class)
         
         # セッション数を計算（base_class + way * sessions = num_classes）
         if not hasattr(args, 'sessions') or args.sessions is None:
             num_new_classes = args.num_classes - args.base_class
             args.sessions = (num_new_classes // args.way) + 1  # +1はベースセッション
         
-        print(f"CICIDS2017_improved設定: base_class={args.base_class}, num_classes={args.num_classes}, way={args.way}, shot={args.shot}, sessions={args.sessions}")
+        logger.info(
+            "CICIDS2017_improved設定: base_class=%s, num_classes=%s, way=%s, shot=%s, sessions=%s",
+            args.base_class,
+            args.num_classes,
+            args.way,
+            args.shot,
+            args.sessions,
+        )
         
         # 入力次元数を設定（特徴量の数）
         # データローダーから実際の特徴量数を取得
@@ -145,10 +167,10 @@ def set_up_datasets(args):
                     base_sess=True,
                     label_column=getattr(args, 'label_column', 'Label'),
                     normalize_method=getattr(args, 'normalize_method', 'standard'),
-                    window_size=getattr(args, 'window_size', 1000)
+                    window_size=getattr(args, 'window_size', 1000),
                 )
                 args.input_dim = temp_dataset.data.shape[1]
-                print(f"自動検出された特徴量数: {args.input_dim}")
+                logger.info("自動検出された特徴量数: %s", args.input_dim)
                 del temp_dataset
             except Exception as e:
                 raise ValueError(f"特徴量数の自動取得に失敗しました: {e}")
@@ -179,7 +201,11 @@ def get_base_dataloader(args):
     
     txt_path = "data/index_list/" + args.dataset_name + "/session_" + str(0 + 1) + '.txt'
     class_index = np.arange(args.base_class)
-    print(f"get_base_dataloader: base_class={args.base_class}, class_index={class_index}")
+    logger.info(
+        "get_base_dataloader: base_class=%s, class_index=%s",
+        args.base_class,
+        class_index,
+    )
     if args.dataset == 'cifar100':
 
         trainset = args.Dataset.CIFAR100(root=args.dataroot, train=True, download=True,
@@ -391,7 +417,11 @@ def get_new_dataloader(args,session):
                 f"Please regenerate session files using: uv run create_session_files.py"
             )
         
-        print(f"✓ Session {session} training data validation passed: contains only new classes {sorted(actual_classes)}")
+        logger.info(
+            "✓ Session %d training data validation passed: contains only new classes %s",
+            session,
+            sorted(actual_classes),
+        )
 
     pin_memory = getattr(args, 'pin_memory', len(args.num_gpu) > 0 if hasattr(args, 'num_gpu') else False)
     if args.batch_size_new == 0:

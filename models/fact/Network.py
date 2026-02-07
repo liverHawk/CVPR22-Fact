@@ -1,13 +1,17 @@
 import argparse
+import logging
 import math
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from models.cnn1d_encoder import cnn1d_encoder
+from models.mlp_encoder import mlp_encoder
 from models.resnet18_encoder import *
 from models.resnet20_cifar import *
-from models.mlp_encoder import mlp_encoder
-from models.cnn1d_encoder import cnn1d_encoder
+
+
+logger = logging.getLogger(__name__)
 
 
 class MYNET(nn.Module):
@@ -57,9 +61,9 @@ class MYNET(nn.Module):
         self.dummy_orthogonal_classifier.weight.requires_grad = False
         
         self.dummy_orthogonal_classifier.weight.data=self.fc.weight.data[self.args.base_class:,:]
-        print(self.dummy_orthogonal_classifier.weight.data.size())
+        logger.info("dummy_orthogonal_classifier weight size: %s", self.dummy_orthogonal_classifier.weight.data.size())
         
-        print('self.dummy_orthogonal_classifier.weight initialized over.')
+        logger.info('self.dummy_orthogonal_classifier.weight initialized over.')
 
     def forward_metric(self, x):
         x = self.encode(x)

@@ -7,13 +7,21 @@ Few-Shot Class-Incremental Learning用のセッションファイルを生成し
 """
 
 import argparse
+import gc
+import logging
 import os
 import random
-import yaml
+
+import coloredlogs
 import numpy as np
 import polars as pl
+import yaml
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
+
+
+logger = logging.getLogger(__name__)
+coloredlogs.install(level="INFO", logger=logger)
 
 
 def set_seed(seed: int):
@@ -33,12 +41,17 @@ def load_dataset(csv_path: str, label_column: str = 'Label') -> Tuple[pl.DataFra
     Returns:
         (データフレーム, クラスリスト)
     """
-    print(f"データセットを読み込み中: {csv_path}")
+    logger.info(f"データセットを読み込み中: {csv_path}")
     if os.path.isdir(csv_path):
         csv_files = sorted(Path(csv_path).glob("*.csv"))
         if len(csv_files) == 0:
             raise FileNotFoundError(f"CSVファイルが見つかりません: {csv_path}")
-        df = pl.concat([pl.read_csv(csv_file) for csv_file in csv_files])
+        dfs = []
+        for csv_file in csv_files:
+            dfs.append(pl.read_csv(csv_file))
+        df = pl.concat(dfs)
+        del dfs
+        gc.collect()
     else:
         df = pl.read_csv(csv_path)
     
@@ -47,10 +60,47 @@ def load_dataset(csv_path: str, label_column: str = 'Label') -> Tuple[pl.DataFra
     
     # クラスを取得
     unique_classes = sorted(df[label_column].unique().to_list())
-    print(f"総クラス数: {len(unique_classes)}")
-    print(f"クラス: {unique_classes}")
+    logger.info(f"総クラス数: {len(unique_classes)}")
+    logger.info(f"クラス: {unique_classes}")
     
     return df, unique_classes
+
+
+def sample_per_label_cap(
+    df: pl.DataFrame,
+    label_column: str,
+    max_per_label: int,
+    seed: int = 42
+) -> pl.DataFrame:
+    """
+    処理前に、ラベルごとのデータ数が上限を超えている場合はその上限でサンプリングする。
+    
+    Args:
+        df: データフレーム
+        label_column: ラベル列の名前
+        max_per_label: ラベルあたりの最大サンプル数（超えた分はランダムに捨てる）
+        seed: 乱数シード
+    
+    Returns:
+        サンプリング後のデータフレーム
+    """
+    labels = df[label_column].unique().sort().to_list()
+    dfs = []
+    for i, label in enumerate(labels):
+        subset = df.filter(pl.col(label_column) == label)
+        n = len(subset)
+        if n <= max_per_label:
+            dfs.append(subset)
+            continue
+        # 上限を超えているので max_per_label 件にランダムサンプリング（ラベルごとに別シードで再現性を確保）
+        sampled = subset.sample(n=max_per_label, seed=seed + i)
+        dfs.append(sampled)
+        logger.info(f"ラベル {label}: {n}件 → {max_per_label}件にサンプリング")
+    out = pl.concat(dfs)
+    del dfs
+    gc.collect()
+    logger.info(f"ラベル別上限サンプリング後: 総件数 {len(df)} → {len(out)}")
+    return out
 
 
 def split_classes(
@@ -77,8 +127,8 @@ def split_classes(
         # ベースラベルが指定されている場合
         base_classes = sorted(base_labels)
         # ベースクラス以外のクラスを新規クラスとして使用
-        remaining_classes = [c for c in classes if c not in base_classes]
-        new_classes = remaining_classes[:num_classes - len(base_classes)]
+        new_classes = [c for c in classes if c not in base_classes]
+        logger.info(f"new classes: {new_classes}")
     else:
         # 自動分割
         if len(classes) < num_classes:
@@ -97,19 +147,45 @@ def split_classes(
         if len(session_classes) == way:
             new_sessions.append(session_classes)
     
-    print(f"ベースクラス数: {len(base_classes)}")
-    print(f"ベースクラス: {base_classes}")
-    print(f"新規セッション数: {len(new_sessions)}")
+    logger.info(f"ベースクラス数: {len(base_classes)}")
+    logger.info(f"ベースクラス: {base_classes}")
+    logger.info(f"新規セッション数: {len(new_sessions)}")
     for i, session_classes in enumerate(new_sessions, 1):
-        print(f"  セッション {i}: {session_classes}")
+        logger.info(f"  セッション {i:2d}: {session_classes}")
     
     return base_classes, new_sessions
 
 
-def create_base_session_file(
+def build_label_to_indices(
     df: pl.DataFrame,
-    base_classes: List,
     label_column: str,
+    index_col: str = "_original_row_index",
+) -> Dict[str, List[int]]:
+    """
+    ラベル→インデックスリストのマッピングを1回のスキャンで構築する。
+    
+    DataFrame の繰り返しフィルタを避け、セッションファイル生成を高速化するために使用。
+    
+    Args:
+        df: データフレーム（index_col列を含むこと）
+        label_column: ラベル列の名前
+        index_col: インデックス列の名前
+    
+    Returns:
+        {ラベル: [インデックス, ...], ...} の辞書
+    """
+    logger.info("ラベル→インデックスのマッピングを構築中...")
+    label_to_indices: Dict[str, List[int]] = {}
+    for group_df in df.partition_by(label_column):
+        label = group_df[label_column][0]
+        label_to_indices[label] = group_df[index_col].to_list()
+    logger.info("マッピング構築完了: %d ラベル", len(label_to_indices))
+    return label_to_indices
+
+
+def create_base_session_file(
+    label_to_indices: Dict[str, List[int]],
+    base_classes: List,
     output_path: str,
     use_data_index: bool = True
 ):
@@ -117,9 +193,8 @@ def create_base_session_file(
     ベースセッションファイルを作成（CIFAR100形式: session_1.txt）
     
     Args:
-        df: データフレーム
+        label_to_indices: ラベル→インデックスリストのマッピング
         base_classes: ベースクラスのリスト
-        label_column: ラベル列の名前
         output_path: 出力ファイルパス
         use_data_index: Trueの場合はデータインデックス、Falseの場合はクラスインデックス
     """
@@ -127,26 +202,35 @@ def create_base_session_file(
     
     if use_data_index:
         # データインデックスを保存（CIFAR100形式）
-        # 元のデータフレームのインデックスを保持するため、先に行番号を追加してからフィルタリング
-        df_with_index = df.with_row_index("row_index")
-        base_data = df_with_index.filter(pl.col(label_column).is_in(base_classes))
-        indices = base_data["row_index"].to_list()
+        indices = []
+        for cls in base_classes:
+            if cls in label_to_indices:
+                indices.extend(label_to_indices[cls])
+            else:
+                logger.warning("ベースクラス '%s' のデータが見つかりません", cls)
         with open(output_path, 'w') as f:
             for idx in indices:
                 f.write(f"{idx}\n")
-        print(f"ベースセッションファイルを作成: {output_path} (データインデックス: {len(indices)}件)")
+        logger.info(
+            "ベースセッションファイルを作成: %s (データインデックス: %d件)",
+            output_path,
+            len(indices),
+        )
     else:
         # クラスインデックスを保存
         with open(output_path, 'w') as f:
             for cls in base_classes:
                 f.write(f"{cls}\n")
-        print(f"ベースセッションファイルを作成: {output_path} (クラスインデックス: {len(base_classes)}件)")
+        logger.info(
+            "ベースセッションファイルを作成: %s (クラスインデックス: %d件)",
+            output_path,
+            len(base_classes),
+        )
 
 
 def create_new_session_file(
-    df: pl.DataFrame,
+    label_to_indices: Dict[str, List[int]],
     session_classes: List,
-    label_column: str,
     output_path: str,
     shot: int,
     seed: int = 42
@@ -155,64 +239,56 @@ def create_new_session_file(
     新規セッションファイルを作成（Few-Shot用）
     
     Args:
-        df: データフレーム
+        label_to_indices: ラベル→インデックスリストのマッピング
         session_classes: このセッションのクラスリスト
-        label_column: ラベル列の名前
         output_path: 出力ファイルパス
         shot: 各クラスのショット数
         seed: 乱数シード
     """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
-    # 行インデックスを追加
-    df_with_index = df.with_row_index("row_index")
-    
     # 各クラスからshot個のサンプルをランダムに選択
     selected_indices = []
+    selected_labels = []
     rng = np.random.RandomState(seed)
     
     for cls in session_classes:
-        class_data = df_with_index.filter(pl.col(label_column) == cls)
-        class_indices = class_data["row_index"].to_list()
+        class_indices = label_to_indices.get(cls, [])
         
         if len(class_indices) < shot:
-            print(f"警告: クラス {cls} のサンプル数 ({len(class_indices)}) が shot ({shot}) より少ないです。")
+            logger.warning(f"クラス {cls} のサンプル数 ({len(class_indices)}) が shot ({shot}) より少ないです。")
             selected = class_indices
         else:
             selected = rng.choice(class_indices, size=shot, replace=False).tolist()
         selected_indices.extend(selected)
+        selected_labels.extend([cls] * len(selected))
     
     # ファイルに保存
     with open(output_path, 'w') as f:
         for idx in selected_indices:
             f.write(f"{idx}\n")
     
-    # 生成されたインデックスのラベルを検証
-    actual_labels_in_file = []
-    for idx in selected_indices:
-        label = df_with_index.filter(pl.col("row_index") == idx)[label_column][0]
-        actual_labels_in_file.append(label)
-    
-    unique_actual_labels = set(actual_labels_in_file)
+    # 検証: 選択されたインデックスがすべて期待されるクラスに属しているか
+    unique_actual_labels = set(selected_labels)
     expected_labels = set(session_classes)
     
     if unique_actual_labels != expected_labels:
-        print(f"⚠️  警告: 生成されたセッションファイルに予期しないラベルが含まれています")
-        print(f"  期待されるラベル: {sorted(expected_labels)}")
-        print(f"  実際のラベル: {sorted(unique_actual_labels)}")
+        logger.warning("生成されたセッションファイルに予期しないラベルが含まれています")
+        logger.warning(f"  期待されるラベル: {sorted(expected_labels)}")
+        logger.warning(f"  実際のラベル: {sorted(unique_actual_labels)}")
         raise ValueError(
             f"セッションファイル {output_path} の検証に失敗しました。"
             f"期待されるラベル {sorted(expected_labels)} と実際のラベル {sorted(unique_actual_labels)} が一致しません。"
         )
     
-    print(f"新規セッションファイルを作成: {output_path} (データインデックス: {len(selected_indices)}件)")
-    print(f"  ✓ 検証完了: すべてのサンプルが期待されるクラス {sorted(session_classes)} に属しています")
+    logger.info(f"新規セッションファイルを作成: {output_path} (データインデックス: {len(selected_indices)}件)")
+    logger.info(f"  ✓ 検証完了: すべてのサンプルが期待されるクラス {sorted(session_classes)} に属しています")
 
 
 def load_params_yaml(yaml_path: str = 'params.yaml') -> dict:
     """params.yamlから設定を読み込む"""
     if not os.path.exists(yaml_path):
-        print(f"Warning: {yaml_path} not found. Using command-line arguments only.")
+        logger.warning(f"{yaml_path} not found. Using command-line arguments only.")
         return {}
     
     try:
@@ -220,7 +296,7 @@ def load_params_yaml(yaml_path: str = 'params.yaml') -> dict:
             params = yaml.safe_load(f)
         return params.get('create_sessions', {}) if params else {}
     except Exception as e:
-        print(f"Warning: Failed to load {yaml_path}: {e}. Using command-line arguments only.")
+        logger.warning(f"Failed to load {yaml_path}: {e}. Using command-line arguments only.")
         return {}
 
 
@@ -304,6 +380,13 @@ def main():
         help='ベースセッションに使用するラベルのリスト（指定時はこのラベルのみ使用、文字列または数値）'
     )
     parser.add_argument(
+        '--max-samples-per-label',
+        type=int,
+        default=yaml_params.get('max_samples_per_label'),
+        metavar='N',
+        help='ラベルごとのデータ数上限（指定時は処理前にこの件数を超えるラベルをサンプリングする。未指定は無制限）'
+    )
+    parser.add_argument(
         '--params-yaml',
         type=str,
         default='params.yaml',
@@ -331,11 +414,33 @@ def main():
     
     # データセットを読み込む
     df, classes = load_dataset(args.train_csv, args.label_column)
+    logger.info(f"classes: {classes}")
+    
+    # サンプリング前にフルデータでの行インデックスを記録
+    # セッションファイルにはこの元のインデックスを書き出す（CICIDS2017データセットクラスがフルデータをロードするため）
+    df = df.with_row_index("_original_row_index")
+    
+    # 処理前にラベルごとのデータ数が上限を超えていればサンプリング
+    if args.max_samples_per_label is not None:
+        df = sample_per_label_cap(
+            df, args.label_column, args.max_samples_per_label, args.seed
+        )
+        classes = sorted(df[args.label_column].unique().to_list())
     
     # クラスを分割
     base_classes, new_sessions = split_classes(
         classes, args.base_class, args.num_classes, args.way, args.base_labels
     )
+    
+    # ラベル→インデックスのマッピングを1回だけ構築し、DataFrameを即解放
+    # これにより各セッションでの繰り返しフィルタを回避し高速化
+    index_col = "_original_row_index" if "_original_row_index" in df.columns else None
+    if index_col is None:
+        df = df.with_row_index("_original_row_index")
+        index_col = "_original_row_index"
+    label_to_indices = build_label_to_indices(df, args.label_column, index_col)
+    del df
+    gc.collect()
     
     # 出力ディレクトリ（CIFAR100形式: すべて同じディレクトリに配置）
     output_base_dir = Path(args.output_dir) / args.dataset_name
@@ -345,7 +450,7 @@ def main():
     # data_utils.pyでは session_0 + 1 = session_1.txt を読み込む
     base_session_path = output_base_dir / 'session_1.txt'
     create_base_session_file(
-        df, base_classes, args.label_column,
+        label_to_indices, base_classes,
         str(base_session_path), use_data_index=not args.base_use_class_index
     )
     
@@ -354,13 +459,17 @@ def main():
     for i, session_classes in enumerate(new_sessions, 1):
         session_path = output_base_dir / f'session_{i + 1}.txt'
         create_new_session_file(
-            df, session_classes, args.label_column,
+            label_to_indices, session_classes,
             str(session_path), args.shot, args.seed + i
         )
     
-    print(f"\nセッションファイルの生成が完了しました: {output_base_dir}")
-    print(f"  ベースセッション: session_1.txt")
-    print(f"  新規セッション: session_2.txt ~ session_{len(new_sessions) + 1}.txt ({len(new_sessions)}セッション)")
+    # マッピングを解放
+    del label_to_indices
+    gc.collect()
+    
+    logger.info(f"セッションファイルの生成が完了しました: {output_base_dir}")
+    logger.info("  ベースセッション: session_1.txt")
+    logger.info(f"  新規セッション: session_2.txt ~ session_{len(new_sessions) + 1}.txt ({len(new_sessions)}セッション)")
 
 
 if __name__ == '__main__':

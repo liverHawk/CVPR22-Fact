@@ -1,12 +1,18 @@
 # import new Network name here and add in model_class args
-from utils import Averager, count_acc, confmatrix, get_dataset_label_names
-from tqdm import tqdm
-import torch.nn as nn
-import torch
-import torch.nn.functional as F
-import numpy as np
+import logging
 import os
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from tqdm import tqdm
+
+from utils import Averager, count_acc, confmatrix, get_dataset_label_names
+
+
+logger = logging.getLogger(__name__)
 
 
 def _get_label_names_for_loader(loader, num_classes):
@@ -39,7 +45,7 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args,mask):
         acc = count_acc(logits_, train_label)
         
         
-        if epoch>=args.loss_iter:
+        if epoch>=args.loss_iter and args.base_class < args.num_classes:
             logits_masked = logits.masked_fill(F.one_hot(train_label, num_classes=model_module.pre_allocate) == 1, -1e9)
             logits_masked_chosen= logits_masked * mask[train_label]
             pseudo_label = torch.argmax(logits_masked_chosen[:,args.base_class:], dim=-1) + args.base_class
@@ -68,7 +74,7 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args,mask):
 
         lrc = scheduler.get_last_lr()[0]
         tqdm_gen.set_description(
-            'Session 0, epo {}, lrc={:.4f},total loss={:.4f} acc={:.4f}'.format(epoch, lrc, total_loss.item(), acc))
+            'Session 0, epo {}, lrc={:.4f},total loss={:.4f} acc={:.4f}'.format(epoch, lrc, total_loss.item() if total_loss is not np.nan else 0.0, acc))
         tl.add(total_loss.item())
         ta.add(acc)
 
@@ -153,7 +159,7 @@ def test(model, testloader, epoch,args, session,validation=True):
                 lbs=torch.cat([lbs,test_label])
         vl = vl.item()
         va = va.item()
-        print('epo {}, test, loss={:.4f} acc={:.4f}'.format(epoch, vl, va))
+        logger.info('epo %s, test, loss=%.4f acc=%.4f', epoch, vl, va)
 
         
         lgt=lgt.view(-1,test_class)
@@ -165,7 +171,7 @@ def test(model, testloader, epoch,args, session,validation=True):
             perclassacc=cm.diagonal()
             seenac=np.mean(perclassacc[:args.base_class])
             unseenac=np.mean(perclassacc[args.base_class:])
-            print('Seen Acc:',seenac, 'Unseen ACC:', unseenac)
+            logger.info('Seen Acc: %s Unseen ACC: %s', seenac, unseenac)
             
             # 予測ラベルを取得
             pred = torch.argmax(lgt, dim=1)
@@ -185,11 +191,11 @@ def test(model, testloader, epoch,args, session,validation=True):
             recall_per_class = recall_score(y_true_np, y_pred_np, average=None, zero_division=0)
             f1_per_class = f1_score(y_true_np, y_pred_np, average=None, zero_division=0)
             
-            print(f'Session {session} Metrics:')
-            print(f'  Accuracy: {accuracy:.4f}')
-            print(f'  Precision (macro): {precision:.4f}')
-            print(f'  Recall (macro): {recall:.4f}')
-            print(f'  F1-score (macro): {f1:.4f}')
+            logger.info('Session %d Metrics:', session)
+            logger.info('  Accuracy: %.4f', accuracy)
+            logger.info('  Precision (macro): %.4f', precision)
+            logger.info('  Recall (macro): %.4f', recall)
+            logger.info('  F1-score (macro): %.4f', f1)
             
             # メトリクスをファイルに保存
             metrics_file = os.path.join(args.save_path, f'session_{session}_metrics.txt')
@@ -253,7 +259,7 @@ def test_withfc(model, testloader, epoch,args, session,validation=True):
                 lbs=torch.cat([lbs,test_label])
         vl = vl.item()
         va = va.item()
-        print('epo {}, test, loss={:.4f} acc={:.4f}'.format(epoch, vl, va))
+        logger.info('epo %s, test, loss=%.4f acc=%.4f', epoch, vl, va)
 
         
         lgt=lgt.view(-1,test_class)
@@ -265,7 +271,7 @@ def test_withfc(model, testloader, epoch,args, session,validation=True):
             perclassacc=cm.diagonal()
             seenac=np.mean(perclassacc[:args.base_class])
             unseenac=np.mean(perclassacc[args.base_class:])
-            print('Seen Acc:',seenac, 'Unseen ACC:', unseenac)
+            logger.info('Seen Acc: %s Unseen ACC: %s', seenac, unseenac)
             
             # 予測ラベルを取得
             pred = torch.argmax(lgt, dim=1)
@@ -285,11 +291,11 @@ def test_withfc(model, testloader, epoch,args, session,validation=True):
             recall_per_class = recall_score(y_true_np, y_pred_np, average=None, zero_division=0)
             f1_per_class = f1_score(y_true_np, y_pred_np, average=None, zero_division=0)
             
-            print(f'Session {session} Metrics (test_withfc):')
-            print(f'  Accuracy: {accuracy:.4f}')
-            print(f'  Precision (macro): {precision:.4f}')
-            print(f'  Recall (macro): {recall:.4f}')
-            print(f'  F1-score (macro): {f1:.4f}')
+            logger.info('Session %d Metrics (test_withfc):', session)
+            logger.info('  Accuracy: %.4f', accuracy)
+            logger.info('  Precision (macro): %.4f', precision)
+            logger.info('  Recall (macro): %.4f', recall)
+            logger.info('  F1-score (macro): %.4f', f1)
             
             # メトリクスをファイルに保存
             metrics_file = os.path.join(args.save_path, f'session_{session}_metrics_withfc.txt')

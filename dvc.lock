@@ -5,75 +5,85 @@ stages:
     deps:
     - path: split_dataset_by_label.py
       hash: md5
-      md5: ba39f33dd4066e482ea5b46065c2d744
-      size: 10851
+      md5: 019f26e4c2a45fc90106a0b8114eaf6b
+      size: 14429
     params:
       params.yaml:
         create_sessions.base_labels:
         - BENIGN
-        - DoS
-        create_sessions.dataset_name: CICIDS2017_flow_improved
-        dataset_name: CICIDS2017_flow_improved
+        - DoS GoldenEye
+        create_sessions.dataset_name: CSECICIDS2018_improved
+        dataset_name: CSECICIDS2018_improved
     outs:
-    - path: data/CICIDS2017_flow_improved/test
+    - path: data/CSECICIDS2018_improved/test
       hash: md5
-      md5: 57399a6dc1cd084feb791806fb652873.dir
-      size: 219183218
-      nfiles: 5
-    - path: data/CICIDS2017_flow_improved/train
+      md5: 42411a5d44da5fb411fc98a1728e40ea.dir
+      size: 1420206358
+      nfiles: 28
+    - path: data/CSECICIDS2018_improved/train
       hash: md5
-      md5: 5eef6e6d77a6ef55078beee5c1e96615.dir
-      size: 876919028
-      nfiles: 17
+      md5: e8a5648256db20ba934cf3c5070e571f.dir
+      size: 5680358221
+      nfiles: 109
   create_sessions:
     cmd: uv run create_session_files.py
     deps:
     - path: create_session_files.py
       hash: md5
-      md5: 15afb750a4bba401d4d50c1f2c498ce1
-      size: 14104
+      md5: 8a1323467a157aa4905d03ae972547af
+      size: 18190
     params:
       params.yaml:
-        create_sessions.base_labels:
-        - BENIGN
-        - DoS
-        create_sessions.dataset_name: CICIDS2017_flow_improved
-        dataset_name: CICIDS2017_flow_improved
+        create_sessions:
+          label_column: Label
+          output_dir: data/index_list
+          dataset_name: CSECICIDS2018_improved
+          base_class: 5
+          num_classes: 10
+          way: 1
+          shot: 5
+          seed: 42
+          max_samples_per_label: 10000000
+          base_use_class_index: false
+          base_labels:
+          - BENIGN
+          - DoS GoldenEye
+        dataset_name: CSECICIDS2018_improved
     outs:
-    - path: data/index_list/CICIDS2017_flow_improved
+    - path: data/index_list/CSECICIDS2018_improved
       hash: md5
-      md5: f1a6892083004e64ef868ce2c2208ddc.dir
-      size: 10772738
-      nfiles: 9
+      md5: 220e476d0223a1234cb47da65b756a4d.dir
+      size: 63934720
+      nfiles: 14
   train:
     cmd: uv run train.py
     deps:
-    - path: data/index_list/CICIDS2017_flow_improved
+    - path: data/index_list/CSECICIDS2018_improved
       hash: md5
-      md5: f1a6892083004e64ef868ce2c2208ddc.dir
-      size: 10772738
-      nfiles: 9
+      md5: 220e476d0223a1234cb47da65b756a4d.dir
+      size: 63934720
+      nfiles: 14
     - path: train.py
       hash: md5
-      md5: 45a3b0eb457b7640f5b0ac18f1ec4e53
-      size: 13322
+      md5: dcfbdfec880b9ca828ca80be8e72fa5b
+      size: 13632
     params:
       params.yaml:
         alpha: 0.5
         balance: 0.001
-        base_class: 2
+        base_class: 3
         base_mode: ft_cos
-        batch_size_base: 256
+        batch_size_base: 2048
         batch_size_new: 0
-        dataset_name: CICIDS2017_flow_improved
+        dataset_name: CSECICIDS2018_improved
         dataset_type: CICIDS2017_improved
         decay: 0.0005
         encoder: mlp
         epochs_base: 1
-        epochs_new: 2
+        epochs_new: 100
         eta: 0.1
         gamma: 0.1
-        gpu: '3'
+        gpu: '0'
         label_column: Label
         loss_iter: 0
         lr_base: 0.005
@@ -84,7 +94,7 @@ stages:
         momentum: 0.9
         new_mode: avg_cos
         normalize_method: moving_minmax
-        num_classes: 10
+        num_classes: 15
         num_workers: 8
         project: fact
         schedule: Cosine
@@ -92,12 +102,12 @@ stages:
         shot: 5
         start_session: 0
         step: 20
-        temperature: 16
+        temperature: 32
         test_batch_size: 100
         way: 1
     outs:
-    - path: checkpoint/
+    - path: checkpoint/CSECICIDS2018_improved
       hash: md5
-      md5: d062ffc0f5fec098d761fabfcf6f8147.dir
-      size: 2125162
-      nfiles: 21
+      md5: 82aff635566f791e38b1cfb65d3f8139.dir
+      size: 2307145
+      nfiles: 31

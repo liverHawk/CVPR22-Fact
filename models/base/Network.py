@@ -1,13 +1,17 @@
 import argparse
+import logging
 import math
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from models.cnn1d_encoder import cnn1d_encoder
+from models.mlp_encoder import mlp_encoder
 from models.resnet18_encoder import *
 from models.resnet20_cifar import *
-from models.mlp_encoder import mlp_encoder
-from models.cnn1d_encoder import cnn1d_encoder
+
+
+logger = logging.getLogger(__name__)
 
 
 class MYNET(nn.Module):
@@ -100,13 +104,11 @@ class MYNET(nn.Module):
     def update_fc_avg(self,data,label,class_list):
         new_fc=[]
         for class_index in class_list:
-            #print(class_index)
             data_index=(label==class_index).nonzero().squeeze(-1)
             embedding=data[data_index]
             proto=embedding.mean(0)
             new_fc.append(proto)
             self.fc.weight.data[class_index]=proto
-            #print(proto)
         new_fc=torch.stack(new_fc,dim=0)
         return new_fc
 

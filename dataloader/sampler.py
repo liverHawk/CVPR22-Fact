@@ -86,7 +86,7 @@ class NewCategoriesSampler():
             self.m_ind.append(ind)
         
         self.classlist=np.arange(np.min(label),np.max(label)+1)
-        #print(self.classlist)
+        # debug: classlist holds all class indices in this sampler
 
     def __len__(self):
         return self.n_batch
@@ -103,13 +103,18 @@ class NewCategoriesSampler():
            
 
 if __name__ == '__main__':
-    q=np.arange(5,10)
-    print(q)
-    y=torch.tensor([5,6,7,8,9,5,6,7,8,9,5,6,7,8,9,5,5,5,55,])
+    import logging
+
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
+    q = np.arange(5, 10)
+    logger.info("q: %s", q)
+    y = torch.tensor([5, 6, 7, 8, 9, 5, 6, 7, 8, 9, 5, 6, 7, 8, 9, 5, 5, 5, 55])
     label = np.array(y)  # all data label
     m_ind = []  # the data index of each class
     for i in range(max(label) + 1):
         ind = np.argwhere(label == i).reshape(-1)  # all data index of this class
         ind = torch.from_numpy(ind)
         m_ind.append(ind)
-    print(m_ind, len(m_ind))
+    logger.info("m_ind: %s (len=%d)", m_ind, len(m_ind))

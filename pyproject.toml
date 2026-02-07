@@ -22,4 +22,5 @@ dependencies = [
     "marimo>=0.19.7",
     "altair>=6.0.0",
     "pyarrow>=23.0.0",
+    "coloredlogs>=15.0.1",
 ]

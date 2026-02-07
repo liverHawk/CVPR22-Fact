@@ -1,17 +1,21 @@
-from .base import Trainer
-import torch.nn as nn
-from copy import deepcopy
-import torch
-
-from .helper import replace_base_fc, test, base_train
-from utils import ensure_path, save_list_to_txt
-from dataloader.data_utils import set_up_datasets, get_base_dataloader, get_new_dataloader
-from .Network import MYNET
-from db import init_db, Experiment, EpochMetric, SessionMetric
+import logging
 import math
-import numpy as np
-import time
 import os
+import time
+from copy import deepcopy
+
+import numpy as np
+import torch
+import torch.nn as nn
+
+from dataloader.data_utils import set_up_datasets, get_base_dataloader, get_new_dataloader
+from db import init_db, Experiment, EpochMetric, SessionMetric
+from .Network import MYNET
+from .base import Trainer
+from utils import ensure_path, save_list_to_txt
+
+
+logger = logging.getLogger(__name__)
 
 
 class FSCILTrainer(Trainer):
@@ -32,13 +36,13 @@ class FSCILTrainer(Trainer):
             self.model = self.model.to(self.device)
 
         if self.args.model_dir is not None:
-            print('Loading init parameters from: %s' % self.args.model_dir)
+            logger.info('Loading init parameters from: %s', self.args.model_dir)
             self.best_model_dict = torch.load(self.args.model_dir, weights_only=False)['params']
             #self.best_model_dict = torch.load(self.args.model_dir)['state_dict']
         else:
-            print('random init params')
+            logger.info('random init params')
             if args.start_session > 0:
-                print('WARING: Random init weights for new sessions!')
+                logger.warning('Random init weights for new sessions!')
             self.best_model_dict = deepcopy(self.model.state_dict())
         
         # データセットキャッシュ（重複読み込みを防ぐ）
@@ -62,7 +66,7 @@ class FSCILTrainer(Trainer):
         
         # キャッシュに存在する場合は再利用
         if cache_key in self.dataset_cache:
-            print(f"Using cached dataset for session {session}")
+            logger.info("Using cached dataset for session %d", session)
             return self.dataset_cache[cache_key]
         
         # データセットを読み込む
@@ -99,8 +103,8 @@ class FSCILTrainer(Trainer):
             self.model.load_state_dict(self.best_model_dict)
 
             if session == 0:  # load base class train img label
-
-                print('new classes for this session:\n', np.unique(train_set.targets))
+        
+                logger.info('new classes for this session: %s', np.unique(train_set.targets))
                 optimizer, scheduler = self.get_optimizer_base()
 
                 for epoch in range(args.epochs_base):
@@ -118,10 +122,13 @@ class FSCILTrainer(Trainer):
                         torch.save(dict(params=self.model.state_dict()), save_model_dir)
                         torch.save(optimizer.state_dict(), os.path.join(args.save_path, 'optimizer_best.pth'))
                         self.best_model_dict = deepcopy(self.model.state_dict())
-                        print('********A better model is found!!**********')
-                        print('Saving model to :%s' % save_model_dir)
-                    print('best epoch {}, best test acc={:.3f}'.format(self.trlog['max_acc_epoch'],
-                                                                       self.trlog['max_acc'][session]))
+                        logger.info('********A better model is found!!**********')
+                        logger.info('Saving model to :%s', save_model_dir)
+                    logger.info(
+                        'best epoch %s, best test acc={:.3f}',
+                        self.trlog['max_acc_epoch'],
+                        self.trlog['max_acc'][session],
+                    )
 
                     self.trlog['train_loss'].append(tl)
                     self.trlog['train_acc'].append(ta)
@@ -159,9 +166,13 @@ class FSCILTrainer(Trainer):
                         test_acc=test_acc,
                         learning_rate=learning_rate,
                     )
-                    print('This epoch takes %d seconds' % (time.time() - start_time),
-                          '\nstill need around %.2f mins to finish this session' % (
-                                  (time.time() - start_time) * (args.epochs_base - epoch) / 60))
+                    elapsed = time.time() - start_time
+                    remaining = elapsed * (args.epochs_base - epoch) / 60
+                    logger.info(
+                        'This epoch takes %d seconds, still need around %.2f mins to finish this session',
+                        int(elapsed),
+                        remaining,
+                    )
                     scheduler.step()
 
                 result_list.append('Session {}, Test Best Epoch {},\nbest test Acc {:.4f}\n'.format(
@@ -172,7 +183,7 @@ class FSCILTrainer(Trainer):
                     dataset_transform = getattr(testloader.dataset, "transform", None)
                     self.model = replace_base_fc(train_set, dataset_transform, self.model, args)
                     best_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
-                    print('Replace the fc with average embedding, and save it to :%s' % best_model_dir)
+                    logger.info('Replace the fc with average embedding, and save it to :%s', best_model_dir)
                     self.best_model_dict = deepcopy(self.model.state_dict())
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
@@ -198,17 +209,24 @@ class FSCILTrainer(Trainer):
                         tsl_final, tsa_final = test_result
                     if (tsa_final * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa_final * 100))
-                        print('The new best test acc of base session={:.3f}'.format(self.trlog['max_acc'][session]))
+                        logger.info(
+                            'The new best test acc of base session={:.3f}',
+                            self.trlog['max_acc'][session],
+                        )
                     
                     # ベースセッションの最終評価結果を記録
                     result_list.append('Session {} Final Test, loss={:.4f}, acc={:.4f}\n'.format(
                         session, tsl_final, tsa_final * 100))
-                    print('Session {} Final Test: loss={:.4f}, acc={:.4f}'.format(
-                        session, tsl_final, tsa_final * 100))
+                    logger.info(
+                        'Session %d Final Test: loss={:.4f}, acc={:.4f}',
+                        session,
+                        tsl_final,
+                        tsa_final * 100,
+                    )
 
 
             else:  # incremental learning sessions
-                print("training session: [%d]" % session)
+                logger.info("training session: [%d]", session)
 
                 model_module = self.model.module if isinstance(self.model, nn.DataParallel) else self.model
                 model_module.mode = self.args.new_mode
@@ -261,20 +279,20 @@ class FSCILTrainer(Trainer):
                 save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
                 #torch.save(dict(params=self.model.state_dict()), save_model_dir)
                 self.best_model_dict = deepcopy(self.model.state_dict())
-                print('Saving model to :%s' % save_model_dir)
-                print('  test acc={:.3f}'.format(self.trlog['max_acc'][session]))
+                logger.info('Saving model to :%s', save_model_dir)
+                logger.info('  test acc={:.3f}', self.trlog['max_acc'][session])
 
                 result_list.append('Session {}, test Acc {:.3f}\n'.format(session, self.trlog['max_acc'][session]))
 
         result_list.append('Base Session Best Epoch {}\n'.format(self.trlog['max_acc_epoch']))
         result_list.append(self.trlog['max_acc'])
-        print(self.trlog['max_acc'])
+        logger.info('max_acc per session: %s', self.trlog['max_acc'])
         save_list_to_txt(os.path.join(args.save_path, 'results.txt'), result_list)
 
         t_end_time = time.time()
         total_time = (t_end_time - t_start_time) / 60
-        print('Base Session Best epoch:', self.trlog['max_acc_epoch'])
-        print('Total time used %.2f mins' % total_time)
+        logger.info('Base Session Best epoch: %s', self.trlog['max_acc_epoch'])
+        logger.info('Total time used %.2f mins', total_time)
 
     def set_save_path(self):
         self.args.save_path = '%s/' % self.args.dataset_name

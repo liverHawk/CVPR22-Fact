@@ -1,8 +1,13 @@
 import argparse
+import gc
 import importlib
+import logging
 import os
-import yaml
+
+import coloredlogs
 import torch
+import yaml
+
 from utils import set_seed, set_gpu, pprint
 
 MODEL_DIR=None
@@ -10,10 +15,14 @@ DATA_DIR = 'data/'
 PROJECT='fact' # base, fact
 PARAMS_FILE = 'params.yaml'
 
+
+logger = logging.getLogger(__name__)
+coloredlogs.install(level="INFO", logger=logger)
+
 def load_params_yaml(yaml_path=PARAMS_FILE):
     """params.yamlから設定を読み込む"""
     if not os.path.exists(yaml_path):
-        print(f"Warning: {yaml_path} not found. Using default values.")
+        logger.warning(f"{yaml_path} not found. Using default values.")
         return {}
     
     try:
@@ -21,7 +30,7 @@ def load_params_yaml(yaml_path=PARAMS_FILE):
             params = yaml.safe_load(f)
         return params if params else {}
     except Exception as e:
-        print(f"Warning: Failed to load {yaml_path}: {e}. Using default values.")
+        logger.warning(f"Failed to load {yaml_path}: {e}. Using default values.")
         return {}
 
 def get_command_line_parser():
@@ -197,7 +206,7 @@ def get_command_line_parser():
                         help='各クラスのショット数（Few-Shot用）')
     create_sessions = yaml_params.get('create_sessions', {})
     base_labels = create_sessions.get('base_labels', None)
-    print(base_labels)
+    logger.info("base_labels from params: %s", base_labels)
     parser.add_argument('--base-labels', type=list,
                         default=base_labels,
                         help='ベースセッションに使用するラベルのリスト')
@@ -220,6 +229,10 @@ if __name__ == '__main__':
     if '--debug' not in sys.argv:
         args.debug = yaml_params.get('debug', False)
     
+    # パーサーとYAMLパラメータはこれ以降不要なので解放
+    del parser, yaml_params
+    gc.collect()
+    
     # dataset_nameが指定されていない場合、dataset_typeと同じ値を使用
     if args.dataset_name is None:
         args.dataset_name = args.dataset_type
@@ -239,20 +252,20 @@ if __name__ == '__main__':
         num_threads = os.cpu_count() or 1
         torch.set_num_threads(num_threads)
         torch.set_num_interop_threads(min(num_threads, 4))  # inter-op threads
-        print(f"CPU環境: PyTorchスレッド数を{num_threads}に設定")
+        logger.info(f"CPU環境: PyTorchスレッド数を{num_threads}に設定")
         
         # num_workersの最適化（CPU環境）
         max_workers = os.cpu_count() or 1
         # データローディングと計算を並行するため、少し控えめに設定
         optimal_workers = max(1, min(max_workers - 1, 4))
         if args.num_workers > optimal_workers:
-            print(f"CPU環境: num_workersを{args.num_workers}から{optimal_workers}に調整")
+            logger.info(f"CPU環境: num_workersを{args.num_workers}から{optimal_workers}に調整")
             args.num_workers = optimal_workers
     else:
         # GPU環境では既存のロジックを維持
         max_workers = min(os.cpu_count() or 1, 4)
         if args.num_workers > max_workers:
-            print(f"Warning: num_workers ({args.num_workers}) exceeds system recommendation ({max_workers}). Adjusting to {max_workers}.")
+            logger.warning(f"num_workers ({args.num_workers}) exceeds system recommendation ({max_workers}). Adjusting to {max_workers}.")
             args.num_workers = max_workers
     trainer = importlib.import_module('models.%s.fscil_trainer' % (args.project)).FSCILTrainer(args)
     trainer.train()

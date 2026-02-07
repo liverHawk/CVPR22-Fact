@@ -3,8 +3,8 @@
 
 # 基本設定
 project: fact    # 'base' または 'fact'
-dataset_type: cifar100    # 'mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved'
-dataset_name: cifar100
+dataset_type: CICIDS2017_improved    # 'mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved'
+dataset_name: CSECICIDS2018_improved
 dataroot: data/
 encoder: mlp  # 'mlp' または 'cnn1d'（CICIDS2017_improved用）
 normalize_method: moving_minmax    # 'standard', 'minmax', 'moving_minmax'
@@ -12,11 +12,11 @@ label_column: Label    # ラベル列の名前（CICIDS2017_improved用）
 input_dir: /home/ishibashi02/dataset/project/cleaned   # 入力ディレクトリのパス
 
 # トレーニング設定
-epochs_base: 600
+epochs_base: 1
 epochs_new: 100
-lr_base: 0.1
+lr_base: 0.005
 lr_new: 0.1
-batch_size_base: 256
+batch_size_base: 2048
 batch_size_new: 0  # 0で全データ使用
 test_batch_size: 100
 
@@ -33,7 +33,7 @@ step: 20
 decay: 0.0005
 gamma: 0.1
 momentum: 0.9
-temperature: 16
+temperature: 32
 
 # FACT固有のパラメータ
 balance: 0.001
@@ -42,9 +42,9 @@ eta: 0.1
 loss_iter: 0
 
 # FSCIL用のパラメータ（CICIDS2017_improvedなどで使用）
-base_class: 60  # ベースクラス数
-num_classes: 100  # 総クラス数
-way: 5  # 各新規セッションのクラス数
+base_class: 3  # ベースクラス数
+num_classes: 15  # 総クラス数
+way: 1 # 各新規セッションのクラス数
 shot: 5  # 各クラスのショット数（Few-Shot用）
 
 # その他の設定
@@ -62,19 +62,20 @@ debug: false
 # Comet ML設定
 comet_project:       # プロジェクト名（nullの場合はdataset名を使用）
 comet_workspace:       # ワークスペース名（nullの場合はデフォルト）
-comet_disabled: false  # Comet MLを無効化する場合はtrue
+comet_disabled: true  # Comet MLを無効化する場合はtrue
 comet_tags:
 - orm
 create_sessions:
   label_column: Label    # ラベル列の名前
   output_dir: data/index_list    # セッションファイルの出力ディレクトリ
-  dataset_name: CICIDS2017_flow_improved    # データセット名
+  dataset_name: CSECICIDS2018_improved    # データセット名
   base_class: 5  # ベースクラス数（トレーニング設定と一致させる）
   num_classes: 10  # 総クラス数
   way: 1  # 各新規セッションのクラス数
   shot: 5  # 各クラスのショット数（Few-Shot用）
   seed: 42  # 乱数シード
+  max_samples_per_label: 10000000  # ラベルごとのデータ数上限（指定時は処理前にサンプリング。未指定は無制限）
   base_use_class_index: false  # ベースセッションファイルにクラスインデックスを使用（false: データインデックス）
   base_labels:                                                     # ベースセッションに使用するラベルのリスト（null: 自動、リスト指定時はそのラベルのみ使用）
   - BENIGN
-  - DoS
+  - DoS GoldenEye

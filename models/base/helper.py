@@ -6,6 +6,10 @@ import torch.nn.functional as F
 import torch.nn as nn
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import os
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 def base_train(model, trainloader, optimizer, scheduler, epoch, args):
@@ -118,7 +122,7 @@ def test(model, testloader, epoch,args, session,validation=True):
         vl = vl.item()
         va = va.item()
         va5= va5.item()
-        print('epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}'.format(epoch, vl, va,va5))
+        logger.info('epo %s, test, loss=%.4f acc=%.4f, acc@5=%.4f', epoch, vl, va, va5)
 
         
         lgt=lgt.view(-1,test_class)
@@ -132,7 +136,7 @@ def test(model, testloader, epoch,args, session,validation=True):
             perclassacc = cm.diagonal()
             seenac = np.mean(perclassacc[:args.base_class])
             unseenac = np.mean(perclassacc[args.base_class:])
-            print('Seen Acc:', seenac, 'Unseen ACC:', unseenac)
+            logger.info('Seen Acc: %s Unseen ACC: %s', seenac, unseenac)
 
             pred = torch.argmax(lgt, dim=1)
             y_true_np = lbs.numpy() if isinstance(lbs, torch.Tensor) else lbs
@@ -145,11 +149,11 @@ def test(model, testloader, epoch,args, session,validation=True):
             recall_per_class = recall_score(y_true_np, y_pred_np, average=None, zero_division=0)
             f1_per_class = f1_score(y_true_np, y_pred_np, average=None, zero_division=0)
 
-            print(f'Session {session} Metrics:')
-            print(f'  Accuracy: {accuracy:.4f}')
-            print(f'  Precision (macro): {precision:.4f}')
-            print(f'  Recall (macro): {recall:.4f}')
-            print(f'  F1-score (macro): {f1:.4f}')
+            logger.info('Session %d Metrics:', session)
+            logger.info('  Accuracy: %.4f', accuracy)
+            logger.info('  Precision (macro): %.4f', precision)
+            logger.info('  Recall (macro): %.4f', recall)
+            logger.info('  F1-score (macro): %.4f', f1)
 
             metrics_file = os.path.join(args.save_path, f'session_{session}_metrics.txt')
             with open(metrics_file, 'w') as f:

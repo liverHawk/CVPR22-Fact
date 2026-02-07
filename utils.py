@@ -1,23 +1,30 @@
+import logging
+import os
+import random
+import time
+
 try:
     import comet_ml
     COMET_AVAILABLE = True
 except ImportError:
     COMET_AVAILABLE = False
-import random
-import torch
-import os
-import time
-import numpy as np
-import pprint as pprint
-from sklearn.metrics import confusion_matrix
-import matplotlib.pyplot as plt 
+
 import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
+import torch
+from sklearn.metrics import confusion_matrix
+import pprint as pprint
+
+
+logger = logging.getLogger(__name__)
 _utils_pp = pprint.PrettyPrinter()
 
 
 def pprint(x):
-    _utils_pp.pprint(x)
+    """Pretty-print using logger instead of stdout."""
+    logger.info(_utils_pp.pformat(x))
 
 
 def get_device():
@@ -32,11 +39,11 @@ def get_model_module(model):
 
 def set_seed(seed):
     if seed == 0:
-        print(' random seed')
+        logger.info('random seed (no manual seed set)')
         if torch.cuda.is_available():
             torch.backends.cudnn.benchmark = True
     else:
-        print('manual seed:', seed)
+        logger.info('manual seed: %s', seed)
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
@@ -49,11 +56,11 @@ def set_seed(seed):
 def set_gpu(args):
     """GPU設定を行い、利用可能なGPU数を返す（CPUの場合は0を返す）"""
     if not torch.cuda.is_available():
-        print('CUDA is not available. Using CPU.')
+        logger.warning('CUDA is not available. Using CPU.')
         return 0
     
     if args.gpu.lower() == 'cpu' or args.gpu == '':
-        print('Using CPU (specified by user).')
+        logger.info('Using CPU (specified by user).')
         return 0
     
     gpu_list = [int(x) for x in args.gpu.split(',')]
@@ -62,7 +69,7 @@ def set_gpu(args):
     if len(gpu_list) >= 1:
         torch.cuda.set_device(gpu_list[0])
     
-    print('use gpu:', gpu_list)
+    logger.info('Using GPU(s): %s', gpu_list)
     os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
     # os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     return gpu_list
@@ -72,7 +79,7 @@ def ensure_path(path):
     if os.path.exists(path):
         pass
     else:
-        print('create folder:', path)
+        logger.info('create folder: %s', path)
         os.makedirs(path)
 
 
@@ -252,7 +259,7 @@ def init_comet_experiment(args):
         comet_ml.Experiment: Comet実験オブジェクト、またはNone（Cometが無効な場合）
     """
     if not COMET_AVAILABLE:
-        print("Comet ML is not available. Install with: pip install comet-ml")
+        logger.warning("Comet ML is not available. Install with: pip install comet-ml")
         return None
     
     # Cometが無効化されている場合はNoneを返す
@@ -303,11 +310,11 @@ def init_comet_experiment(args):
         
         exp.log_parameters(params_dict)
         
-        print(f"Comet ML experiment started: {experiment_name}")
+        logger.info("Comet ML experiment started: %s", experiment_name)
         return exp
         
     except Exception as e:
-        print(f"Failed to initialize Comet ML: {e}")
+        logger.warning("Failed to initialize Comet ML: %s", e)
         return None
 
 
@@ -350,7 +357,7 @@ def log_metrics_to_comet(exp, metrics, epoch=None, session=None, step=None):
             exp.log_metrics({f"session": session}, step=step if step is not None else session * 1000)
             
     except Exception as e:
-        print(f"Failed to log metrics to Comet ML: {e}")
+        logger.warning("Failed to log metrics to Comet ML: %s", e)
 
 
 def log_confusion_matrix_to_comet(exp, y_true, y_pred, labels=None, session=None, title=None):
@@ -405,6 +412,6 @@ def log_confusion_matrix_to_comet(exp, y_true, y_pred, labels=None, session=None
         )
         
     except Exception as e:
-        print(f"Failed to log confusion matrix to Comet ML: {e}")
+        logger.warning("Failed to log confusion matrix to Comet ML: %s", e)
 
 

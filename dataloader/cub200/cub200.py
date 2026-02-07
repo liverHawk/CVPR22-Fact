@@ -1,3 +1,4 @@
+import logging
 import os
 import os.path as osp
 
@@ -7,6 +8,9 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 from .autoaugment import AutoAugImageNetPolicy
+
+
+logger = logging.getLogger(__name__)
 
 class CUB200(Dataset):
 
@@ -171,7 +175,7 @@ class CUB200_concate(Dataset):
             ])
         self.data=x1+x2
         self.targets=y1+y2
-        print(len(self.data),len(self.targets))
+        logger.info("CUB200_concate size: data=%d, targets=%d", len(self.data), len(self.targets))
 
     
 
@@ -184,6 +188,8 @@ class CUB200_concate(Dataset):
         return image, targets
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
     txt_path = "../../data/index_list/cub200/session_1.txt"
     # class_index = open(txt_path).read().splitlines()
     base_class = 100
@@ -195,5 +201,5 @@ if __name__ == '__main__':
     cls = np.unique(trainset.targets)
     trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=batch_size_base, shuffle=True, num_workers=8,
                                               pin_memory=True)
-
+    logger.info("CUB200 trainloader dataset size: %d", len(trainloader.dataset.data))
     

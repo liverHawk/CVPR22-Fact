@@ -5,14 +5,21 @@ CICIDS2017_improvedデータセット用のデータローダー
 セッションごとにデータを分割します。
 """
 
+import logging
 import os
 import os.path as osp
-import numpy as np
-import torch
-from torch.utils.data import Dataset
-import polars as pl
 from pathlib import Path
 from typing import Optional, List, Union
+
+import coloredlogs
+import numpy as np
+import polars as pl
+import torch
+from torch.utils.data import Dataset
+
+
+logger = logging.getLogger(__name__)
+coloredlogs.install(level="INFO", logger=logger)
 
 
 class CICIDS2017(Dataset):
@@ -119,7 +126,7 @@ class CICIDS2017(Dataset):
                 self.data = features
                 self.targets = labels
         
-        print(f"Loaded {len(self.data)} samples, {len(np.unique(self.targets))} classes")
+        logger.info("Loaded %d samples, %d classes", len(self.data), len(np.unique(self.targets)))
     
     @classmethod
     def _load_and_cache_data(cls, root: str, label_column: str, normalize_method: str):
@@ -140,22 +147,22 @@ class CICIDS2017(Dataset):
             if len(csv_files) == 0:
                 raise FileNotFoundError(f"CSVファイルが見つかりません: {train_dir}")
             
-            print(f"Loading CSV files from {train_dir}...")
+            logger.info("Loading CSV files from %s...", train_dir)
             dfs = []
             for csv_path in csv_files:
-                print(f"  Reading {csv_path.name}...")
+                logger.info("  Reading %s", csv_path.name)
                 dfs.append(pl.read_csv(csv_path))
-            
+
             if len(dfs) == 1:
                 train_df = dfs[0]
             else:
-                print(f"  Merging {len(dfs)} CSV files...")
+                logger.info("Merging %d CSV files for train...", len(dfs))
                 train_df = pl.concat(dfs)
         else:
             train_csv_path = os.path.join(root, 'train.csv')
             if not os.path.exists(train_csv_path):
                 raise FileNotFoundError(f"CSVファイルまたはディレクトリが見つかりません: {train_dir} または {train_csv_path}")
-            print(f"Loading train.csv...")
+            logger.info("Loading train.csv...")
             train_df = pl.read_csv(train_csv_path)
         
         # テストデータの読み込み
@@ -165,22 +172,21 @@ class CICIDS2017(Dataset):
             if len(csv_files) == 0:
                 raise FileNotFoundError(f"CSVファイルが見つかりません: {test_dir}")
             
-            print(f"Loading CSV files from {test_dir}...")
+            logger.info("Loading CSV files from %s...", test_dir)
             dfs = []
             for csv_path in csv_files:
-                print(f"  Reading {csv_path.name}...")
+                logger.info("  Reading %s", csv_path.name)
                 dfs.append(pl.read_csv(csv_path))
-            
             if len(dfs) == 1:
                 test_df = dfs[0]
             else:
-                print(f"  Merging {len(dfs)} CSV files...")
+                logger.info("Merging %d CSV files for test...", len(dfs))
                 test_df = pl.concat(dfs)
         else:
             test_csv_path = os.path.join(root, 'test.csv')
             if not os.path.exists(test_csv_path):
                 raise FileNotFoundError(f"CSVファイルまたはディレクトリが見つかりません: {test_dir} または {test_csv_path}")
-            print(f"Loading test.csv...")
+            logger.info("Loading test.csv...")
             test_df = pl.read_csv(test_csv_path)
         
         # ラベル列のチェック
@@ -214,8 +220,8 @@ class CICIDS2017(Dataset):
         idx_to_label = {idx: label for label, idx in label_to_idx.items()}
         
         # デバッグ出力
-        print(f"Found {len(all_labels)} unique labels: {all_labels[:10]}...")
-        print(f"Label to index mapping (first 10): {dict(list(label_to_idx.items())[:10])}")
+        logger.info("Found %d unique labels (first 10): %s", len(all_labels), all_labels[:10])
+        logger.info("Label to index mapping (first 10): %s", dict(list(label_to_idx.items())[:10]))
         
         # 訓練データの特徴量とラベルを抽出
         train_features = train_df.select(feature_columns).to_numpy().astype(np.float32)
@@ -281,8 +287,16 @@ class CICIDS2017(Dataset):
         cls._cache_normalize_method = normalize_method
         cls._feature_columns = feature_columns
         
-        print(f"Cached train data: {len(train_features)} samples, {len(np.unique(train_labels))} classes")
-        print(f"Cached test data: {len(test_features)} samples, {len(np.unique(test_labels))} classes")
+        logger.info(
+            "Cached train data: %d samples, %d classes",
+            len(train_features),
+            len(np.unique(train_labels)),
+        )
+        logger.info(
+            "Cached test data: %d samples, %d classes",
+            len(test_features),
+            len(np.unique(test_labels)),
+        )
     
     def _compute_normalization_stats(self, features: np.ndarray):
         """正規化統計量を計算して保存"""
@@ -307,7 +321,7 @@ class CICIDS2017(Dataset):
             n_samples, n_features = features.shape
             min_max_changes = []  # (start_index, min_values, max_values)のリスト
             
-            print(f"Computing Moving Min-Max normalization with window_size={self.window_size}...")
+            logger.info("Computing Moving Min-Max normalization with window_size=%d...", self.window_size)
             prev_min = None
             prev_max = None
             
@@ -352,7 +366,7 @@ class CICIDS2017(Dataset):
                 max_values_list=max_values_list,
                 method='moving_minmax'
             )
-            print(f"Saved {len(min_max_changes)} min/max change points")
+            logger.info("Saved %d min/max change points", len(min_max_changes))
         else:
             raise ValueError(f"Unknown normalize_method: {self.normalize_method}")
     
@@ -387,7 +401,10 @@ class CICIDS2017(Dataset):
                 (int(change_indices[i]), min_values_list[i], max_values_list[i])
                 for i in range(len(change_indices))
             ]
-            print(f"Loaded {len(self.min_max_changes)} min/max change points for Moving Min-Max normalization")
+            logger.info(
+                "Loaded %d min/max change points for Moving Min-Max normalization",
+                len(self.min_max_changes),
+            )
         else:
             raise ValueError(f"Unknown normalization method in stats: {method}")
     
@@ -442,15 +459,15 @@ class CICIDS2017(Dataset):
         
         # デバッグ出力
         unique_targets = np.unique(targets)
-        print(f"SelectfromClasses: Requested class indices: {index}")
-        print(f"SelectfromClasses: Available class indices in data: {unique_targets}")
+        logger.info("SelectfromClasses: Requested class indices: %s", index)
+        logger.info("SelectfromClasses: Available class indices in data: %s", unique_targets)
         
         for class_idx in index:
             ind_cl = np.where(targets == class_idx)[0]
             if len(ind_cl) == 0:
-                print(f"Warning: No samples found for class index {class_idx}")
+                logger.warning("No samples found for class index %s", class_idx)
                 continue
-            print(f"Found {len(ind_cl)} samples for class index {class_idx}")
+            logger.info("Found %d samples for class index %s", len(ind_cl), class_idx)
             if len(data_tmp) == 0:
                 data_tmp = data[ind_cl]
                 targets_tmp = targets[ind_cl]

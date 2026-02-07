@@ -1,15 +1,19 @@
-import torch
-from PIL import Image
+import logging
 import os
 import os.path
-import numpy as np
 import pickle
 
+import numpy as np
+import torch
 import torchvision.transforms as transforms
+from PIL import Image
 
 from torchvision.datasets.vision import VisionDataset
 from torchvision.datasets.utils import check_integrity, download_and_extract_archive
 from .autoaugment import CIFAR10Policy, Cutout
+
+
+logger = logging.getLogger(__name__)
 
 class CIFAR10(VisionDataset):
     """`CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
@@ -230,7 +234,7 @@ class CIFAR10(VisionDataset):
 
     def download(self):
         if self._check_integrity():
-            print('Files already downloaded and verified')
+            logger.info('Files already downloaded and verified')
             return
         download_and_extract_archive(self.url, self.root, filename=self.filename, md5=self.tgz_md5)
 
@@ -258,7 +262,7 @@ class CIFAR_concate(VisionDataset):
         
         self.data=np.vstack([x1,x2])
         self.targets=np.hstack([y1,y2])
-        print(len(self.data),len(self.targets))
+        logger.info("CIFAR_concate size: data=%d, targets=%d", len(self.data), len(self.targets))
 
     def __getitem__(self, index):
         
@@ -297,7 +301,8 @@ class CIFAR100(CIFAR10):
     }
 
 if __name__ == "__main__":
-    
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
     
     dataroot = '../../data/'
     batch_size_base = 128
@@ -313,10 +318,10 @@ if __name__ == "__main__":
 
 
     import pickle
-    print(trainset.data.shape)
-    print(trainset.targets.shape)
+    logger.info("trainset.data.shape: %s", trainset.data.shape)
+    logger.info("trainset.targets.shape: %s", trainset.targets.shape)
     cls = np.unique(trainset.targets)
-    print(cls)
+    logger.info("classes: %s", cls)
     data={'data':trainset.data,'labels':trainset.targets}
     with open('CIFAR100_test.pickle', 'wb') as handle:
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)

@@ -5,25 +5,72 @@ CICIDS2017_flow_improvedデータセットをラベルごとにtrain/testに分�
 train.csvとtest.csvに分割します。
 """
 
-import polars as pl
+import argparse
+import gc
+import logging
+import os
 from pathlib import Path
 from typing import Optional
-import argparse
-from sklearn.model_selection import train_test_split
+
+import coloredlogs
+import polars as pl
 import yaml
-import os
+from sklearn.model_selection import train_test_split
 
 
-def relabel_df(df: pl.DataFrame, label_column: str) -> pl.DataFrame:
+logger = logging.getLogger(__name__)
+coloredlogs.install(level="INFO", logger=logger)
+
+
+def relabel_df(df: pl.DataFrame, label_column: str, is_convert: bool = False) -> pl.DataFrame:
     label_unique = df[label_column].unique().to_list()
     for label in label_unique:
         if "Attempted" in label:
             df = df.with_columns(pl.col(label_column).replace(label, "BENIGN"))
-        if "DoS" in label and not "DDoS" in label:
+        if not is_convert:
+            continue
+        if "DoS" in label and "DDoS" not in label:
             df = df.with_columns(pl.col(label_column).replace(label, "DoS"))
         if "Web Attack" in label:
             df = df.with_columns(pl.col(label_column).replace(label, "Web Attack"))
     return df
+
+
+def sample_per_label_cap(
+    df: pl.DataFrame,
+    label_column: str,
+    max_per_label: int,
+    seed: int = 42
+) -> pl.DataFrame:
+    """
+    処理前に、ラベルごとのデータ数が上限を超えている場合はその上限でサンプリングする。
+    
+    Args:
+        df: データフレーム
+        label_column: ラベル列の名前
+        max_per_label: ラベルあたりの最大サンプル数（超えた分はランダムに捨てる）
+        seed: 乱数シード
+    
+    Returns:
+        サンプリング後のデータフレーム
+    """
+    labels = df[label_column].unique().sort().to_list()
+    dfs = []
+    for i, label in enumerate(labels):
+        subset = df.filter(pl.col(label_column) == label)
+        n = len(subset)
+        if n <= max_per_label:
+            dfs.append(subset)
+            continue
+        # 上限を超えているので max_per_label 件にランダムサンプリング（ラベルごとに別シードで再現性を確保）
+        sampled = subset.sample(n=max_per_label, seed=seed + i)
+        dfs.append(sampled)
+        logger.info(f"ラベル {label}: {n}件 → {max_per_label}件にサンプリング")
+    out = pl.concat(dfs)
+    del dfs
+    gc.collect()
+    logger.info(f"ラベル別上限サンプリング後: 総件数 {len(df)} → {len(out)}")
+    return out
 
 
 def split_dataset_by_label(
@@ -34,7 +81,9 @@ def split_dataset_by_label(
     random_state: int = 42,
     merge_all_files: bool = True,
     split_by_label: bool = False,
-    chunk_size: Optional[int] = None
+    chunk_size: Optional[int] = None,
+    is_convert: bool = False,
+    max_samples_per_label: Optional[int] = None
 ):
     """
     ラベルごとに同じ割合でtrain/testに分割
@@ -48,6 +97,7 @@ def split_dataset_by_label(
         merge_all_files: Trueの場合、すべてのCSVファイルをマージしてから分割
         split_by_label: Trueの場合、ラベルごとに別ファイルに保存
         chunk_size: 指定した場合、この行数ごとにファイルを分割（Noneの場合は1ファイル）
+        max_samples_per_label: ラベルあたりの最大サンプル数（指定時は分割前にサンプリング）
     """
     input_path = Path(input_dir)
     if not input_path.exists():
@@ -64,21 +114,21 @@ def split_dataset_by_label(
     if len(csv_files) == 0:
         raise FileNotFoundError(f"CSVファイルが見つかりません: {input_dir}")
     
-    print(f"見つかったCSVファイル数: {len(csv_files)}")
+    logger.info(f"見つかったCSVファイル数: {len(csv_files)}")
     for csv_file in csv_files:
-        print(f"  - {csv_file.name}")
+        logger.info(f"  - {csv_file.name}")
     
     # すべてのCSVファイルを読み込んでマージ
     dfs = []
     for csv_file in csv_files:
-        print(f"\n読み込み中: {csv_file.name}")
+        logger.info(f"読み込み中: {csv_file.name}")
         df = pl.read_csv(csv_file)
-        print(f"  行数: {len(df)}, 列数: {len(df.columns)}")
+        logger.info(f"  行数: {len(df)}, 列数: {len(df.columns)}")
         
         # ラベル列の存在確認
         if label_column not in df.columns:
-            print(f"  警告: ラベル列 '{label_column}' が見つかりません。スキップします。")
-            print(f"  利用可能な列: {df.columns.tolist()}")
+            logger.warning(f"ラベル列 '{label_column}' が見つかりません。スキップします。")
+            logger.warning(f"  利用可能な列: {df.columns.tolist()}")
             continue
         
         dfs.append(df)
@@ -87,24 +137,40 @@ def split_dataset_by_label(
         raise ValueError("読み込めるCSVファイルがありませんでした。")
     
     # データフレームをマージ
-    print(f"\nデータフレームをマージ中...")
+    logger.info("データフレームをマージ中...")
     merged_df: pl.DataFrame = pl.concat(dfs)
-    print(f"合計行数: {len(merged_df)}")
+    del dfs
+    gc.collect()
+    logger.info(f"合計行数: {len(merged_df)}")
 
-    merged_df = relabel_df(merged_df, label_column)
+    merged_df = relabel_df(merged_df, label_column, is_convert=is_convert)
     
     # ラベルの分布を確認
     label_counts = merged_df[label_column].value_counts().sort("count", descending=True)
-    print(f"\nラベルの分布:")
-    print(label_counts)
-    print(f"\nユニークなラベル数: {len(label_counts)}")
+    logger.info("ラベルの分布:")
+    logger.info(f"\n{label_counts}")
+    logger.info(f"ユニークなラベル数: {len(label_counts)}")
+    
+    # 処理前にラベルごとのデータ数が上限を超えていればサンプリング
+    if max_samples_per_label is not None:
+        merged_df = sample_per_label_cap(
+            merged_df, label_column, max_samples_per_label, random_state
+        )
+        # サンプリング後のラベル分布を再確認
+        label_counts = merged_df[label_column].value_counts().sort("count", descending=True)
+        logger.info("サンプリング後のラベル分布:")
+        logger.info(f"\n{label_counts}")
     
     # ラベルごとにtrain/testに分割
-    print(f"\nラベルごとに分割中（test_ratio={test_ratio}）...")
+    logger.info(f"ラベルごとに分割中（test_ratio={test_ratio}）...")
 
     # check if the number of samples is enough for each label
     if any(label_counts["count"] < 2):
         raise ValueError("ラベルのサンプル数が少なすぎます。2行以上のラベルが必要です。")
+    del label_counts
+    
+    # split前に行数を保存（後のログ出力で使用）
+    total_rows = len(merged_df)
     
     train_df, test_df = train_test_split(
         merged_df,
@@ -113,9 +179,11 @@ def split_dataset_by_label(
         stratify=merged_df[label_column],
         shuffle=True
     )
+    del merged_df
+    gc.collect()
     
     # 保存
-    print(f"\n保存中...")
+    logger.info("保存中...")
     
     if split_by_label:
         # ラベルごとにファイルを分けて保存
@@ -131,7 +199,7 @@ def split_dataset_by_label(
             safe_label = str(label).replace('/', '_').replace('\\', '_').replace(':', '_')
             train_file = train_dir / f"train_{safe_label}.csv"
             label_train.write_csv(train_file, index=False)
-            print(f"  train_{safe_label}.csv: {len(label_train)}行 -> {train_file}")
+            logger.info(f"  train_{safe_label}.csv: {len(label_train)}行 -> {train_file}")
         
         # テストデータをラベルごとに保存
         for label in test_df[label_column].unique():
@@ -139,7 +207,7 @@ def split_dataset_by_label(
             safe_label = str(label).replace('/', '_').replace('\\', '_').replace(':', '_')
             test_file = test_dir / f"test_{safe_label}.csv"
             label_test.write_csv(test_file, index=False)
-            print(f"  test_{safe_label}.csv: {len(label_test)}行 -> {test_file}")
+            logger.info(f"  test_{safe_label}.csv: {len(label_test)}行 -> {test_file}")
     
     elif chunk_size is not None and chunk_size > 0:
         # チャンクサイズで分割して保存
@@ -156,7 +224,7 @@ def split_dataset_by_label(
             chunk_df = train_df[start_idx:end_idx].clone()
             train_file = train_dir / f"train_chunk_{i+1:04d}.csv"
             chunk_df.write_csv(train_file)
-            print(f"  train_chunk_{i+1:04d}.csv: {len(chunk_df)}行 -> {train_file}")
+            logger.info(f"  train_chunk_{i+1:04d}.csv: {len(chunk_df)}行 -> {train_file}")
         
         # テストデータをチャンクに分割
         n_test_chunks = (len(test_df) + chunk_size - 1) // chunk_size
@@ -166,7 +234,7 @@ def split_dataset_by_label(
             chunk_df = test_df[start_idx:end_idx].clone()
             test_file = test_dir / f"test_chunk_{i+1:04d}.csv"
             chunk_df.write_csv(test_file)
-            print(f"  test_chunk_{i+1:04d}.csv: {len(chunk_df)}行 -> {test_file}")
+            logger.info(f"  test_chunk_{i+1:04d}.csv: {len(chunk_df)}行 -> {test_file}")
     
     else:
         # train/とtest/ディレクトリに保存
@@ -179,27 +247,27 @@ def split_dataset_by_label(
         test_path = test_dir / "test.csv"
         
         train_df.write_csv(train_path)
-        print(f"  train.csv: {len(train_df)}行 -> {train_path}")
+        logger.info(f"  train.csv: {len(train_df)}行 -> {train_path}")
         
         test_df.write_csv(test_path)
-        print(f"  test.csv: {len(test_df)}行 -> {test_path}")
+        logger.info(f"  test.csv: {len(test_df)}行 -> {test_path}")
     
     # 最終的なラベル分布を表示
-    print(f"\n=== 分割後のラベル分布 ===")
-    print(f"\n訓練データ:")
-    print(train_df[label_column].value_counts().sort("count", descending=True))
-    print(f"\nテストデータ:")
-    print(test_df[label_column].value_counts().sort("count", descending=True))
+    logger.info("=== 分割後のラベル分布 ===")
+    logger.info("訓練データ:")
+    logger.info(f"\n{train_df[label_column].value_counts().sort('count', descending=True)}")
+    logger.info("テストデータ:")
+    logger.info(f"\n{test_df[label_column].value_counts().sort('count', descending=True)}")
     
-    print(f"\n完了しました！")
-    print(f"  訓練データ: {len(train_df)}行 ({len(train_df)/len(merged_df)*100:.1f}%)")
-    print(f"  テストデータ: {len(test_df)}行 ({len(test_df)/len(merged_df)*100:.1f}%)")
+    logger.info("完了しました！")
+    logger.info(f"  訓練データ: {len(train_df)}行 ({len(train_df)/total_rows*100:.1f}%)")
+    logger.info(f"  テストデータ: {len(test_df)}行 ({len(test_df)/total_rows*100:.1f}%)")
 
 
 def load_params_yaml(yaml_path: str = 'params.yaml') -> dict:
     """params.yamlから設定を読み込む"""
     if not os.path.exists(yaml_path):
-        print(f"Warning: {yaml_path} not found. Using command-line arguments only.")
+        logger.warning(f"{yaml_path} not found. Using command-line arguments only.")
         return {}
     
     try:
@@ -207,7 +275,7 @@ def load_params_yaml(yaml_path: str = 'params.yaml') -> dict:
             params = yaml.safe_load(f)
         return params if params else {}
     except Exception as e:
-        print(f"Warning: Failed to load {yaml_path}: {e}. Using command-line arguments only.")
+        logger.warning(f"Failed to load {yaml_path}: {e}. Using command-line arguments only.")
         return {}
 
 
@@ -218,6 +286,12 @@ def main():
     default_output_dir = f"./data/{dataset_name}"
 
     cleaned_data_path = yaml_params.get('input_dir', None) + "/" + dataset_name
+    
+    # max_samples_per_labelはトップレベルまたはcreate_sessionsセクションから読み込む
+    max_samples_per_label = yaml_params.get('max_samples_per_label')
+    if max_samples_per_label is None:
+        create_sessions = yaml_params.get('create_sessions', {})
+        max_samples_per_label = create_sessions.get('max_samples_per_label')
     
     parser = argparse.ArgumentParser(
         description="CICIDS2017_flow_improvedデータセットをラベルごとにtrain/testに分割"
@@ -239,6 +313,11 @@ def main():
         type=str,
         default="Label",
         help="ラベル列の名前（デフォルト: 'Label'）"
+    )
+    parser.add_argument(
+        "--is-convert",
+        action="store_true",
+        help="ラベルを変換するかどうか（デフォルト: False）"
     )
     parser.add_argument(
         "--test-ratio",
@@ -264,17 +343,26 @@ def main():
         default=100_000,
         help="指定した行数ごとにファイルを分割（例: 100000）"
     )
+    parser.add_argument(
+        "--max-samples-per-label",
+        type=int,
+        default=max_samples_per_label,
+        metavar='N',
+        help='ラベルごとのデータ数上限（指定時は分割前にこの件数を超えるラベルをサンプリングする。未指定は無制限）'
+    )
     
     args = parser.parse_args()
     
     split_dataset_by_label(
         input_dir=args.input_dir,
+        is_convert=args.is_convert,
         output_dir=args.output_dir,
         label_column=args.label_column,
         test_ratio=args.test_ratio,
         random_state=args.random_state,
         split_by_label=args.split_by_label,
-        chunk_size=args.chunk_size
+        chunk_size=args.chunk_size,
+        max_samples_per_label=args.max_samples_per_label
     )
 
 
