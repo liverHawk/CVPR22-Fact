@@ -31,7 +31,7 @@ class MYNET(nn.Module):
             self.encoder = resnet18(True, args)  # pretrained=True follow TOPIC, models for cub is imagenet pre-trained. https://github.com/xyutao/fscil/issues/11#issuecomment-687548790
             self.num_features = 512
         
-        if self.args.dataset == 'CICIDS2017_improved':
+        if 'CIC' in self.args.dataset:
             # CICIDS2017_improved用のエンコーダー選択
             encoder_type = getattr(args, 'encoder', 'mlp')  # デフォルト: mlp
             input_dim = getattr(args, 'input_dim', 67)  # 特徴量の次元数（デフォルト: 67）
@@ -49,7 +49,7 @@ class MYNET(nn.Module):
                 raise ValueError(f"Unknown encoder type for CICIDS2017_improved: {encoder_type}. Use 'mlp' or 'cnn1d'")
         
         # 画像データセット用のavgpool（CICIDS2017_improvedでは使用しない）
-        if self.args.dataset not in ['CICIDS2017_improved']:
+        if 'CIC' not in self.args.dataset:
             self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
         
@@ -96,14 +96,14 @@ class MYNET(nn.Module):
     def encode(self, x):
         x = self.encoder(x)
         # 画像データセットの場合はavgpoolを適用
-        if self.args.dataset not in ['CICIDS2017_improved']:
+        if 'CIC' not in self.args.dataset:
             x = F.adaptive_avg_pool2d(x, 1)
             x = x.squeeze(-1).squeeze(-1)
         return x
     
     def pre_encode(self,x):
         
-        if self.args.dataset == 'CICIDS2017_improved':
+        if 'CIC' in self.args.dataset:
             # CICIDS2017_improvedではMLPエンコーダーの中間層まで処理
             return self.encoder.pre_encode(x)
         
@@ -126,7 +126,7 @@ class MYNET(nn.Module):
         
     
     def post_encode(self,x):
-        if self.args.dataset == 'CICIDS2017_improved':
+        if 'CIC' in self.args.dataset:
             # CICIDS2017_improvedではMLPエンコーダーの残りの層（出力層）を処理
             x = self.encoder.post_encode(x)
             # その後、分類器を適用

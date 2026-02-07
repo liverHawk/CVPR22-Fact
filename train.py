@@ -49,7 +49,7 @@ def get_command_line_parser():
                         help='使用するプロジェクト (base: ベースライン, fact: FACT手法)')
     parser.add_argument('-d', '--dataset-type', type=str, 
                         default=yaml_params.get('dataset_type', 'cifar100'),
-                        choices=['mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved'],
+                        choices=['mini_imagenet', 'cub200', 'cifar100', 'CICIDS2017_improved', 'CICDDoS2019', "CSECICIDS2018_improved"],
                         dest='dataset_type',
                         help='データセットタイプ（データローダーの種類を決定）')
     parser.add_argument('-n', '--dataset-name', type=str, 

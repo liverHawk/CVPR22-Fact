@@ -61,7 +61,7 @@ def load_dataset(csv_path: str, label_column: str = 'Label') -> Tuple[pl.DataFra
     # クラスを取得
     unique_classes = sorted(df[label_column].unique().to_list())
     logger.info(f"総クラス数: {len(unique_classes)}")
-    logger.info(f"クラス: {unique_classes}")
+    # logger.info(f"クラス: {unique_classes}")
     
     return df, unique_classes
 
@@ -414,7 +414,7 @@ def main():
     
     # データセットを読み込む
     df, classes = load_dataset(args.train_csv, args.label_column)
-    logger.info(f"classes: {classes}")
+    # logger.info(f"classes: {classes}")
     
     # サンプリング前にフルデータでの行インデックスを記録
     # セッションファイルにはこの元のインデックスを書き出す（CICIDS2017データセットクラスがフルデータをロードするため）

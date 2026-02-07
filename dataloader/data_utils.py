@@ -88,7 +88,7 @@ def set_up_datasets(args):
         args.shot = 5
         args.sessions = 9
 
-    if args.dataset == 'CICIDS2017_improved':
+    if 'CIC' in args.dataset:
         # CICIDS2017_improvedデータセットの設定
         import dataloader.cicids2017.cicids2017 as Dataset
         
@@ -228,7 +228,7 @@ def get_base_dataloader(args):
                                              index=class_index, base_sess=True)
         testset = args.Dataset.ImageNet(root=args.dataroot, train=False, index=class_index)
 
-    if args.dataset == 'CICIDS2017_improved':
+    if 'CIC' in args.dataset:
         # CICIDS2017_improvedデータローダー
         normalize_method = getattr(args, 'normalize_method', 'standard')
         label_column = getattr(args, 'label_column', 'Label')
@@ -335,7 +335,7 @@ def get_new_dataloader(args,session):
         trainset = args.Dataset.ImageNet(root=args.dataroot, train=True,
                                        index_path=txt_path)
 
-    if args.dataset == 'CICIDS2017_improved':
+    if 'CIC' in args.dataset:
         # CICIDS2017_improvedデータローダー
         normalize_method = getattr(args, 'normalize_method', 'standard')
         label_column = getattr(args, 'label_column', 'Label')
@@ -447,7 +447,7 @@ def get_new_dataloader(args,session):
     if args.dataset == 'imagenet100' or args.dataset == 'imagenet1000':
         testset = args.Dataset.ImageNet(root=args.dataroot, train=False,
                                       index=class_new)
-    if args.dataset == 'CICIDS2017_improved':
+    if 'CIC' in args.dataset:
         normalize_method = getattr(args, 'normalize_method', 'standard')
         label_column = getattr(args, 'label_column', 'Label')
         window_size = getattr(args, 'window_size', 1000)

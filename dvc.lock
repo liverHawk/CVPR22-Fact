@@ -5,26 +5,26 @@ stages:
     deps:
     - path: split_dataset_by_label.py
       hash: md5
-      md5: 019f26e4c2a45fc90106a0b8114eaf6b
-      size: 14429
+      md5: 0f498922ad2f21be47033a0da6106507
+      size: 14729
     params:
       params.yaml:
         create_sessions.base_labels:
         - BENIGN
         - DoS GoldenEye
         create_sessions.dataset_name: CSECICIDS2018_improved
-        dataset_name: CSECICIDS2018_improved
+        dataset_name: CICDDoS2019
     outs:
-    - path: data/CSECICIDS2018_improved/test
+    - path: data/CICDDoS2019/test
       hash: md5
-      md5: 42411a5d44da5fb411fc98a1728e40ea.dir
-      size: 1420206358
-      nfiles: 28
-    - path: data/CSECICIDS2018_improved/train
+      md5: ab0efd460e461d04853c3e1d7c4fe433.dir
+      size: 100598119
+      nfiles: 3
+    - path: data/CICDDoS2019/train
       hash: md5
-      md5: e8a5648256db20ba934cf3c5070e571f.dir
-      size: 5680358221
-      nfiles: 109
+      md5: e54ce4f72a540a168fddee5bb24bd042.dir
+      size: 402544680
+      nfiles: 10
   create_sessions:
     cmd: uv run create_session_files.py
     deps:

@@ -122,7 +122,7 @@ def split_dataset_by_label(
     dfs = []
     for csv_file in csv_files:
         logger.info(f"読み込み中: {csv_file.name}")
-        df = pl.read_csv(csv_file)
+        df = pl.read_csv(csv_file, schema_overrides={"SimillarHTTP": pl.Utf8})
         logger.info(f"  行数: {len(df)}, 列数: {len(df.columns)}")
         
         # ラベル列の存在確認
@@ -144,6 +144,13 @@ def split_dataset_by_label(
     logger.info(f"合計行数: {len(merged_df)}")
 
     merged_df = relabel_df(merged_df, label_column, is_convert=is_convert)
+
+    all_labels = merged_df[label_column].unique().to_list()
+    path = "dataset_metadata"
+    os.makedirs(path, exist_ok=True)
+    with open(f"{path}/{input_path.name}.json", "w") as f:
+        for label in all_labels:
+            f.write(f"- {label}\n")
     
     # ラベルの分布を確認
     label_counts = merged_df[label_column].value_counts().sort("count", descending=True)

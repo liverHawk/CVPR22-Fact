@@ -204,7 +204,7 @@ class CICIDS2017(Dataset):
         # 特徴量列を取得（ラベル列と非数値列を除外）
         exclude_columns = [
             label_column, 'id', 'Flow ID', 'Src IP', 'Src Port', 'Dst IP', 'Dst Port',
-            'Timestamp', 'Attempted Category'
+            'Timestamp', 'Attempted Category', 'SimillarHTTP'
         ]
         # polarsのdtypeをチェック
         feature_columns = [
