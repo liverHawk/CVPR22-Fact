@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="FACTコードベースに新しいデータセットおよび新しいバックボーンネットワークを追加・実装するための実践チュートリアルガイド。">
+  <title>FACT 拡張チュートリアル &mdash; 新規データセット & バックボーン実装ガイド</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-secondary: #111827;
+      --bg-card: rgba(17, 24, 39, 0.75);
+      --bg-card-hover: rgba(30, 41, 59, 0.85);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(56, 189, 248, 0.35);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      --accent-cyan: #38bdf8;
+      --accent-indigo: #818cf8;
+      --accent-purple: #c084fc;
+      --accent-emerald: #34d399;
+      --accent-amber: #fbbf24;
+      --accent-rose: #fb7185;
+      --gradient-brand: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+      --gradient-card: linear-gradient(145deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+      --code-bg: #070a11;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --shadow-subtle: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+      --shadow-glow: 0 0 30px -5px rgba(56, 189, 248, 0.2);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      line-height: 1.65;
+      overflow-x: hidden;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .ambient-glow-1 {
+      position: fixed;
+      top: -200px;
+      left: 15%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .ambient-glow-2 {
+      position: fixed;
+      bottom: -150px;
+      right: 10%;
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(192, 132, 252, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 290px;
+      background-color: rgba(10, 14, 23, 0.92);
+      backdrop-filter: blur(16px);
+      border-right: 1px solid var(--border-color);
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 50;
+    }
+
+    .sidebar-header {
+      padding: 24px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      background: rgba(52, 211, 153, 0.1);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      color: var(--accent-emerald);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .sidebar-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 800;
+      background: var(--gradient-brand);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .sidebar-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .doc-switcher {
+      margin: 14px 20px 0;
+      display: flex;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .doc-tab {
+      flex: 1;
+      text-align: center;
+      padding: 6px 0;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .doc-tab.active {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-cyan);
+    }
+
+    .doc-tab:hover:not(.active) {
+      color: #fff;
+    }
+
+    .search-box {
+      margin: 16px 20px 8px;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 10px 14px 10px 36px;
+      background: var(--code-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font-size: 0.85rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 15px;
+      height: 15px;
+      color: var(--text-dim);
+    }
+
+    .nav-list {
+      list-style: none;
+      padding: 12px 14px;
+      flex-grow: 1;
+      overflow-y: auto;
+    }
+
+    .nav-item { margin-bottom: 4px; }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+    }
+
+    .nav-link:hover, .nav-link.active {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-link.active {
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.15) 0%, rgba(129, 140, 248, 0.05) 100%);
+      color: var(--accent-cyan);
+      border-left: 3px solid var(--accent-cyan);
+    }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border-color);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Content Area */
+    .content {
+      margin-left: 290px;
+      flex-grow: 1;
+      padding: 40px 60px 100px;
+      max-width: 1300px;
+      position: relative;
+      z-index: 10;
+    }
+
+    /* Hero Banner */
+    .hero-banner {
+      background: var(--gradient-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 40px 48px;
+      margin-bottom: 48px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-subtle);
+    }
+
+    .hero-banner::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--gradient-brand);
+    }
+
+    .hero-badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .pill-step {
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: var(--accent-cyan);
+    }
+
+    .pill-dataset {
+      background: rgba(251, 191, 36, 0.15);
+      border: 1px solid rgba(251, 191, 36, 0.4);
+      color: var(--accent-amber);
+    }
+
+    .pill-backbone {
+      background: rgba(192, 132, 252, 0.15);
+      border: 1px solid rgba(192, 132, 252, 0.4);
+      color: var(--accent-purple);
+    }
+
+    .hero-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2.3rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 14px;
+      line-height: 1.25;
+    }
+
+    .hero-desc {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      max-width: 920px;
+    }
+
+    /* Section Styling */
+    section {
+      margin-bottom: 64px;
+      scroll-margin-top: 30px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .section-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-cyan);
+    }
+
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* Stepper Timeline */
+    .step-timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      margin-bottom: 30px;
+      position: relative;
+    }
+
+    .step-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 24px 28px;
+      position: relative;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .step-card:hover {
+      border-color: var(--border-glow);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .step-number {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--gradient-brand);
+      color: #fff;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .step-body {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      line-height: 1.7;
+    }
+
+    .step-body p {
+      margin-bottom: 12px;
+    }
+
+    /* Important Alert Box */
+    .alert-box {
+      background: rgba(239, 68, 68, 0.08);
+      border-left: 4px solid var(--accent-rose);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      padding: 16px 20px;
+      margin: 16px 0;
+      color: #fecdd3;
+      font-size: 0.9rem;
+    }
+
+    .alert-title {
+      font-weight: 700;
+      color: var(--accent-rose);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Tip Box */
+    .tip-box {
+      background: rgba(56, 189, 248, 0.08);
+      border-left: 4px solid var(--accent-cyan);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      padding: 16px 20px;
+      margin: 16px 0;
+      color: #bae6fd;
+      font-size: 0.9rem;
+    }
+
+    .tip-title {
+      font-weight: 700;
+      color: var(--accent-cyan);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Code Box */
+    .code-box {
+      background: var(--code-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin: 16px 0;
+    }
+
+    .code-header {
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    .code-file {
+      font-family: 'Fira Code', monospace;
+      color: var(--accent-indigo);
+      font-weight: 600;
+    }
+
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    pre {
+      padding: 16px 20px;
+      overflow-x: auto;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      line-height: 1.6;
+      color: #d1d5db;
+    }
+
+    .hl-kw { color: #c084fc; font-weight: 600; }
+    .hl-fn { color: #38bdf8; }
+    .hl-str { color: #34d399; }
+    .hl-com { color: #6b7280; font-style: italic; }
+    .hl-num { color: #fbbf24; }
+    .hl-cls { color: #fb7185; }
+
+    /* Tables */
+    .custom-table-wrap {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      overflow-x: auto;
+      margin: 18px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.88rem;
+    }
+
+    th {
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    td {
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+      vertical-align: top;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #1e293b;
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      padding: 12px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 100;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    @media (max-width: 1024px) {
+      .sidebar { width: 240px; }
+      .content { margin-left: 240px; padding: 30px; }
+    }
+
+    @media (max-width: 768px) {
+      body { flex-direction: column; }
+      .sidebar { position: relative; width: 100%; height: auto; }
+      .content { margin-left: 0; padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ambient-glow-1" aria-hidden="true"></div>
+  <div class="ambient-glow-2" aria-hidden="true"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span class="logo-badge">Developer Guide</span>
+      <h1 class="sidebar-title">FACT Tutorial</h1>
+      <p class="sidebar-sub">Custom Datasets &amp; Backbones</p>
+    </div>
+
+    <!-- Doc Switcher -->
+    <div class="doc-switcher">
+      <a href="detail.html" class="doc-tab">コード解説</a>
+      <a href="tutorial.html" class="doc-tab active">チュートリアル</a>
+    </div>
+
+    <div class="search-box">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="text" id="quickSearch" class="search-input" placeholder="ステップを検索..." aria-label="ステップ検索">
+    </div>
+
+    <ul class="nav-list">
+      <li class="nav-item"><a href="#intro" class="nav-link active">1. 依存関係の整理</a></li>
+      <li class="nav-item"><a href="#add-dataset" class="nav-link">2. 新規データセット追加</a></li>
+      <li class="nav-item"><a href="#add-backbone" class="nav-link">3. 新規バックボーン追加</a></li>
+      <li class="nav-item"><a href="#walkthrough" class="nav-link">4. 実装例 (ResNet-50)</a></li>
+      <li class="nav-item"><a href="#troubleshooting" class="nav-link">5. トラブルシューティング</a></li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <span>CVPR 2022 FACT</span>
+      <span>Extension Manual</span>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="content">
+
+    <!-- Hero Banner -->
+    <div class="hero-banner">
+      <div class="hero-badge-row">
+        <span class="pill pill-step">Step-by-Step Guide</span>
+        <span class="pill pill-dataset">Data Pipeline</span>
+        <span class="pill pill-backbone">Model Architecture</span>
+      </div>
+      <h2 class="hero-title">FACT 拡張チュートリアル</h2>
+      <p class="hero-desc">
+        FACT コードベースに自作のデータセットや新しい特徴抽出器（ResNet-50, ViT, ConvNeXt 等）を組み込むための開発者向けガイドです。
+        FACT 固有の<strong>「中間層 Mixup（pre_encode / post_encode）」</strong>や<strong>「直交プロトタイプ事前配置」</strong>の制約を満たしながら安全に拡張する手順を解説します。
+      </p>
+    </div>
+
+    <!-- Section 1: Intro -->
+    <section id="intro">
+      <div class="section-header">
+        <div class="section-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+        </div>
+        <h3 class="section-title">1. コンポーネント間の依存関係</h3>
+      </div>
+
+      <p style="color: var(--text-muted); margin-bottom: 20px;">
+        新しいデータセットやバックボーンを組み込む場合、変更が必要なファイルと相互の依存関係は下図の通りです。
+      </p>
+
+      <div class="custom-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>拡張対象</th>
+              <th>作成・修正が必要なファイル</th>
+              <th>担当する機能</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>データセット追加</strong></td>
+              <td>
+                1. <code>data/index_list/&lt;dataset&gt;/session_*.txt</code><br>
+                2. <code>dataloader/&lt;dataset&gt;/&lt;dataset&gt;.py</code><br>
+                3. <code>dataloader/data_utils.py</code><br>
+                4. <code>train.py</code> (choices)
+              </td>
+              <td>セッション分割、Few-shot インデックス抽出、画像前処理・拡張、引数登録</td>
+            </tr>
+            <tr>
+              <td><strong>バックボーン追加</strong></td>
+              <td>
+                1. <code>models/&lt;backbone&gt;.py</code><br>
+                2. <code>models/fact/Network.py</code> (pre/post_encode)<br>
+                3. <code>models/base/Network.py</code> (比較検証用)
+              </td>
+              <td>中間層 Mixup 可能な構造化、特徴量次元の整合、直交プロトタイプ接続</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 2: Add Dataset -->
+    <section id="add-dataset">
+      <div class="section-header">
+        <div class="section-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        </div>
+        <h3 class="section-title">2. 新しいデータセットの追加手順</h3>
+      </div>
+
+      <div class="step-timeline">
+
+        <!-- Step 2.1 -->
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">1</span>
+            <h4 class="step-title">セッションインデックスファイルの作成</h4>
+          </div>
+          <div class="step-body">
+            <p>
+              <code>data/index_list/&lt;new_dataset&gt;/</code> ディレクトリを作成し、各セッションで使用するサンプルインデックス（テキスト）を作成します。
+            </p>
+            <ul style="padding-left: 20px; margin-bottom: 12px;">
+              <li><code>session_1.txt</code>: ベースセッション用（全ベースクラスの画像パスまたはID）</li>
+              <li><code>session_2.txt</code> 〜 <code>session_N.txt</code>: 新規セッション用（$N$-way $\times$ $K$-shot 分の少数画像）</li>
+            </ul>
+            <div class="tip-box">
+              <div class="tip-title">CUB-200 形式の例</div>
+              1行につき <code>画像の相対パス クラスID</code>（例: <code>001.Black_footed_Albatross/image_0001.jpg 0</code>）を記述するのが標準的です。
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2.2 -->
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">2</span>
+            <h4 class="step-title">Dataset クラスの実装 (dataloader/&lt;dataset&gt;/&lt;dataset&gt;.py)</h4>
+          </div>
+          <div class="step-body">
+            <p>
+              <code>torch.utils.data.Dataset</code> を継承したクラスを作成します。<code>base_sess=True</code> の場合はベースクラスのみ、<code>index_path</code> が指定された場合はテキストファイル内のFew-shotサンプルのみをフィルタリングします。
+            </p>
+            <div class="code-box">
+              <div class="code-header">
+                <span class="code-file">dataloader/my_dataset/my_dataset.py (テンプレート)</span>
+                <button class="copy-btn" data-clipboard="# dataloader/my_dataset/my_dataset.py
+import os, numpy as np, torch
+from PIL import Image
+from torch.utils.data import Dataset
+from torchvision import transforms
+
+class MyDataset(Dataset):
+    def __init__(self, root='data/', train=True, transform=None,
+                 index_path=None, index=None, base_sess=False):
+        self.root = os.path.expanduser(root)
+        self.train = train
+        self.transform = transform or transforms.Compose([
+            transforms.Resize(256),
+            transforms.RandomResizedCrop(224) if train else transforms.CenterCrop(224),
+            transforms.RandomHorizontalFlip() if train else transforms.Lambda(lambda x: x),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+        self._load_data()
+        if base_sess:
+            self.data, self.targets = self._select_classes(self.data, self.targets, index)
+        elif index_path is not None:
+            self.data, self.targets = self._select_from_txt(index_path)
+        elif index is not None:
+            self.data, self.targets = self._select_classes(self.data, self.targets, index)
+
+    def __len__(self): return len(self.data)
+    def __getitem__(self, idx):
+        img = Image.open(self.data[idx]).convert('RGB')
+        return self.transform(img), self.targets[idx]">コピー</button>
+              </div>
+              <pre><code><span class="hl-kw">class</span> <span class="hl-cls">MyDataset</span>(Dataset):
+    <span class="hl-kw">def</span> <span class="hl-fn">__init__</span>(self, root=<span class="hl-str">'data/'</span>, train=<span class="hl-kw">True</span>, transform=<span class="hl-kw">None</span>,
+                 index_path=<span class="hl-kw">None</span>, index=<span class="hl-kw">None</span>, base_sess=<span class="hl-kw">False</span>):
+        self.root = os.path.expanduser(root)
+        self.train = train
+        <span class="hl-com"># 前処理パイプライン</span>
+        self.transform = transform or transforms.Compose([
+            transforms.Resize(<span class="hl-num">256</span>),
+            transforms.RandomResizedCrop(<span class="hl-num">224</span>) <span class="hl-kw">if</span> train <span class="hl-kw">else</span> transforms.CenterCrop(<span class="hl-num">224</span>),
+            transforms.RandomHorizontalFlip() <span class="hl-kw">if</span> train <span class="hl-kw">else</span> transforms.Lambda(<span class="hl-kw">lambda</span> x: x),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[<span class="hl-num">0.485</span>, <span class="hl-num">0.456</span>, <span class="hl-num">0.406</span>], std=[<span class="hl-num">0.229</span>, <span class="hl-num">0.224</span>, <span class="hl-num">0.225</span>])
+        ])
+        self._load_data()
+        <span class="hl-kw">if</span> base_sess:
+            self.data, self.targets = self._select_classes(self.data, self.targets, index)
+        <span class="hl-kw">elif</span> index_path <span class="hl-kw">is not None</span>:
+            self.data, self.targets = self._select_from_txt(index_path)
+        <span class="hl-kw">elif</span> index <span class="hl-kw">is not None</span>:
+            self.data, self.targets = self._select_classes(self.data, self.targets, index)
+
+    <span class="hl-kw">def</span> <span class="hl-fn">__len__</span>(self): <span class="hl-kw">return</span> len(self.data)
+    <span class="hl-kw">def</span> <span class="hl-fn">__getitem__</span>(self, idx):
+        img = Image.open(self.data[idx]).convert(<span class="hl-str">'RGB'</span>)
+        <span class="hl-kw">return</span> self.transform(img), self.targets[idx]</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2.3 -->
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">3</span>
+            <h4 class="step-title">dataloader/data_utils.py への登録</h4>
+          </div>
+          <div class="step-body">
+            <p><code>set_up_datasets</code>、<code>get_base_dataloader</code>、<code>get_new_dataloader</code> の3箇所に条件分岐を追加します。</p>
+            <pre><code><span class="hl-com"># 1. set_up_datasets 内</span>
+<span class="hl-kw">if</span> args.dataset == <span class="hl-str">'my_dataset'</span>:
+    <span class="hl-kw">import</span> dataloader.my_dataset.my_dataset <span class="hl-kw">as</span> Dataset
+    args.base_class = <span class="hl-num">60</span>      <span class="hl-com"># ベースクラス数</span>
+    args.num_classes = <span class="hl-num">100</span>    <span class="hl-com"># 全クラス数</span>
+    args.way = <span class="hl-num">5</span>              <span class="hl-com"># セッション毎の追加クラス数</span>
+    args.shot = <span class="hl-num">5</span>             <span class="hl-com"># 1クラスあたりのサンプル数</span>
+    args.sessions = <span class="hl-num">9</span>         <span class="hl-com"># 総セッション数</span></code></pre>
+          </div>
+        </div>
+
+        <!-- Step 2.4 -->
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">4</span>
+            <h4 class="step-title">train.py の選択肢への追加</h4>
+          </div>
+          <div class="step-body">
+            <p><code>get_command_line_parser()</code> の <code>-dataset</code> 引数 choices に追加します。</p>
+            <pre><code>parser.add_argument(<span class="hl-str">'-dataset'</span>, type=str, default=<span class="hl-str">'cub200'</span>,
+                    choices=[<span class="hl-str">'mini_imagenet'</span>, <span class="hl-str">'cub200'</span>, <span class="hl-str">'cifar100'</span>, <span class="hl-str">'my_dataset'</span>])</code></pre>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Section 3: Add Backbone -->
+    <section id="add-backbone">
+      <div class="section-header">
+        <div class="section-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+        </div>
+        <h3 class="section-title">3. 新しいバックボーンの追加手順</h3>
+      </div>
+
+      <div class="alert-box">
+        <div class="alert-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          FACT バックボーンの必須制約: 2段階エンコード (pre_encode / post_encode)
+        </div>
+        FACT では、未知クラスの疑似インスタンスを生成するために<strong>中間特徴マップレベルでの Mixup</strong> を実行します。
+        そのため、バックボーンは必ず「入力 $\to$ 中間層」と「中間層 $\to$ 最終特徴量」に分割して呼び出せる構造にする必要があります。
+      </div>
+
+      <div class="step-timeline">
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">1</span>
+            <h4 class="step-title">バックボーンクラスの作成 (models/&lt;backbone&gt;.py)</h4>
+          </div>
+          <div class="step-body">
+            <p>例: ResNet-50 を中間分割可能な構造でラップします。</p>
+            <pre><code><span class="hl-kw">import</span> torch.nn <span class="hl-kw">as</span> nn
+<span class="hl-kw">from</span> torchvision.models <span class="hl-kw">import</span> resnet50
+
+<span class="hl-kw">class</span> <span class="hl-cls">ResNet50Backbone</span>(nn.Module):
+    <span class="hl-kw">def</span> <span class="hl-fn">__init__</span>(self, pretrained=<span class="hl-kw">False</span>):
+        super().__init__()
+        m = resnet50(pretrained=pretrained)
+        <span class="hl-com"># 浅い層 (pre_encode で実行)</span>
+        self.conv1 = m.conv1; self.bn1 = m.bn1; self.relu = m.relu
+        self.maxpool = m.maxpool; self.layer1 = m.layer1; self.layer2 = m.layer2
+        <span class="hl-com"># 深い層 (post_encode で実行)</span>
+        self.layer3 = m.layer3; self.layer4 = m.layer4
+        self.out_features = <span class="hl-num">2048</span>  <span class="hl-com"># 出力次元</span></code></pre>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">2</span>
+            <h4 class="step-title">models/fact/Network.py への統合</h4>
+          </div>
+          <div class="step-body">
+            <p><code>MYNET</code> にバックボーンのインスタンス化、<code>pre_encode</code>、<code>post_encode</code> を追加します。</p>
+            <pre><code><span class="hl-com"># models/fact/Network.py</span>
+<span class="hl-kw">def</span> <span class="hl-fn">pre_encode</span>(self, x):
+    <span class="hl-kw">if</span> getattr(self.args, <span class="hl-str">'backbone'</span>, <span class="hl-str">''</span>) == <span class="hl-str">'resnet50'</span>:
+        x = self.encoder.relu(self.encoder.bn1(self.encoder.conv1(x)))
+        x = self.encoder.maxpool(x)
+        x = self.encoder.layer1(x)
+        x = self.encoder.layer2(x)
+        <span class="hl-kw">return</span> x  <span class="hl-com"># 中間特徴マップを返す</span>
+
+<span class="hl-kw">def</span> <span class="hl-fn">post_encode</span>(self, x):
+    <span class="hl-kw">if</span> getattr(self.args, <span class="hl-str">'backbone'</span>, <span class="hl-str">''</span>) == <span class="hl-str">'resnet50'</span>:
+        x = self.encoder.layer3(x)
+        x = self.encoder.layer4(x)
+        x = F.adaptive_avg_pool2d(x, <span class="hl-num">1</span>).squeeze(-<span class="hl-num">1</span>).squeeze(-<span class="hl-num">1</span>)
+        <span class="hl-kw">if</span> <span class="hl-str">'cos'</span> <span class="hl-kw">in</span> self.mode:
+            <span class="hl-kw">return</span> self.args.temperature * F.linear(F.normalize(x, p=<span class="hl-num">2</span>, dim=-<span class="hl-num">1</span>), F.normalize(self.fc.weight, p=<span class="hl-num">2</span>, dim=-<span class="hl-num">1</span>))
+        <span class="hl-kw">return</span> self.args.temperature * self.fc(x)</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4: Troubleshooting -->
+    <section id="troubleshooting">
+      <div class="section-header">
+        <div class="section-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        </div>
+        <h3 class="section-title">4. トラブルシューティング</h3>
+      </div>
+
+      <div class="custom-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>エラー内容</th>
+              <th>発生原因</th>
+              <th>対策</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code style="color: var(--accent-rose);">RuntimeError: shape mismatch in linear</code></td>
+              <td><code>self.num_features</code> とバックボーンの最終出力次元が不一致</td>
+              <td><code>self.num_features = self.encoder.out_features</code> と正しく指定しているか確認。</td>
+            </tr>
+            <tr>
+              <td><code style="color: var(--accent-rose);">RuntimeError: Given groups=1, weight of size...</code></td>
+              <td><code>pre_encode</code> の出力チャネル数が <code>post_encode</code> の第1層の期待チャネル数と不一致</td>
+              <td>Mixup の分割位置（例: layer2 の直後）が layer3 の入力チャネル数と完全に一致しているか確認。</td>
+            </tr>
+            <tr>
+              <td><code style="color: var(--accent-amber);">Session 1 以降の精度が上がらない</code></td>
+              <td>Few-shot のプロトタイプ計算時に正規化が漏れている</td>
+              <td><code>avg_cos</code> 分類器使用時は <code>F.normalize</code> の適用と温度係数 $\tau$ の調整（16〜24）を確認。</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="toast" class="toast" role="status">コードをコピーしました！</div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Copy snippet logic
+      const copyBtns = document.querySelectorAll('.copy-btn');
+      const toast = document.getElementById('toast');
+      copyBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const text = btn.getAttribute('data-clipboard');
+          if (!text) return;
+          navigator.clipboard.writeText(text).then(() => {
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+          });
+        });
+      });
+
+      // Quick search
+      const searchInput = document.getElementById('quickSearch');
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        document.querySelectorAll('.step-card').forEach(card => {
+          card.style.display = (query === '' || card.textContent.toLowerCase().includes(query)) ? '' : 'none';
+        });
+      });
+    });
+  </script>
+</body>
+</html>
