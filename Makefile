@@ -1,3 +1,5 @@
+GPU=""
+
 minimum:
 	uv run python train.py \
 		-project fact \
@@ -7,7 +9,7 @@ minimum:
 		-epochs_base 1 \
 		-epochs_new 1 \
 		-batch_size_base 64 \
-		-gpu "" \
+		-gpu $(GPU) \
 		-num_workers 2
 
 
