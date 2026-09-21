@@ -1,3 +1,9 @@
+# ${...} vars are resolved from params.yaml, so output paths track the config.
+# Constraint: flow_data_dir / index_list_dir / dataset must be concrete
+# (non-null) in params.yaml for DVC to resolve outs.
+vars:
+  - params.yaml
+
 stages:
   make_session:
     cmd: uv run python scripts/make_session.py --config params.yaml
@@ -20,14 +26,14 @@ stages:
           - exclude_labels
           - test_size
     outs:
-      - data/index_list/:
+      - ${index_list_dir}/${dataset}:
           persist: true
-      - data/cicids2017/:
+      - ${flow_data_dir}:
           persist: true
   train:
     cmd: uv run python train.py --config params.yaml --metrics-file dvc_metrics.json
     deps:
-      - data/index_list/
+      - ${index_list_dir}/${dataset}
     params:
       - params.yaml:
     metrics:
@@ -42,7 +48,7 @@ stages:
       --test-metrics-file dvc_test_metrics.json
     deps:
       - checkpoint/
-      - data/index_list/
+      - ${index_list_dir}/${dataset}
     params:
       - params.yaml:
     metrics:
