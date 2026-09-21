@@ -165,6 +165,14 @@ def main(argv=None):
     explicit = explicit_cli_keys(list(argv) if argv is not None else None)
     for path in config_paths(ns):
         apply_config(ns, load_config_file(path), explicit)
+    # --opts must apply even with no --config (config_paths empty above)
+    from train import parse_opt_value
+    for item in (ns.opts or []):
+        k, v = item.split('=', 1)
+        k = k.strip()
+        if k not in set(vars(ns)):
+            raise ValueError(f'--opts unknown key: {k}')
+        ns.__dict__[k] = parse_opt_value(v)
 
     seed = ns.session_seed if ns.session_seed is not None else ns.seed
     drop_cols = parse_list_opt(ns.drop_cols)
