@@ -236,18 +236,16 @@ class FSCILTrainer(Trainer):
             print('epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}'.format(epoch, vl, va,va5))
 
             
-        # Log confusion matrix to wandb if enabled
+        # Log confusion matrix to wandb if enabled (lightweight aggregated image;
+        # test_intergrate runs ~once per incremental session, so always log here)
         if hasattr(args, 'use_wandb') and args.use_wandb:
             try:
-                import wandb
-                confusion_matrix = wandb.plot.confusion_matrix(
-                    y_true=lbs.numpy().astype(int).tolist(),
-                    preds=torch.argmax(lgt, dim=1).numpy().astype(int).tolist(),
-                    class_names=[str(i) for i in range(test_class)]
+                log_wandb_cm_image(
+                    lbs.numpy().astype(int),
+                    torch.argmax(lgt, dim=1).numpy().astype(int),
+                    test_class,
+                    step=epoch if session == 0 else session,
                 )
-                # Use different step value: epoch for base session, session number for incremental
-                step_value = epoch if session == 0 else session
-                wandb.log({"confusion_matrix": confusion_matrix}, step=step_value)
             except Exception as e:
                 print(f"Warning: Could not log confusion matrix to wandb: {e}")
                 

@@ -162,6 +162,71 @@ def confmatrix(logits,label,filename):
 
 
 
+def log_wandb_cm_image(y_true, y_pred, n_class, step=None, key="confusion_matrix"):
+    """Lightweight confusion-matrix logging: aggregated KxK image, no per-sample table.
+
+    Replaces wandb.plot.confusion_matrix (which uploads one table row per
+    test sample every call) with a single small wandb.Image.
+    """
+    import wandb
+
+    y_true = np.asarray(y_true, dtype=int).ravel()
+    y_pred = np.asarray(y_pred, dtype=int).ravel()
+    n_class = int(n_class)
+    if y_true.size == 0:
+        return
+    # Clip out-of-range labels (can happen with partial test_class slices)
+    valid = (y_true >= 0) & (y_true < n_class) & (y_pred >= 0) & (y_pred < n_class)
+    y_true = y_true[valid]
+    y_pred = y_pred[valid]
+    if y_true.size == 0:
+        return
+
+    cm = confusion_matrix(y_true, y_pred, labels=list(range(n_class)))
+    # Row-normalize for readability; keep raw counts out of the payload
+    with np.errstate(invalid='ignore', divide='ignore'):
+        row_sum = cm.sum(axis=1, keepdims=True)
+        cm_n = np.divide(cm, row_sum, out=np.zeros_like(cm, dtype=float), where=row_sum != 0)
+
+    fig, ax = plt.subplots(figsize=(4, 3.5), dpi=80)
+    im = ax.imshow(cm_n, cmap='Blues', vmin=0.0, vmax=1.0, interpolation='nearest')
+    ax.set_xlabel('Predicted')
+    ax.set_ylabel('True')
+    ax.set_title(f'Confusion matrix (K={n_class})')
+    # Sparse ticks only: full tick labels for K=200 are unreadable and heavy
+    if n_class <= 20:
+        ax.set_xticks(range(n_class))
+        ax.set_yticks(range(n_class))
+    else:
+        ticks = np.linspace(0, n_class - 1, 6).astype(int)
+        ax.set_xticks(ticks)
+        ax.set_yticks(ticks)
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    fig.tight_layout()
+    if step is None:
+        wandb.log({key: wandb.Image(fig)})
+    else:
+        wandb.log({key: wandb.Image(fig)}, step=step)
+    plt.close(fig)
+
+
+def should_log_wandb_cm(args, session, epoch):
+    """Throttle CM logging: incremental sessions log once; base session logs sparsely."""
+    freq = getattr(args, 'wandb_cm_freq', 20)
+    if freq is not None and freq <= 0:  # 0 / negative disables CM logging
+        return False
+    if session != 0:
+        return True  # called ~once per incremental session
+    try:
+        total = getattr(args, 'epochs_base', None)
+        if total is not None and int(epoch) >= int(total) - 1:
+            return True  # always log final base epoch
+    except Exception:
+        pass
+    return int(epoch) % int(freq) == 0
+
+
+
 
 
 def save_list_to_txt(name, input_list):

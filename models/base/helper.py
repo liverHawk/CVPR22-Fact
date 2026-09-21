@@ -112,22 +112,15 @@ def test(model, testloader, epoch,args, session,validation=True):
             unseenac=np.mean(perclassacc[args.base_class:])
             print('Seen Acc:',seenac, 'Unseen ACC:', unseenac)
     
-    # Log confusion matrix to wandb if enabled
-    if hasattr(args, 'use_wandb') and args.use_wandb:
+    # Log confusion matrix to wandb if enabled (lightweight aggregated image)
+    if hasattr(args, 'use_wandb') and args.use_wandb and should_log_wandb_cm(args, session, epoch):
         try:
-            import wandb
-            y_true = lbs.numpy().astype(int).tolist()
-            y_pred = torch.argmax(lgt, dim=1).numpy().astype(int).tolist()
-            
-            # Create confusion matrix using latest wandb API
-            confusion_matrix = wandb.plot.confusion_matrix(
-                y_true=y_true,
-                preds=y_pred,
-                class_names=[str(i) for i in range(test_class)]
+            log_wandb_cm_image(
+                lbs.numpy().astype(int),
+                torch.argmax(lgt, dim=1).numpy().astype(int),
+                test_class,
+                step=epoch if session == 0 else session,
             )
-            # Use different step value: epoch for base session, session number for incremental
-            step_value = epoch if session == 0 else session
-            wandb.log({"confusion_matrix": confusion_matrix}, step=step_value)
         except Exception as e:
             print(f"Warning: Could not log confusion matrix to wandb: {e}")
             

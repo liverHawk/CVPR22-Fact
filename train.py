@@ -58,6 +58,7 @@ def get_command_line_parser():
     parser.add_argument('--use_wandb', action='store_true', help='enable wandb logging')
     parser.add_argument('--wandb_project', type=str, default='FACT-FSCIL', help='wandb project name')
     parser.add_argument('--wandb_entity', type=str, default=None, help='wandb entity (username or team)')
+    parser.add_argument('--wandb_cm_freq', type=int, default=20, help='log lightweight confusion-matrix image every N base epochs (0 disables)')
     
     return parser
 
