@@ -74,8 +74,36 @@ def set_up_datasets(args):
         args.shot = 5
         args.sessions = 9
 
+    if args.dataset == 'cicflowmeter':
+        import dataloader.cicflowmeter.cicflowmeter as Dataset
+        args.base_class, args.num_classes, args.way, args.shot, args.sessions = \
+            _read_flow_spec(args)
+
     args.Dataset=Dataset
     return args
+
+
+def _read_flow_spec(args):
+    """Session spec for flow data comes from make_session.py outputs.
+
+    Single source of truth: data/index_list/cicflowmeter/manifest.json.
+    Falls back to label_map.json + defaults when the manifest is absent.
+    """
+    import json
+    import os
+    manifest = os.path.join('data', 'index_list', 'cicflowmeter', 'manifest.json')
+    if os.path.exists(manifest):
+        with open(manifest) as f:
+            m = json.load(f)
+        n_base = len(m['base_classes'])
+        n_new = len(m['new_classes'])
+        return n_base, n_base + n_new, int(m['way']), int(m['shot']), int(m['sessions'])
+    label_map = os.path.join(os.path.expanduser(args.dataroot), 'cicflowmeter', 'label_map.json')
+    if os.path.exists(label_map):
+        with open(label_map) as f:
+            n = len(json.load(f))
+        return 6, n, 2, 5, 1 + (n - 6) // 2
+    return 6, 12, 2, 5, 4
 
 def get_dataloader(args,session):
     if session == 0:
@@ -108,6 +136,11 @@ def get_base_dataloader(args):
         trainset = args.Dataset.ImageNet(root=args.dataroot, train=True,
                                              index=class_index, base_sess=True)
         testset = args.Dataset.ImageNet(root=args.dataroot, train=False, index=class_index)
+
+    if args.dataset == 'cicflowmeter':
+        trainset = args.Dataset.CICFlowMeter(root=args.dataroot, train=True,
+                                             index=class_index, base_sess=True)
+        testset = args.Dataset.CICFlowMeter(root=args.dataroot, train=False, index=class_index)
 
     trainloader = torch.utils.data.DataLoader(dataset=trainset, batch_size=args.batch_size_base, shuffle=True,
                                               num_workers=8, pin_memory=True)
@@ -166,6 +199,9 @@ def get_new_dataloader(args,session):
     if args.dataset == 'imagenet100' or args.dataset == 'imagenet1000':
         trainset = args.Dataset.ImageNet(root=args.dataroot, train=True,
                                        index_path=txt_path)
+    if args.dataset == 'cicflowmeter':
+        trainset = args.Dataset.CICFlowMeter(root=args.dataroot, train=True,
+                                       index_path=txt_path)
 
     if args.batch_size_new == 0:
         batch_size_new = trainset.__len__()
@@ -189,6 +225,9 @@ def get_new_dataloader(args,session):
                                       index=class_new)
     if args.dataset == 'imagenet100' or args.dataset == 'imagenet1000':
         testset = args.Dataset.ImageNet(root=args.dataroot, train=False,
+                                      index=class_new)
+    if args.dataset == 'cicflowmeter':
+        testset = args.Dataset.CICFlowMeter(root=args.dataroot, train=False,
                                       index=class_new)
 
     testloader = torch.utils.data.DataLoader(dataset=testset, batch_size=args.test_batch_size, shuffle=False,

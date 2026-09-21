@@ -59,6 +59,9 @@ class FSCILTrainer(Trainer):
     def train(self):
         args = self.args
         t_start_time = time.time()
+        no_eval = getattr(args, 'no_eval', False)
+        if no_eval:
+            print('no_eval mode: skipping in-loop evaluation, final models will be saved per session')
 
         # init train statistics
         result_list = [args]
@@ -85,8 +88,10 @@ class FSCILTrainer(Trainer):
                     start_time = time.time()
                     # train base sess
                     tl, ta = base_train(self.model, trainloader, optimizer, scheduler, epoch, args,mask)
-                    # test model with all seen class
-                    tsl, tsa = test(self.model, testloader, epoch, args, session)
+                    # test model with all seen class (skipped in no_eval mode;
+                    # use test.py for the main test run)
+                    if not no_eval:
+                        tsl, tsa = test(self.model, testloader, epoch, args, session)
 
                     # Log metrics to wandb
                     if hasattr(args, 'use_wandb') and args.use_wandb:
@@ -101,7 +106,7 @@ class FSCILTrainer(Trainer):
                         }, step=epoch)
 
                     # save better model
-                    if (tsa * 100) >= self.trlog['max_acc'][session]:
+                    if not no_eval and (tsa * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                         self.trlog['max_acc_epoch'] = epoch
                         save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
@@ -115,16 +120,29 @@ class FSCILTrainer(Trainer):
 
                     self.trlog['train_loss'].append(tl)
                     self.trlog['train_acc'].append(ta)
-                    self.trlog['test_loss'].append(tsl)
-                    self.trlog['test_acc'].append(tsa)
-                    lrc = scheduler.get_last_lr()[0]
-                    result_list.append(
-                        'epoch:%03d,lr:%.4f,training_loss:%.5f,training_acc:%.5f,test_loss:%.5f,test_acc:%.5f' % (
-                            epoch, lrc, tl, ta, tsl, tsa))
+                    if not no_eval:
+                        self.trlog['test_loss'].append(tsl)
+                        self.trlog['test_acc'].append(tsa)
+                        lrc = scheduler.get_last_lr()[0]
+                        result_list.append(
+                            'epoch:%03d,lr:%.4f,training_loss:%.5f,training_acc:%.5f,test_loss:%.5f,test_acc:%.5f' % (
+                                epoch, lrc, tl, ta, tsl, tsa))
+                    else:
+                        lrc = scheduler.get_last_lr()[0]
+                        result_list.append(
+                            'epoch:%03d,lr:%.4f,training_loss:%.5f,training_acc:%.5f,test_skipped(no_eval)' % (
+                                epoch, lrc, tl, ta))
                     print('This epoch takes %d seconds' % (time.time() - start_time),
                           '\nstill need around %.2f mins to finish this session' % (
                                   (time.time() - start_time) * (args.epochs_base - epoch) / 60))
                     scheduler.step()
+
+                if no_eval:
+                    # no validation reference: persist the final model for the main test run
+                    self.best_model_dict = deepcopy(self.model.state_dict())
+                    save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
+                    torch.save(dict(params=self.model.state_dict()), save_model_dir)
+                    print('no_eval: saved final model to :%s' % save_model_dir)
 
                 result_list.append('Session {}, Test Best Epoch {},\nbest test Acc {:.4f}\n'.format(
                     session, self.trlog['max_acc_epoch'], self.trlog['max_acc'][session], ))
@@ -138,10 +156,11 @@ class FSCILTrainer(Trainer):
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
                     (self.model.module if hasattr(self.model, "module") else self.model).mode = 'avg_cos'
-                    tsl, tsa = test(self.model, testloader, 0, args, session)
-                    if (tsa * 100) >= self.trlog['max_acc'][session]:
-                        self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
-                        print('The new best test acc of base session={:.3f}'.format(self.trlog['max_acc'][session]))
+                    if not no_eval:
+                        tsl, tsa = test(self.model, testloader, 0, args, session)
+                        if (tsa * 100) >= self.trlog['max_acc'][session]:
+                            self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
+                            print('The new best test acc of base session={:.3f}'.format(self.trlog['max_acc'][session]))
 
                 #save dummy classifiers
                 self.dummy_classifiers=deepcopy((self.model.module if hasattr(self.model, "module") else self.model).fc.weight.detach())
@@ -159,7 +178,10 @@ class FSCILTrainer(Trainer):
 
                 #tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
                 #tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
-                tsl, tsa = self.test_intergrate(self.model, testloader, 0,args, session,validation=True)
+                if not no_eval:
+                    tsl, tsa = self.test_intergrate(self.model, testloader, 0,args, session,validation=True)
+                else:
+                    tsl, tsa = None, None
                 
                 # Log metrics to wandb
                 if hasattr(args, 'use_wandb') and args.use_wandb:
@@ -171,15 +193,18 @@ class FSCILTrainer(Trainer):
                     
                     # Confusion matrix logging will be handled in test function
                 
-                # save model
-                self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
+                # save model (always persist so test.py can run the main test run)
+                if not no_eval:
+                    self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                 save_model_dir = os.path.join(args.save_path, 'session' + str(session) + '_max_acc.pth')
-                #torch.save(dict(params=self.model.state_dict()), save_model_dir)
+                torch.save(dict(params=self.model.state_dict()), save_model_dir)
                 self.best_model_dict = deepcopy(self.model.state_dict())
                 print('Saving model to :%s' % save_model_dir)
-                print('  test acc={:.3f}'.format(self.trlog['max_acc'][session]))
-
-                result_list.append('Session {}, test Acc {:.3f}\n'.format(session, self.trlog['max_acc'][session]))
+                if not no_eval:
+                    print('  test acc={:.3f}'.format(self.trlog['max_acc'][session]))
+                    result_list.append('Session {}, test Acc {:.3f}\n'.format(session, self.trlog['max_acc'][session]))
+                else:
+                    result_list.append('Session {}, test skipped (no_eval)\n'.format(session))
 
         result_list.append('Base Session Best Epoch {}\n'.format(self.trlog['max_acc_epoch']))
         result_list.append(self.trlog['max_acc'])

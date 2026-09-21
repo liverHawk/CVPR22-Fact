@@ -13,4 +13,15 @@ minimum:
 		-num_workers 2 \
 		--use_wandb
 
+# Pipeline: make session file -> train -> test
+session:
+	uv run python scripts/make_session.py --config params.yaml
 
+train:
+	uv run python train.py --config params.yaml --metrics-file dvc_metrics.json
+
+test:
+	uv run python test.py --config params.yaml --test-metrics-file dvc_test_metrics.json
+
+pipeline:
+	$(MAKE) session && $(MAKE) train && $(MAKE) test
