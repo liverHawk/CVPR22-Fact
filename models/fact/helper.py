@@ -140,9 +140,9 @@ def test(model, testloader, epoch,args, session,validation=True):
     if hasattr(args, 'use_wandb') and args.use_wandb:
         try:
             import wandb
-            confusion_matrix = wandb.metrics.ConfusionMatrix.from_predictions(
-                y_true=lbs.numpy(),
-                y_pred=torch.argmax(lgt, dim=1).numpy(),
+            confusion_matrix = wandb.plot.confusion_matrix(
+                y_true=lbs.numpy().astype(int).tolist(),
+                preds=torch.argmax(lgt, dim=1).numpy().astype(int).tolist(),
                 class_names=[str(i) for i in range(test_class)]
             )
             # Use different step value: epoch for base session, session number for incremental
@@ -192,9 +192,9 @@ def test_withfc(model, testloader, epoch,args, session,validation=True):
     if hasattr(args, 'use_wandb') and args.use_wandb:
         try:
             import wandb
-            confusion_matrix = wandb.metrics.ConfusionMatrix.from_predictions(
-                y_true=lbs.numpy(),
-                y_pred=torch.argmax(lgt, dim=1).numpy(),
+            confusion_matrix = wandb.plot.confusion_matrix(
+                y_true=lbs.numpy().astype(int).tolist(),
+                preds=torch.argmax(lgt, dim=1).numpy().astype(int).tolist(),
                 class_names=[str(i) for i in range(test_class)]
             )
             # Use different step value: epoch for base session, session number for incremental

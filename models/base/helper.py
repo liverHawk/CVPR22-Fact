@@ -116,9 +116,13 @@ def test(model, testloader, epoch,args, session,validation=True):
     if hasattr(args, 'use_wandb') and args.use_wandb:
         try:
             import wandb
-            confusion_matrix = wandb.metrics.ConfusionMatrix.from_predictions(
-                y_true=lbs.numpy(),
-                y_pred=torch.argmax(lgt, dim=1).numpy(),
+            y_true = lbs.numpy().astype(int).tolist()
+            y_pred = torch.argmax(lgt, dim=1).numpy().astype(int).tolist()
+            
+            # Create confusion matrix using latest wandb API
+            confusion_matrix = wandb.plot.confusion_matrix(
+                y_true=y_true,
+                preds=y_pred,
                 class_names=[str(i) for i in range(test_class)]
             )
             # Use different step value: epoch for base session, session number for incremental
