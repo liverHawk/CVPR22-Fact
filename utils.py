@@ -82,6 +82,7 @@ def count_acc(logits, label):
 
 
 def count_acc_topk(x, y, k=5):
+    k = min(k, x.size(-1))
     _, maxk = torch.topk(x, k, dim=-1)
     total = y.size(0)
     test_labels = y.view(-1, 1)

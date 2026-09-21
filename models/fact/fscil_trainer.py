@@ -349,7 +349,9 @@ class FSCILTrainer(Trainer):
                     F.normalize(emb, p=2, dim=-1),
                     torch.transpose(self.dummy_classifiers, 1, 0),
                 )
-                topk, indices = torch.topk(proj, 40)
+                # top-40 over novel prototypes assumes >=40 novel classes
+                # (CIFAR100/CUB200); clamp for small CIC session setups.
+                topk, indices = torch.topk(proj, min(40, proj.size(1)))
                 res = torch.zeros_like(proj)
                 res_logit = res.scatter(1, indices, topk)
 
