@@ -84,11 +84,18 @@ def _expand_env(obj):
 
 
 def config_paths(args):
-    """Normalize --config (repeatable) to an ordered list. Later files win."""
+    """Ordered config list. Later files win.
+
+    Sources: repeatable --config, then $FACT_CONFIG (os.pathsep-separated).
+    Priority: defaults < --config... < $FACT_CONFIG < --opts < explicit CLI.
+    """
+    paths = []
     cfg = getattr(args, 'config', None)
-    if not cfg:
-        return []
-    return [cfg] if isinstance(cfg, str) else list(cfg)
+    if cfg:
+        paths.extend([cfg] if isinstance(cfg, str) else list(cfg))
+    env_cfg = os.environ.get('FACT_CONFIG', '')
+    paths.extend([p for p in env_cfg.split(os.pathsep) if p])
+    return paths
 
 
 def apply_configs(args, explicit_keys):
