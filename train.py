@@ -107,12 +107,13 @@ def write_metrics(trainer, args, metrics_file):
     return metrics
 
 def get_command_line_parser():
+    from dataloader.data_utils import CIC_FLOW_DATASETS
     parser = argparse.ArgumentParser()
 
     # about dataset and network
     parser.add_argument('-project', type=str, default=PROJECT)
     parser.add_argument('-dataset', type=str, default='cub200',
-                        choices=['mini_imagenet', 'cub200', 'cifar100', 'cicflowmeter'])
+                        choices=['mini_imagenet', 'cub200', 'cifar100'] + list(CIC_FLOW_DATASETS))
     parser.add_argument('-dataroot', type=str, default=DATA_DIR)
 
     # about pre-training

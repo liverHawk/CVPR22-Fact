@@ -1,10 +1,11 @@
-"""CICFlowMeter flow dataloader for FSCIL.
+"""CICFlow flow dataloader for FSCIL (generic for CIC-family flow datasets:
+CIC-IDS2017, CIC-DDoS2019, ...; content is CICFlowMeter-format flows).
 
 Reads artifacts produced by scripts/make_session.py:
-  <root>/cicflowmeter/{train,test}.parquet  (index = global row ID)
-  <root>/cicflowmeter/feature_cols.json
-  <root>/cicflowmeter/scaler.pkl            (fit on base-train only)
-  data/index_list/cicflowmeter/session_*.txt (global row IDs, one per line)
+  <root>/<dataset>/{train,test}.parquet  (index = global row ID)
+  <root>/<dataset>/feature_cols.json
+  <root>/<dataset>/scaler.pkl            (fit on base-train only)
+  data/index_list/<dataset>/session_*.txt (global row IDs, one per line)
 
 __getitem__ returns (FloatTensor[D], int). No PIL / torchvision transforms.
 """
@@ -17,12 +18,18 @@ import torch
 from torch.utils.data import Dataset
 
 
-class CICFlowMeter(Dataset):
+class CICFlow(Dataset):
+    """Generic CIC-family flow dataset (CIC-IDS2017, CIC-DDoS2019, ...).
+
+    The per-dataset directory is <root>/<dataset>/, so one class serves all
+    CIC flow datasets; the dataset name selects the directory.
+    """
 
     def __init__(self, root='data/', train=True,
-                 index_path=None, index=None, base_sess=False):
+                 index_path=None, index=None, base_sess=False,
+                 dataset='cicids2017'):
         self.root = os.path.expanduser(root)
-        base = os.path.join(self.root, 'cicflowmeter')
+        base = os.path.join(self.root, dataset)
         with open(os.path.join(base, 'feature_cols.json')) as f:
             feats = json.load(f)
         split = 'train.parquet' if train else 'test.parquet'

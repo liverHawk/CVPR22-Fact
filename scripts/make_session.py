@@ -1,8 +1,8 @@
-"""Generate FSCIL session files for network-flow data (CICFlowMeter).
+"""Generate FSCIL session files for network-flow data (CICIDS2017).
 
 Pipeline stage 1: make session file -> (stage 2: train) -> (stage 3: test).
 
-Reads raw CICFlowMeter files (CSV and/or Arrow IPC `.arrow`/`.feather`/`.ipc`,
+Reads raw CICIDS2017 files (CSV and/or Arrow IPC `.arrow`/`.feather`/`.ipc`,
 matched by glob), cleans them, and writes:
   <flow-data-dir>/flows.parquet      # cleaned full data, stable RangeIndex = global row ID
   <flow-data-dir>/train.parquet      # stratified train split (index preserved)
@@ -13,14 +13,14 @@ matched by glob), cleans them, and writes:
   <out-dir>/session_1.txt ... session_N.txt  # global row IDs, one per line
   <out-dir>/manifest.json            # class ranges, counts, seed, sha256 per file
 
-Conventions (must match dataloader/cicflowmeter/):
+Conventions (must match dataloader/cicflow/):
   - session_1.txt: ALL base-train row IDs (full base training).
   - session_t.txt (t>1): way*shot row IDs, evenly sampled per new class.
   - scaler is fit on base-train only; never refit (leakage prevention).
 
 Usage:
   uv run python scripts/make_session.py --config params.yaml
-  uv run python scripts/make_session.py --flow-glob 'data/cicflowmeter/csv/*.csv' --dry-run
+  uv run python scripts/make_session.py --dataset cicids2017 --dry-run
   uv run python scripts/make_session.py --base-classes BENIGN,'DoS Hulk',PortScan,DDoS,FTP-Patator,SSH-Patator --overwrite-session
 """
 import argparse
@@ -59,14 +59,15 @@ def parse_list_opt(v):
 
 
 def get_parser():
-    p = argparse.ArgumentParser(description='Generate session files for CICFlowMeter flow data.')
+    p = argparse.ArgumentParser(description='Generate session files for CICIDS2017 flow data.')
     p.add_argument('--config', type=str, default=None, help='YAML config (e.g. params.yaml)')
     p.add_argument('--opts', nargs='*', default=[], metavar='KEY=VALUE')
-    p.add_argument('--dataset', type=str, default='cicflowmeter')
+    p.add_argument('--dataset', type=str, default='cicids2017')
     p.add_argument('--flow-glob', type=str, default=None, action='append',
                    help="glob for raw flow files (.csv and/or .arrow/.feather/.ipc); "
-                        "repeatable. Default: data/cicflowmeter/csv/*.csv")
-    p.add_argument('--flow-data-dir', type=str, default='data/cicflowmeter')
+                        "repeatable. Default: data/<dataset>/csv/*.csv")
+    p.add_argument('--flow-data-dir', type=str, default=None,
+                   help='cleaned data dir (default: data/<dataset>)')
     p.add_argument('--index-list-dir', type=str, default='data/index_list')
     p.add_argument('--out-dir', type=str, default=None)
     p.add_argument('--label-col', type=str, default='Label')
@@ -158,7 +159,9 @@ def main(argv=None):
     aliases = json.load(open(ns.label_aliases)) if ns.label_aliases else {}
     out_dir = ns.out_dir or os.path.join(ns.index_list_dir, ns.dataset)
     if not ns.flow_glob:
-        ns.flow_glob = ['data/cicflowmeter/csv/*.csv']
+        ns.flow_glob = [os.path.join('data', ns.dataset, 'csv', '*.csv')]
+    if not ns.flow_data_dir:
+        ns.flow_data_dir = os.path.join('data', ns.dataset)
 
     df = load_clean_frames(ns.flow_glob, ns.label_col, drop_cols, aliases)
     if exclude:

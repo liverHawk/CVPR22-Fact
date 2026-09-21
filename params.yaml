@@ -46,9 +46,9 @@ session_seed: null
 overwrite_session: false
 checkpoint_dir: null
 test_metrics_file: null
-# --- scripts/make_session.py (netflow, CICFlowMeter) ---
-flow_glob: data/cicflowmeter/csv/*.csv
-flow_data_dir: data/cicflowmeter
+# --- scripts/make_session.py (netflow, CICIDS2017) ---
+flow_glob: data/cicids2017/csv/*.csv
+flow_data_dir: data/cicids2017
 label_col: Label
 drop_cols: 'Flow ID,Source IP,Destination IP,Timestamp'
 label_aliases: null

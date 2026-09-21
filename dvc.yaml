@@ -22,7 +22,7 @@ stages:
     outs:
       - data/index_list/:
           persist: true
-      - data/cicflowmeter/:
+      - data/cicids2017/:
           persist: true
   train:
     cmd: uv run python train.py --config params.yaml --metrics-file dvc_metrics.json
