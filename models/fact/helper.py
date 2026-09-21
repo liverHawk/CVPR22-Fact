@@ -18,6 +18,8 @@ from utils import (
 def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
     tl = Averager()
     ta = Averager()
+    mix_conf = Averager()  # mean max-prob of mixed z over KNOWN classes (want: low)
+    mix_ent = Averager()  # mean entropy of mixed z over KNOWN classes (want: high)
     model = model.train()
     tqdm_gen = tqdm(trainloader)
 
@@ -65,6 +67,18 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
             idx_chosen = newys != train_label
             mixed_logits = mixed_logits[idx_chosen]
 
+            if mixed_logits.size(0) > 0:
+                # verification: mixed z should NOT confidently match known classes
+                known_probs = F.softmax(
+                    mixed_logits[:, : args.base_class], dim=-1
+                )
+                mix_conf.add(known_probs.max(dim=-1).values.mean().item())
+                mix_ent.add(
+                    -(known_probs * known_probs.clamp_min(1e-12).log()).sum(
+                        dim=-1
+                    ).mean().item()
+                )
+
             pseudo_label1 = (
                 torch.argmax(mixed_logits[:, args.base_class :], dim=-1)
                 + args.base_class
@@ -101,6 +115,27 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
         optimizer.step()
     tl = tl.item()
     ta = ta.item()
+    if mix_conf.n > 0:
+        print(
+            f"epo {epoch}, mixup vs known classes: "
+            f"mean-max-prob={mix_conf.item():.4f} (lower is better), "
+            f"entropy={mix_ent.item():.4f} (higher is better, "
+            f"uniform={np.log(args.base_class):.4f})"
+        )
+        if getattr(args, "use_wandb", False):
+            try:
+                import wandb
+
+                wandb.log(
+                    {
+                        "mixup_known_maxprob": mix_conf.item(),
+                        "mixup_known_entropy": mix_ent.item(),
+                        "epoch": epoch,
+                    },
+                    step=epoch,
+                )
+            except Exception as e:
+                print(f"Warning: Could not log mixup stats to wandb: {e}")
     return tl, ta
 
 

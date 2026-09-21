@@ -110,6 +110,7 @@ This project supports training logging using Weights & Biases (wandb). To enable
 
 ### Logged Metrics:
 - **Per Epoch:** Training loss, train accuracy, test loss, test accuracy, learning rate
+- **Per Epoch (mixup check, FACT base session):** Mean max-probability (`mixup_known_maxprob`, lower is better) and entropy (`mixup_known_entropy`, higher is better) of manifold-mixed features over known classes. Also printed to console as `mixup vs known classes:` with the uniform-distribution entropy as reference.
 - **Per Session (x-axis):** Test loss, test accuracy  
 - **Confusion Matrix:** Automatically logged for each session after evaluation
 - **Final Results:** 
@@ -143,7 +144,23 @@ The confusion matrix is particularly useful for FSCIL as it shows:
 - Catastrophic forgetting patterns (old classes being misclassified)
 - New class recognition performance
 
- 
+#### 3. Manifold Mixup Check (are generated features far from known classes?)
+
+FACT synthesizes virtual novel-class features by mixing intermediate
+features (`pre_encode` output) of two different known-class samples. A healthy
+run keeps these mixed features uncertain over known classes. Watch:
+
+1. Console: each base-session epoch prints
+   `mixup vs known classes: mean-max-prob=... entropy=... (uniform=...)`.
+2. WandB (`--use_wandb`): `mixup_known_maxprob` should stay low / decrease,
+   `mixup_known_entropy` should stay high / approach the uniform value
+   (`ln(#base classes)`, e.g. ~1.39 for 4 base classes).
+
+The mixup path is data-format agnostic, so the check works identically for
+image backbones (ResNet) and the CIC flow MLP encoder
+(`models/mlp_encoder.py`).
+
+  
 ## Acknowledgment
 We thank the following repos providing helpful components/functions in our work.
 
