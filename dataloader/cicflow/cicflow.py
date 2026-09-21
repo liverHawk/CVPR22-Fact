@@ -49,6 +49,10 @@ class CICFlow(Dataset):
         self.feature_cols = feats
         self.data = sc.transform(df[feats].to_numpy(np.float32))
         self.targets = df["label_id"].to_numpy(np.int64)
+        # Interface parity with image datasets: trainer/helper code reads and
+        # assigns `.transform`. Tabular data needs no transform, so it is None
+        # and __getitem__ ignores it.
+        self.transform = None
 
         if base_sess:
             self.data, self.targets = self.SelectfromClasses(
