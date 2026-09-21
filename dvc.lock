@@ -1,0 +1,28 @@
+schema: '2.0'
+stages:
+  make_session:
+    cmd: uv run python scripts/make_session.py --config params.yaml
+    params:
+      params.yaml:
+        base_class_num: 6
+        base_classes:
+        dataset: CICIDS2017_flow_improved
+        drop_cols: Flow ID,Source IP,Destination IP,Timestamp
+        exclude_labels: ''
+        flow_data_dir: data/cicids2017
+        flow_glob: data/cicids2017/csv/*.csv
+        index_list_dir: data/index_list
+        label_aliases:
+        label_col: Label
+        overwrite_session: false
+        seed: 1
+        session_seed:
+        session_shot: 5
+        session_way: 2
+        test_size: 0.2
+    outs:
+    - path: data/index_list/CICIDS2017_flow_improved
+      hash: md5
+      md5: 6d202fbd1825e238c2e389df15d82fab.dir
+      size: 12409804
+      nfiles: 13

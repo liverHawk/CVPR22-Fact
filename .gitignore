@@ -1,3 +1,5 @@
 __pycache__
 data
 .env
+configs
+!configs/server.example.yaml
