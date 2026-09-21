@@ -111,6 +111,7 @@ This project supports training logging using Weights & Biases (wandb). To enable
 ### Logged Metrics:
 - **Per Epoch:** Training loss, train accuracy, test loss, test accuracy, learning rate
 - **Per Session (x-axis):** Test loss, test accuracy  
+- **Confusion Matrix:** Automatically logged for each session after evaluation
 - **Final Results:** 
   - Average test accuracy across all sessions (`avg_test_accuracy`)
   - Best accuracy for session 0 (`best_acc_session_0`)
@@ -119,11 +120,28 @@ This project supports training logging using Weights & Biases (wandb). To enable
 
 ### Viewing WandB Charts:
 
-In the WandB UI, you can create custom charts by:
-1. Go to "Plots" → "Custom Plot"
+#### 1. Accuracy Curve Across Sessions
+In the WandB UI:
+1. Go to **"Plots"** → **"Custom Plot"**
 2. Select metric: `session_test_acc` or `session_test_loss`
 3. X-axis will automatically be set to session number
-4. This creates an accuracy curve across incremental learning sessions
+4. Shows performance progression across incremental learning sessions
+
+#### 2. Confusion Matrix Visualization
+After each session evaluation, WandB automatically logs an interactive confusion matrix:
+1. Go to the **"Tables"** section in your WandB run
+2. Look for `confusion_matrix` table
+3. Click on it to see the interactive heatmap showing:
+   - Actual vs predicted class labels
+   - Diagonal values = per-class accuracy
+   - Off-diagonal cells = misclassifications between classes
+4. Hover over cells to see exact counts
+5. Download as PNG/CSV if needed
+
+The confusion matrix is particularly useful for FSCIL as it shows:
+- Which specific classes are being confused with each other
+- Catastrophic forgetting patterns (old classes being misclassified)
+- New class recognition performance
 
  
 ## Acknowledgment

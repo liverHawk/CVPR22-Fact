@@ -1,0 +1,60 @@
+# FACT default parameters (DVC params file).
+# Priority: train.py defaults < params.yaml (--config) < --opts KEY=VALUE < explicit CLI flags.
+# Usage:
+#   uv run python train.py --config params.yaml
+#   uv run python train.py --config params.yaml --opts lr_base=0.05 epochs_base=50
+#   dvc repro
+project: base
+dataset: cub200
+dataroot: data/
+epochs_base: 100
+epochs_new: 100
+lr_base: 0.1
+lr_new: 0.1
+schedule: Step
+milestones: [60, 70]
+step: 20
+decay: 0.0005
+momentum: 0.9
+gamma: 0.1
+temperature: 16.0
+not_data_init: false
+batch_size_base: 128
+batch_size_new: 0
+test_batch_size: 100
+base_mode: ft_cos
+new_mode: avg_cos
+balance: 1.0
+loss_iter: 200
+alpha: 2.0
+eta: 0.1
+start_session: 0
+model_dir: null
+set_no_val: false
+gpu: '0,1,2,3'
+num_workers: 8
+seed: 1
+debug: false
+use_wandb: false
+wandb_project: FACT-FSCIL
+wandb_entity: null
+wandb_cm_freq: 20
+# --- pipeline: make session file -> train -> test ---
+no_eval: false
+index_list_dir: data/index_list
+session_seed: null
+overwrite_session: false
+checkpoint_dir: null
+test_metrics_file: null
+# --- scripts/make_session.py (netflow, CICFlowMeter) ---
+flow_glob: data/cicflowmeter/csv/*.csv
+flow_data_dir: data/cicflowmeter
+label_col: Label
+drop_cols: 'Flow ID,Source IP,Destination IP,Timestamp'
+label_aliases: null
+base_classes: null
+base_class_num: 6
+session_way: 2
+session_shot: 5
+exclude_labels: ''
+test_size: 0.2

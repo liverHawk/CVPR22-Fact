@@ -1,0 +1,61 @@
+stages:
+  make_session:
+    cmd: uv run python scripts/make_session.py --config params.yaml
+    params:
+      - params.yaml:
+          - dataset
+          - seed
+          - index_list_dir
+          - session_seed
+          - overwrite_session
+          - flow_glob
+          - flow_data_dir
+          - label_col
+          - drop_cols
+          - label_aliases
+          - base_classes
+          - base_class_num
+          - session_way
+          - session_shot
+          - exclude_labels
+          - test_size
+    outs:
+      - data/index_list/:
+          persist: true
+      - data/cicflowmeter/:
+          persist: true
+  train:
+    cmd: uv run python train.py --config params.yaml --metrics-file dvc_metrics.json
+    deps:
+      - data/index_list/
+    params:
+      - params.yaml:
+    metrics:
+      - dvc_metrics.json:
+          cache: false
+    outs:
+      - checkpoint/:
+          persist: true
+  test:
+    cmd: >-
+      uv run python test.py --config params.yaml
+      --test-metrics-file dvc_test_metrics.json
+    deps:
+      - checkpoint/
+      - data/index_list/
+    params:
+      - params.yaml:
+    metrics:
+      - dvc_test_metrics.json:
+          cache: false
+  tune:
+    cmd: uv run python tune.py --base-config params.yaml --params-out best_params.yaml --metrics-out tune_metrics.json
+    params:
+      - params.yaml:
+      - tune_space.yaml:
+    metrics:
+      - tune_metrics.json:
+          cache: false
+    outs:
+      - best_params.yaml:
+          cache: false
