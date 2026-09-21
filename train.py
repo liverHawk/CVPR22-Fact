@@ -221,6 +221,12 @@ def get_command_line_parser():
     parser.add_argument("-alpha", type=float, default=2.0)
     parser.add_argument("-eta", type=float, default=0.1)
 
+    # for CIC flow MLP encoder (models/mlp_encoder.py)
+    parser.add_argument("-mlp-in-dim", dest="mlp_in_dim", type=int, default=None,
+                        help="flow feature dim; default auto-reads <dataroot>/<dataset>/feature_cols.json")
+    parser.add_argument("-mlp-hidden", dest="mlp_hidden", type=int, default=256)
+    parser.add_argument("-mlp-out", dest="mlp_out", type=int, default=512)
+
     parser.add_argument("-start_session", type=int, default=0)
     parser.add_argument(
         "-model_dir",

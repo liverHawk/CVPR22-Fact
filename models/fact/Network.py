@@ -4,6 +4,8 @@ from torch import nn
 
 from models.resnet18_encoder import *
 from models.resnet20_cifar import *
+from models.mlp_encoder import *
+from dataloader.data_utils import CIC_FLOW_DATASETS
 
 
 class MYNET(nn.Module):
@@ -28,6 +30,13 @@ class MYNET(nn.Module):
                 True, args
             )  # pretrained=True follow TOPIC, models for cub is imagenet pre-trained. https://github.com/xyutao/fscil/issues/11#issuecomment-687548790
             self.num_features = 512
+        if self.args.dataset in CIC_FLOW_DATASETS:
+            self.encoder = mlp_encoder(
+                in_dim=flow_in_dim(args),
+                hidden=args.mlp_hidden,
+                out_dim=args.mlp_out,
+            )
+            self.num_features = self.encoder.out_features
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
         self.pre_allocate = self.args.num_classes
@@ -80,12 +89,17 @@ class MYNET(nn.Module):
         return x
 
     def encode(self, x):
+        if self.args.dataset in CIC_FLOW_DATASETS:
+            return self.encoder(x)
         x = self.encoder(x)
         x = F.adaptive_avg_pool2d(x, 1)
         x = x.squeeze(-1).squeeze(-1)
         return x
 
     def pre_encode(self, x):
+
+        if self.args.dataset in CIC_FLOW_DATASETS:
+            return self.encoder.pre(x)
 
         if self.args.dataset in ["cifar100", "manyshotcifar"]:
             x = self.encoder.conv1(x)
@@ -105,7 +119,10 @@ class MYNET(nn.Module):
         return x
 
     def post_encode(self, x):
-        if self.args.dataset in ["cifar100", "manyshotcifar"]:
+        if self.args.dataset in CIC_FLOW_DATASETS:
+            x = self.encoder.post(x)
+
+        elif self.args.dataset in ["cifar100", "manyshotcifar"]:
             x = self.encoder.layer3(x)
             x = F.adaptive_avg_pool2d(x, 1)
             x = x.squeeze(-1).squeeze(-1)

@@ -4,9 +4,9 @@
 #   uv run python train.py --config params.yaml
 #   uv run python train.py --config params.yaml --opts lr_base=0.05 epochs_base=50
 #   dvc repro
-project: base
+project: fact
 dataset: CICIDS2017_flow_improved
-dataroot: data/
+dataroot: /home/toshi/Research/dataset-arrow
 epochs_base: 100
 epochs_new: 100
 lr_base: 0.1
@@ -31,7 +31,7 @@ eta: 0.1
 start_session: 0
 model_dir: null
 set_no_val: false
-gpu: '0,1,2,3'
+gpu: ""
 num_workers: 8
 seed: 1
 debug: false
@@ -43,18 +43,22 @@ wandb_cm_freq: 20
 no_eval: false
 index_list_dir: data/index_list
 session_seed: null
-overwrite_session: false
+overwrite_session: true
 checkpoint_dir: null
 test_metrics_file: null
-# --- scripts/make_session.py (netflow, CICIDS2017) ---
-flow_glob: data/cicids2017/csv/*.csv
-flow_data_dir: data/cicids2017
+# --- CIC flow: make_session.py + MLP encoder (models/mlp_encoder.py) ---
+mlp_in_dim: null
+mlp_hidden: 256
+mlp_out: 512
+# --- make_session.py source/flow options ---
+flow_glob: /home/toshi/Research/dataset-arrow/CICIDS2017_flow_improved/*.arrow
+flow_data_dir: /home/toshi/Research/dataset-arrow/CICIDS2017_flow_improved
 label_col: Label
 drop_cols: 'Flow ID,Source IP,Destination IP,Timestamp'
 label_aliases: null
 base_classes: null
-base_class_num: 6
-session_way: 2
+base_class_num: 4
+session_way: 1
 session_shot: 5
 exclude_labels: ''
 test_size: 0.2

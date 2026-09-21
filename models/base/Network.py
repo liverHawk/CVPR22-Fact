@@ -4,6 +4,8 @@ from torch import nn
 
 from models.resnet18_encoder import *
 from models.resnet20_cifar import *
+from models.mlp_encoder import *
+from dataloader.data_utils import CIC_FLOW_DATASETS
 
 
 class MYNET(nn.Module):
@@ -30,6 +32,13 @@ class MYNET(nn.Module):
                 True, args
             )  # pretrained=True follow TOPIC, models for cub is imagenet pre-trained. https://github.com/xyutao/fscil/issues/11#issuecomment-687548790
             self.num_features = 512
+        if self.args.dataset in CIC_FLOW_DATASETS:
+            self.encoder = mlp_encoder(
+                in_dim=flow_in_dim(args),
+                hidden=args.mlp_hidden,
+                out_dim=args.mlp_out,
+            )
+            self.num_features = self.encoder.out_features
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
         self.fc = nn.Linear(self.num_features, self.args.num_classes, bias=False)
@@ -48,6 +57,8 @@ class MYNET(nn.Module):
         return x
 
     def encode(self, x):
+        if self.args.dataset in CIC_FLOW_DATASETS:
+            return self.encoder(x)
         x = self.encoder(x)
         x = F.adaptive_avg_pool2d(x, 1)
         x = x.squeeze(-1).squeeze(-1)
