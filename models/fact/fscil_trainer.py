@@ -120,14 +120,14 @@ class FSCILTrainer(Trainer):
                     self.best_model_dict = deepcopy(self.model.state_dict())
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
-                    self.model.module.mode = 'avg_cos'
+                    (self.model.module if hasattr(self.model, "module") else self.model).mode = 'avg_cos'
                     tsl, tsa = test(self.model, testloader, 0, args, session)
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
                         print('The new best test acc of base session={:.3f}'.format(self.trlog['max_acc'][session]))
 
                 #save dummy classifiers
-                self.dummy_classifiers=deepcopy(self.model.module.fc.weight.detach())
+                self.dummy_classifiers=deepcopy((self.model.module if hasattr(self.model, "module") else self.model).fc.weight.detach())
                 
                 self.dummy_classifiers=F.normalize(self.dummy_classifiers[self.args.base_class:,:],p=2,dim=-1)
                 self.old_classifiers=self.dummy_classifiers[:self.args.base_class,:]
@@ -135,10 +135,10 @@ class FSCILTrainer(Trainer):
             else:  # incremental learning sessions
                 print("training session: [%d]" % session)
 
-                self.model.module.mode = self.args.new_mode
+                (self.model.module if hasattr(self.model, "module") else self.model).mode = self.args.new_mode
                 self.model.eval()
                 trainloader.dataset.transform = testloader.dataset.transform
-                self.model.module.update_fc(trainloader, np.unique(train_set.targets), session)
+                (self.model.module if hasattr(self.model, "module") else self.model).update_fc(trainloader, np.unique(train_set.targets), session)
 
                 #tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
                 #tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
@@ -174,7 +174,7 @@ class FSCILTrainer(Trainer):
         lgt=torch.tensor([])
         lbs=torch.tensor([])
 
-        proj_matrix=torch.mm(self.dummy_classifiers,F.normalize(torch.transpose(model.module.fc.weight[:test_class, :],1,0),p=2,dim=-1))
+        proj_matrix=torch.mm(self.dummy_classifiers,F.normalize(torch.transpose((model.module if hasattr(model, "module") else model).fc.weight[:test_class, :],1,0),p=2,dim=-1))
         
         eta=args.eta
         
@@ -184,7 +184,7 @@ class FSCILTrainer(Trainer):
             for i, batch in enumerate(testloader, 1):
                 data, test_label = [_.to(args.device) for _ in batch]
                 
-                emb=model.module.encode(data)
+                emb=(model.module if hasattr(model, "module") else model).encode(data)
             
                 proj=torch.mm(F.normalize(emb,p=2,dim=-1),torch.transpose(self.dummy_classifiers,1,0))
                 topk, indices = torch.topk(proj, 40)
@@ -192,7 +192,7 @@ class FSCILTrainer(Trainer):
                 res_logit = res.scatter(1, indices, topk)
 
                 logits1=torch.mm(res_logit,proj_matrix)
-                logits2 = model.module.forpass_fc(data)[:, :test_class] 
+                logits2 = (model.module if hasattr(model, "module") else model).forpass_fc(data)[:, :test_class] 
                 logits=eta*F.softmax(logits1,dim=1)+(1-eta)*F.softmax(logits2,dim=1)
             
                 loss = F.cross_entropy(logits, test_label)

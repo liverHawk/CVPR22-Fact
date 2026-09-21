@@ -128,7 +128,7 @@ class MYNET(nn.Module):
 
     def update_fc(self,dataloader,class_list,session):
         for batch in dataloader:
-            data, label = [_.to(args.device) for _ in batch]
+            data, label = [_.to(self.args.device) for _ in batch]
             data=self.encode(data).detach()
 
         if self.args.not_data_init:

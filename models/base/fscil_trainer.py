@@ -111,7 +111,7 @@ class FSCILTrainer(Trainer):
                     self.best_model_dict = deepcopy(self.model.state_dict())
                     torch.save(dict(params=self.model.state_dict()), best_model_dir)
 
-                    self.model.module.mode = 'avg_cos'
+                    (self.model.module if hasattr(self.model, "module") else self.model).mode = 'avg_cos'
                     tsl, tsa = test(self.model, testloader, 0, args, session)
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
@@ -121,10 +121,10 @@ class FSCILTrainer(Trainer):
             else:  # incremental learning sessions
                 print("training session: [%d]" % session)
 
-                self.model.module.mode = self.args.new_mode
+                (self.model.module if hasattr(self.model, "module") else self.model).mode = self.args.new_mode
                 self.model.eval()
                 trainloader.dataset.transform = testloader.dataset.transform
-                self.model.module.update_fc(trainloader, np.unique(train_set.targets), session)
+                (self.model.module if hasattr(self.model, "module") else self.model).update_fc(trainloader, np.unique(train_set.targets), session)
 
                 tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
 

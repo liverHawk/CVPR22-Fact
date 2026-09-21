@@ -48,7 +48,7 @@ def replace_base_fc(trainset, transform, model, args):
     with torch.no_grad():
         for i, batch in enumerate(trainloader):
             data, label = [_.to(args.device) for _ in batch]
-            model.module.mode = 'encoder'
+            (model.module if hasattr(model, "module") else model).mode = 'encoder'
             embedding = model(data)
 
             embedding_list.append(embedding.cpu())
@@ -66,7 +66,7 @@ def replace_base_fc(trainset, transform, model, args):
 
     proto_list = torch.stack(proto_list, dim=0)
 
-    model.module.fc.weight.data[:args.base_class] = proto_list
+    (model.module if hasattr(model, "module") else model).fc.weight.data[:args.base_class] = proto_list
 
     return model
 
