@@ -152,6 +152,8 @@ class FSCILTrainer(Trainer):
                         'session_test_acc': tsa,
                         'session': session
                     }, step=session)
+                    
+                    # Confusion matrix logging will be handled in test function
 
                 # save model
                 self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))

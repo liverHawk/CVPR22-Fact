@@ -111,4 +111,19 @@ def test(model, testloader, epoch,args, session,validation=True):
             seenac=np.mean(perclassacc[:args.base_class])
             unseenac=np.mean(perclassacc[args.base_class:])
             print('Seen Acc:',seenac, 'Unseen ACC:', unseenac)
+    
+    # Log confusion matrix to wandb if enabled
+    if hasattr(args, 'use_wandb') and args.use_wandb:
+        try:
+            confusion_matrix = wandb.metrics.ConfusionMatrix.from_predictions(
+                y_true=lbs.numpy(),
+                y_pred=torch.argmax(lgt, dim=1).numpy(),
+                class_names=[str(i) for i in range(test_class)]
+            )
+            # Use different step value: epoch for base session, session number for incremental
+            step_value = epoch if session == 0 else session
+            wandb.log({"confusion_matrix": confusion_matrix}, step=step_value)
+        except Exception as e:
+            print(f"Warning: Could not log confusion matrix to wandb: {e}")
+            
     return vl, va

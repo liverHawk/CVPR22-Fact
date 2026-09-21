@@ -168,6 +168,8 @@ class FSCILTrainer(Trainer):
                         'session_test_acc': tsa,
                         'session': session
                     }, step=session)
+                    
+                    # Confusion matrix logging will be handled in test function
                 
                 # save model
                 self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
@@ -234,6 +236,20 @@ class FSCILTrainer(Trainer):
             print('epo {}, test, loss={:.4f} acc={:.4f}, acc@5={:.4f}'.format(epoch, vl, va,va5))
 
             
+        # Log confusion matrix to wandb if enabled
+        if hasattr(args, 'use_wandb') and args.use_wandb:
+            try:
+                confusion_matrix = wandb.metrics.ConfusionMatrix.from_predictions(
+                    y_true=lbs.numpy(),
+                    y_pred=torch.argmax(logits, dim=1).numpy(),
+                    class_names=[str(i) for i in range(test_class)]
+                )
+                # Use different step value: epoch for base session, session number for incremental
+                step_value = epoch if session == 0 else session
+                wandb.log({"confusion_matrix": confusion_matrix}, step=step_value)
+            except Exception as e:
+                print(f"Warning: Could not log confusion matrix to wandb: {e}")
+                
         return vl, va
 
     def set_save_path(self):
