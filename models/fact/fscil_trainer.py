@@ -14,7 +14,12 @@ class FSCILTrainer(Trainer):
         self.args = args
         self.set_save_path()
         self.args = set_up_datasets(self.args)
-
+        
+        # Initialize wandb if enabled
+        if hasattr(args, 'use_wandb') and args.use_wandb:
+            import wandb
+            self.wandb = wandb
+        
         self.model = MYNET(self.args, mode=self.args.base_mode)
         if self.args.num_gpu > 0 and torch.cuda.is_available():
             self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
@@ -83,6 +88,18 @@ class FSCILTrainer(Trainer):
                     # test model with all seen class
                     tsl, tsa = test(self.model, testloader, epoch, args, session)
 
+                    # Log metrics to wandb
+                    if hasattr(args, 'use_wandb') and args.use_wandb:
+                        self.wandb.log({
+                            'train_loss': tl,
+                            'train_acc': ta,
+                            'test_loss': tsl,
+                            'test_acc': tsa,
+                            'lr': scheduler.get_last_lr()[0],
+                            'epoch': epoch,
+                            'session': session
+                        }, step=epoch)
+
                     # save better model
                     if (tsa * 100) >= self.trlog['max_acc'][session]:
                         self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))
@@ -143,6 +160,14 @@ class FSCILTrainer(Trainer):
                 #tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
                 #tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
                 tsl, tsa = self.test_intergrate(self.model, testloader, 0,args, session,validation=True)
+                
+                # Log metrics to wandb
+                if hasattr(args, 'use_wandb') and args.use_wandb:
+                    self.wandb.log({
+                        'session_test_loss': tsl,
+                        'session_test_acc': tsa,
+                        'session': session
+                    }, step=session)
                 
                 # save model
                 self.trlog['max_acc'][session] = float('%.3f' % (tsa * 100))

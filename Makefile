@@ -10,6 +10,7 @@ minimum:
 		-epochs_new 1 \
 		-batch_size_base 64 \
 		-gpu $(GPU) \
-		-num_workers 2
+		-num_workers 2 \
+		--use_wandb
 
 

@@ -1,6 +1,7 @@
 import argparse
 import importlib
 from utils import *
+import wandb
 
 MODEL_DIR=None
 DATA_DIR = 'data/'
@@ -52,6 +53,12 @@ def get_command_line_parser():
     parser.add_argument('-num_workers', type=int, default=8)
     parser.add_argument('-seed', type=int, default=1)
     parser.add_argument('-debug', action='store_true')
+    
+    # wandb configuration
+    parser.add_argument('--use_wandb', action='store_true', help='enable wandb logging')
+    parser.add_argument('--wandb_project', type=str, default='FACT-FSCIL', help='wandb project name')
+    parser.add_argument('--wandb_entity', type=str, default=None, help='wandb entity (username or team)')
+    
     return parser
 
 
@@ -60,6 +67,20 @@ if __name__ == '__main__':
     args = parser.parse_args()
     set_seed(args.seed)
     pprint(vars(args))
+    
+    # Initialize wandb if requested
+    if args.use_wandb:
+        run_name = f"{args.dataset}_{args.project}_session{args.start_session}"
+        config_dict = vars(args)
+        
+        wandb.init(
+            project=args.wandb_project,
+            entity=args.wandb_entity,
+            name=run_name,
+            config=config_dict,
+            notes="Few-Shot Class Incremental Learning with FACT"
+        )
+    
     if args.gpu == "":
         args.device = "cpu"
         args.num_gpu = 0
@@ -68,3 +89,27 @@ if __name__ == '__main__':
         args.num_gpu = set_gpu(args)
     trainer = importlib.import_module('models.%s.fscil_trainer' % (args.project)).FSCILTrainer(args)
     trainer.train()
+    
+    # Log final results and finish wandb run
+    if args.use_wandb:
+        # Save the best metrics to wandb
+        final_metrics = {
+            'best_acc_session_0': trainer.trlog['max_acc'][0],
+            'best_epoch_base': trainer.trlog['max_acc_epoch'],
+        }
+        
+        # Handle max_acc as a list - log individual session accuracies for chart
+        max_acc = trainer.trlog['max_acc']
+        if isinstance(max_acc, (list, tuple)):
+            # Log average accuracy across all sessions
+            avg_accuracy = sum(float(acc) for acc in max_acc) / len(max_acc)
+            final_metrics['avg_test_accuracy'] = float(avg_accuracy)
+            
+            # Also log each session's accuracy separately for reference
+            for i, acc in enumerate(max_acc):
+                final_metrics[f'session_{i}_acc'] = float(acc)
+        else:
+            final_metrics['avg_test_accuracy'] = float(max_acc.tolist()[0])
+        
+        wandb.log(final_metrics)
+        wandb.finish()

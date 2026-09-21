@@ -65,6 +65,66 @@ Remember to change `YOURDATAROOT` into your own data root, or you will encounter
 
 Using the definitely same scripts above, you are supposed to reproduce the results in [CIFAR-FACT.txt](https://github.com/zhoudw-zdw/CVPR22-Fact/blob/main/imgs/CIFAR-FACT.txt), [CUB-FACT.txt](https://github.com/zhoudw-zdw/CVPR22-Fact/blob/main/imgs/CUB-FACT.txt), and [MINI-FACT.txt](https://github.com/zhoudw-zdw/CVPR22-Fact/blob/main/imgs/MINI-FACT.txt).
 
+## Logging with Weights & Biases (wandb)
+
+This project supports training logging using Weights & Biases (wandb). To enable wandb:
+
+1. **Install wandb** (already included in dependencies):
+   ```bash
+   pip install wandb
+   # or if using uv
+   uv add wandb
+   ```
+
+2. **Login to wandb**:
+   ```bash
+   wandb login
+   ```
+   You'll need to get an API key from https://wandb.ai/site/developers/
+
+3. **Run training with wandb logging**:
+   Add the `--use_wandb` flag to any training command:
+   
+   - CIFAR100:
+     ```bash
+     python train.py -project fact -dataset cifar100 -base_mode "ft_cos" -new_mode "avg_cos" \
+       -gamma 0.1 -lr_base 0.1 -decay 0.0005 -epochs_base 600 -schedule Cosine \
+       -gpu 0,1,2,3 -temperature 16 -batch_size_base 256 -balance 0.001 -loss_iter 0 -alpha 0.5 \
+       --use_wandb
+     ```
+   
+   - CUB200:
+     ```bash
+     python train.py -project fact -dataset cub200 -base_mode 'ft_cos' -new_mode 'avg_cos' \
+       -gamma 0.25 -lr_base 0.005 -decay 0.0005 -epochs_base 400 -schedule Milestone \
+       -milestones 50 100 150 200 250 300 -gpu '3,2,1,0' -temperature 16 \
+       -batch_size_base 256 -balance 0.01 -loss_iter 0 --use_wandb
+     ```
+
+4. **Custom wandb settings** (optional):
+   ```bash
+   python train.py ... --use_wandb \
+     --wandb_project FACT-FSCIL \
+     --wandb_entity your_username
+   ```
+
+### Logged Metrics:
+- **Per Epoch:** Training loss, train accuracy, test loss, test accuracy, learning rate
+- **Per Session (x-axis):** Test loss, test accuracy  
+- **Final Results:** 
+  - Average test accuracy across all sessions (`avg_test_accuracy`)
+  - Best accuracy for session 0 (`best_acc_session_0`)
+  - Individual session accuracies (`session_0_acc`, `session_1_acc`, etc.)
+  - All hyperparameters as config
+
+### Viewing WandB Charts:
+
+In the WandB UI, you can create custom charts by:
+1. Go to "Plots" → "Custom Plot"
+2. Select metric: `session_test_acc` or `session_test_loss`
+3. X-axis will automatically be set to session number
+4. This creates an accuracy curve across incremental learning sessions
+
  
 ## Acknowledgment
 We thank the following repos providing helpful components/functions in our work.
