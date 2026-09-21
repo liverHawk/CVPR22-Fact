@@ -4,7 +4,7 @@ import os
 import sys
 
 import wandb
-from utils import *
+from utils import ensure_path, pprint, set_gpu, set_seed
 
 MODEL_DIR = None
 DATA_DIR = "data/"

@@ -1,8 +1,19 @@
 # import new Network name here and add in model_class args
+import os
+
+import numpy as np
+import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from utils import *
+from utils import (
+    Averager,
+    confmatrix,
+    count_acc,
+    count_acc_topk,
+    log_wandb_cm_image,
+    should_log_wandb_cm,
+)
 
 
 def base_train(model, trainloader, optimizer, scheduler, epoch, args):

@@ -1,11 +1,13 @@
+import math
+
 import torch
 import torch.nn.functional as F
 from torch import nn
 
-from models.resnet18_encoder import *
-from models.resnet20_cifar import *
-from models.mlp_encoder import *
 from dataloader.data_utils import CIC_FLOW_DATASETS
+from models.mlp_encoder import flow_in_dim, mlp_encoder
+from models.resnet18_encoder import resnet18
+from models.resnet20_cifar import resnet20
 
 
 class MYNET(nn.Module):

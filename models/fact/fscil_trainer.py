@@ -1,12 +1,29 @@
+import os
+import time
 from copy import deepcopy
 
+import numpy as np
+import torch
+import torch.nn.functional as F
 from torch import nn
 
-from dataloader.data_utils import *
-from utils import *
+from dataloader.data_utils import (
+    get_base_dataloader,
+    get_new_dataloader,
+    set_up_datasets,
+)
+from utils import (
+    Averager,
+    count_acc,
+    count_acc_topk,
+    ensure_path,
+    log_wandb_cm_image,
+    save_list_to_txt,
+)
 
 from .base import Trainer
-from .helper import *
+from .helper import base_train, replace_base_fc, test
+from .Network import MYNET
 
 
 class FSCILTrainer(Trainer):

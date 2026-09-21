@@ -1,6 +1,6 @@
 import abc
 
-from dataloader.data_utils import *
+from dataloader.data_utils import set_up_datasets
 from utils import (
     Averager,
     Timer,
