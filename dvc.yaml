@@ -28,8 +28,8 @@ stages:
     outs:
       - ${index_list_dir}/${dataset}:
           persist: true
-      - ${flow_data_dir}:
-          persist: true
+      # - ${flow_data_dir}:
+      #     persist: true
   train:
     cmd: uv run python train.py --config params.yaml --metrics-file dvc_metrics.json
     deps:

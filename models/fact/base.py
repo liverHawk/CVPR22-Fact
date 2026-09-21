@@ -1,15 +1,13 @@
 import abc
-import torch
-import os.path as osp
-from dataloader.data_utils import *
 
+from dataloader.data_utils import *
 from utils import (
-    ensure_path,
-    Averager, Timer, count_acc,
+    Averager,
+    Timer,
 )
 
 
-class Trainer(object, metaclass=abc.ABCMeta):
+class Trainer(metaclass=abc.ABCMeta):
     def __init__(self, args):
         self.args = args
         self.args = set_up_datasets(self.args)
@@ -19,15 +17,14 @@ class Trainer(object, metaclass=abc.ABCMeta):
 
         # train statistics
         self.trlog = {}
-        self.trlog['train_loss'] = []
-        self.trlog['val_loss'] = []
-        self.trlog['test_loss'] = []
-        self.trlog['train_acc'] = []
-        self.trlog['val_acc'] = []
-        self.trlog['test_acc'] = []
-        self.trlog['max_acc_epoch'] = 0
-        self.trlog['max_acc'] = [0.0] * args.sessions
-
+        self.trlog["train_loss"] = []
+        self.trlog["val_loss"] = []
+        self.trlog["test_loss"] = []
+        self.trlog["train_acc"] = []
+        self.trlog["val_acc"] = []
+        self.trlog["test_acc"] = []
+        self.trlog["max_acc_epoch"] = 0
+        self.trlog["max_acc"] = [0.0] * args.sessions
 
     @abc.abstractmethod
     def train(self):

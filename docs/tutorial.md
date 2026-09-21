@@ -85,44 +85,64 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 
+
 class MyDataset(Dataset):
-    def __init__(self, root='data/', train=True, transform=None,
-                 index_path=None, index=None, base_sess=False):
+    def __init__(
+        self,
+        root="data/",
+        train=True,
+        transform=None,
+        index_path=None,
+        index=None,
+        base_sess=False,
+    ):
         self.root = os.path.expanduser(root)
         self.train = train
-        
+
         # 1. 画像変換 (データ拡張) の設定
         if transform:
             self.transform = transform
         else:
             if train:
-                self.transform = transforms.Compose([
-                    transforms.Resize(256),
-                    transforms.RandomResizedCrop(224),
-                    transforms.RandomHorizontalFlip(),
-                    transforms.ToTensor(),
-                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-                ])
+                self.transform = transforms.Compose(
+                    [
+                        transforms.Resize(256),
+                        transforms.RandomResizedCrop(224),
+                        transforms.RandomHorizontalFlip(),
+                        transforms.ToTensor(),
+                        transforms.Normalize(
+                            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                        ),
+                    ]
+                )
             else:
-                self.transform = transforms.Compose([
-                    transforms.Resize(256),
-                    transforms.CenterCrop(224),
-                    transforms.ToTensor(),
-                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-                ])
-        
+                self.transform = transforms.Compose(
+                    [
+                        transforms.Resize(256),
+                        transforms.CenterCrop(224),
+                        transforms.ToTensor(),
+                        transforms.Normalize(
+                            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                        ),
+                    ]
+                )
+
         # 2. データのロードとセッションフィルタリング
         self._load_data()
-        
+
         if base_sess:
             # ベースクラス (index に含まれるクラスのみを抽出)
-            self.data, self.targets = self._select_classes(self.data, self.targets, index)
+            self.data, self.targets = self._select_classes(
+                self.data, self.targets, index
+            )
         elif index_path is not None:
             # インクリメンタルセッション (txt に記載されたサンプルを抽出)
             self.data, self.targets = self._select_from_txt(index_path)
         elif index is not None:
             # 評価用 (現在までに登場した全クラスのテスト画像)
-            self.data, self.targets = self._select_classes(self.data, self.targets, index)
+            self.data, self.targets = self._select_classes(
+                self.data, self.targets, index
+            )
 
     def _load_data(self):
         # 全画像パスとラベルを読み込む処理
@@ -143,12 +163,12 @@ class MyDataset(Dataset):
 
     def __getitem__(self, idx):
         img_path = self.data[idx]
-        image = Image.open(img_path).convert('RGB')
+        image = Image.open(img_path).convert("RGB")
         label = self.targets[idx]
-        
+
         if self.transform:
             image = self.transform(image)
-            
+
         return image, label
 ```
 
@@ -197,8 +217,12 @@ class MyDataset(Dataset):
 
 ```python
 # train.py
-parser.add_argument('-dataset', type=str, default='cub200',
-                    choices=['mini_imagenet', 'cub200', 'cifar100', 'my_dataset'])
+parser.add_argument(
+    "-dataset",
+    type=str,
+    default="cub200",
+    choices=["mini_imagenet", "cub200", "cifar100", "my_dataset"],
+)
 ```
 
 ---
@@ -209,10 +233,10 @@ parser.add_argument('-dataset', type=str, default='cub200',
 
 ```python
 # models/fact/Network.py の MYNET.__init__
-if self.args.dataset in ['cifar100', 'manyshotcifar']:
+if self.args.dataset in ["cifar100", "manyshotcifar"]:
     self.encoder = resnet20()
     self.num_features = 64
-if self.args.dataset in ['mini_imagenet', 'my_dataset']:
+if self.args.dataset in ["mini_imagenet", "my_dataset"]:
     self.encoder = resnet18(False, args)  # pretrained=False
     self.num_features = 512
 ```
@@ -253,11 +277,12 @@ import torch
 import torch.nn as nn
 from torchvision.models import resnet50
 
+
 class ResNet50Encoder(nn.Module):
     def __init__(self, pretrained=False):
         super().__init__()
         backbone = resnet50(pretrained=pretrained)
-        
+
         # 浅い層 (pre_encode 用)
         self.conv1 = backbone.conv1
         self.bn1 = backbone.bn1
@@ -265,7 +290,7 @@ class ResNet50Encoder(nn.Module):
         self.maxpool = backbone.maxpool
         self.layer1 = backbone.layer1
         self.layer2 = backbone.layer2
-        
+
         # 深い層 (post_encode 用)
         self.layer3 = backbone.layer3
         self.layer4 = backbone.layer4
@@ -280,6 +305,7 @@ class ResNet50Encoder(nn.Module):
         x = self.layer4(x)
         return x
 
+
 def resnet50_backbone(pretrained=False):
     return ResNet50Encoder(pretrained=pretrained)
 ```
@@ -293,6 +319,7 @@ def resnet50_backbone(pretrained=False):
 # models/fact/Network.py
 from models.resnet50_encoder import resnet50_backbone
 
+
 class MYNET(nn.Module):
     def __init__(self, args, mode=None):
         super().__init__()
@@ -300,62 +327,66 @@ class MYNET(nn.Module):
         self.args = args
 
         # 新しいバックボーンの選択ロジック
-        if getattr(args, 'backbone', 'resnet18') == 'resnet50':
+        if getattr(args, "backbone", "resnet18") == "resnet50":
             self.encoder = resnet50_backbone(pretrained=False)
             self.num_features = self.encoder.out_features  # 2048
-        elif self.args.dataset in ['cifar100']:
+        elif self.args.dataset in ["cifar100"]:
             self.encoder = resnet20()
             self.num_features = 64
         else:
             self.encoder = resnet18(False, args)
             self.num_features = 512
-            
+
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        
+
         # 分類器重み（全クラス分直交初期化）は自動的に self.num_features に適応
         self.pre_allocate = self.args.num_classes
         self.fc = nn.Linear(self.num_features, self.pre_allocate, bias=False)
         nn.init.orthogonal_(self.fc.weight)
-        
+
         self.dummy_orthogonal_classifier = nn.Linear(
             self.num_features, self.pre_allocate - self.args.base_class, bias=False
         )
         self.dummy_orthogonal_classifier.weight.requires_grad = False
-        self.dummy_orthogonal_classifier.weight.data = self.fc.weight.data[self.args.base_class:, :]
+        self.dummy_orthogonal_classifier.weight.data = self.fc.weight.data[
+            self.args.base_class :, :
+        ]
 ```
 
 #### ② `pre_encode` の対応
 ```python
-    def pre_encode(self, x):
-        if getattr(self.args, 'backbone', 'resnet18') == 'resnet50':
-            x = self.encoder.conv1(x)
-            x = self.encoder.bn1(x)
-            x = self.encoder.relu(x)
-            x = self.encoder.maxpool(x)
-            x = self.encoder.layer1(x)
-            x = self.encoder.layer2(x)
-            return x
-        # 既存の cifar / resnet18 処理...
+def pre_encode(self, x):
+    if getattr(self.args, "backbone", "resnet18") == "resnet50":
+        x = self.encoder.conv1(x)
+        x = self.encoder.bn1(x)
+        x = self.encoder.relu(x)
+        x = self.encoder.maxpool(x)
+        x = self.encoder.layer1(x)
+        x = self.encoder.layer2(x)
+        return x
+    # 既存の cifar / resnet18 処理...
 ```
 
 #### ③ `post_encode` の対応
 ```python
-    def post_encode(self, x):
-        if getattr(self.args, 'backbone', 'resnet18') == 'resnet50':
-            x = self.encoder.layer3(x)
-            x = self.encoder.layer4(x)
-            x = F.adaptive_avg_pool2d(x, 1)
-            x = x.squeeze(-1).squeeze(-1)
-            
-            # コサイン類似度計算
-            if 'cos' in self.mode:
-                x = F.linear(F.normalize(x, p=2, dim=-1), F.normalize(self.fc.weight, p=2, dim=-1))
-                x = self.args.temperature * x
-            elif 'dot' in self.mode:
-                x = self.fc(x)
-                x = self.args.temperature * x
-            return x
-        # 既存の cifar / resnet18 処理...
+def post_encode(self, x):
+    if getattr(self.args, "backbone", "resnet18") == "resnet50":
+        x = self.encoder.layer3(x)
+        x = self.encoder.layer4(x)
+        x = F.adaptive_avg_pool2d(x, 1)
+        x = x.squeeze(-1).squeeze(-1)
+
+        # コサイン類似度計算
+        if "cos" in self.mode:
+            x = F.linear(
+                F.normalize(x, p=2, dim=-1), F.normalize(self.fc.weight, p=2, dim=-1)
+            )
+            x = self.args.temperature * x
+        elif "dot" in self.mode:
+            x = self.fc(x)
+            x = self.args.temperature * x
+        return x
+    # 既存の cifar / resnet18 処理...
 ```
 
 ---
