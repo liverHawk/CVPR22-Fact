@@ -115,6 +115,7 @@ def test(model, testloader, epoch,args, session,validation=True):
     # Log confusion matrix to wandb if enabled
     if hasattr(args, 'use_wandb') and args.use_wandb:
         try:
+            import wandb
             confusion_matrix = wandb.metrics.ConfusionMatrix.from_predictions(
                 y_true=lbs.numpy(),
                 y_pred=torch.argmax(lgt, dim=1).numpy(),
