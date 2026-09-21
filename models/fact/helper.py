@@ -14,7 +14,7 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args,mask):
     for i, batch in enumerate(tqdm_gen, 1):
 
         beta=torch.distributions.beta.Beta(args.alpha, args.alpha).sample([]).item()
-        data, train_label = [_.cuda() for _ in batch]
+        data, train_label = [_.to(args.device) for _ in batch]
         
         embeddings=model.module.encode(data)
 
@@ -32,7 +32,7 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args,mask):
             #pseudo_label = torch.argmax(logits_masked[:,args.base_class:], dim=-1) + args.base_class
             loss2 = F.cross_entropy(logits_masked, pseudo_label)
 
-            index = torch.randperm(data.size(0)).cuda()
+            index = torch.randperm(data.size(0)).to(args.device)
             pre_emb1=model.module.pre_encode(data)
             mixed_data=beta*pre_emb1+(1-beta)*pre_emb1[index]
             mixed_logits=model.module.post_encode(mixed_data)
@@ -78,7 +78,7 @@ def replace_base_fc(trainset, transform, model, args):
     # data_list=[]
     with torch.no_grad():
         for i, batch in enumerate(trainloader):
-            data, label = [_.cuda() for _ in batch]
+            data, label = [_.to(args.device) for _ in batch]
             model.module.mode = 'encoder'
             embedding = model(data)
 
@@ -112,7 +112,7 @@ def test(model, testloader, epoch,args, session,validation=True):
     lbs=torch.tensor([])
     with torch.no_grad():
         for i, batch in enumerate(testloader, 1):
-            data, test_label = [_.cuda() for _ in batch]
+            data, test_label = [_.to(args.device) for _ in batch]
             logits = model(data)
             logits = logits[:, :test_class]
             loss = F.cross_entropy(logits, test_label)
@@ -148,7 +148,7 @@ def test_withfc(model, testloader, epoch,args, session,validation=True):
     lbs=torch.tensor([])
     with torch.no_grad():
         for i, batch in enumerate(testloader, 1):
-            data, test_label = [_.cuda() for _ in batch]
+            data, test_label = [_.to(args.device) for _ in batch]
             logits = model.module.forpass_fc(data)
             logits = logits[:, :test_class]
             loss = F.cross_entropy(logits, test_label)

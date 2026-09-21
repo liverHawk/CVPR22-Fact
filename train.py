@@ -60,6 +60,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
     set_seed(args.seed)
     pprint(vars(args))
-    args.num_gpu = set_gpu(args)
+    if args.gpu == "":
+        args.device = "cpu"
+        args.num_gpu = 0
+    else:
+        args.device = "cuda"
+        args.num_gpu = set_gpu(args)
     trainer = importlib.import_module('models.%s.fscil_trainer' % (args.project)).FSCILTrainer(args)
     trainer.train()

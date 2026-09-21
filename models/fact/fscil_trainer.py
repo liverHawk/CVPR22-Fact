@@ -16,8 +16,9 @@ class FSCILTrainer(Trainer):
         self.args = set_up_datasets(self.args)
 
         self.model = MYNET(self.args, mode=self.args.base_mode)
-        self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
-        self.model = self.model.cuda()
+        if self.args.num_gpu > 0 and torch.cuda.is_available():
+            self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
+            self.model = self.model.to(args.device)
 
         if self.args.model_dir is not None:
             print('Loading init parameters from: %s' % self.args.model_dir)
@@ -63,7 +64,7 @@ class FSCILTrainer(Trainer):
         for i in range(args.num_classes-args.base_class):
             picked_dummy=np.random.choice(args.base_class,masknum,replace=False)
             mask[:,i+args.base_class][picked_dummy]=1
-        mask=torch.tensor(mask).cuda()
+        mask=torch.tensor(mask).to(args.device)
 
 
 
@@ -181,7 +182,7 @@ class FSCILTrainer(Trainer):
 
         with torch.no_grad():
             for i, batch in enumerate(testloader, 1):
-                data, test_label = [_.cuda() for _ in batch]
+                data, test_label = [_.to(args.device) for _ in batch]
                 
                 emb=model.module.encode(data)
             
