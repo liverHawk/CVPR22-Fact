@@ -37,11 +37,10 @@ def main(argv=None):
     parser = get_parser()
     # build_args parses with the train parser, which lacks test-only flags;
     # parse here with the extended parser, then reuse train helpers for --config/--opts.
-    from train import apply_config, explicit_cli_keys, load_config_file, parse_opt_value
+    from train import apply_configs, explicit_cli_keys, parse_opt_value
     args = parser.parse_args(argv)
     explicit = explicit_cli_keys(list(argv) if argv is not None else None)
-    if args.config:
-        apply_config(args, load_config_file(args.config), explicit, source=args.config)
+    apply_configs(args, explicit)
     for item in (args.opts or []):
         k, v = item.split('=', 1)
         k = k.strip()

@@ -1,5 +1,6 @@
 import argparse
 import importlib
+import os
 import sys
 from utils import *
 import wandb
@@ -48,7 +49,37 @@ def load_config_file(path):
         cfg = yaml.safe_load(f) or {}
     if not isinstance(cfg, dict):
         raise ValueError(f'config file must be a mapping: {path}')
-    return cfg
+    return _expand_env(cfg)
+
+
+def _expand_env(obj):
+    """Recursively expand $VAR / ${VAR} / ${VAR:-default} in config strings."""
+    import re
+    if isinstance(obj, str):
+        def repl(m):
+            name, default = m.group(1), m.group(2)
+            return os.environ.get(name, default if default is not None else '')
+        obj = re.sub(r'\$\{([A-Za-z_][A-Za-z_0-9]*)(?::-([^}]*))?\}', repl, obj)
+        return os.path.expandvars(obj)
+    if isinstance(obj, list):
+        return [_expand_env(v) for v in obj]
+    if isinstance(obj, dict):
+        return {k: _expand_env(v) for k, v in obj.items()}
+    return obj
+
+
+def config_paths(args):
+    """Normalize --config (repeatable) to an ordered list. Later files win."""
+    cfg = getattr(args, 'config', None)
+    if not cfg:
+        return []
+    return [cfg] if isinstance(cfg, str) else list(cfg)
+
+
+def apply_configs(args, explicit_keys):
+    for path in config_paths(args):
+        apply_config(args, load_config_file(path), explicit_keys, source=path)
+    return args
 
 
 def explicit_cli_keys(argv=None):
@@ -161,8 +192,10 @@ def get_command_line_parser():
     parser.add_argument('--wandb_entity', type=str, default=None, help='wandb entity (username or team)')
     parser.add_argument('--wandb_cm_freq', type=int, default=20, help='log lightweight confusion-matrix image every N base epochs (0 disables)')
 
-    # config / DVC / Optuna integration
-    parser.add_argument('--config', type=str, default=None, help='YAML config file (e.g. params.yaml). Priority: defaults < --config < --opts < explicit CLI flags')
+    # config / DVC / Optuna integration (repeatable: later files win;
+    # priority: defaults < --config... < --opts < explicit CLI flags)
+    parser.add_argument('--config', type=str, default=[], action='append',
+                        help='YAML config file, repeatable (e.g. --config params.yaml --config configs/server.yaml)')
     parser.add_argument('--opts', nargs='*', default=[], metavar='KEY=VALUE', help='override config values, e.g. --opts lr_base=0.05 epochs_base=50 milestones=60,70')
     parser.add_argument('--metrics-file', type=str, default=None, help='fixed path for metrics JSON (for DVC metrics). Default: <save_path>/metrics.json')
     parser.add_argument('--save-config-name', type=str, default='config.yaml', help='resolved-config filename saved into save_path')
@@ -171,14 +204,12 @@ def get_command_line_parser():
 
 
 def build_args(arg_list=None, overrides=None):
-    """Build args Namespace with precedence: defaults < --config < --opts < explicit CLI < overrides dict."""
+    """Build args Namespace with precedence: defaults < --config... < --opts < explicit CLI < overrides dict."""
     parser = get_command_line_parser()
     args = parser.parse_args(arg_list)
     argv = sys.argv[1:] if arg_list is None else arg_list
     explicit = explicit_cli_keys(argv)
-    if args.config:
-        cfg = load_config_file(args.config)
-        apply_config(args, cfg, explicit, source=args.config)
+    apply_configs(args, explicit)
     for item in (args.opts or []):
         if '=' not in item:
             raise ValueError(f'--opts must be KEY=VALUE, got: {item}')

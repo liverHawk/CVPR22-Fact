@@ -5,7 +5,7 @@
 #   uv run python train.py --config params.yaml --opts lr_base=0.05 epochs_base=50
 #   dvc repro
 project: base
-dataset: cub200
+dataset: cicids2017
 dataroot: data/
 epochs_base: 100
 epochs_new: 100

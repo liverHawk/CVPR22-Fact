@@ -1,0 +1,10 @@
+# Per-environment overrides (copy to e.g. configs/server.yaml, gitignored).
+# Later --config wins; explicit CLI flags and --opts win over all configs.
+# Priority: train.py defaults < params.yaml < this file < --opts < explicit CLI.
+# Usage:
+#   uv run python train.py --config params.yaml --config configs/server.yaml
+#   EXTRA="--config configs/server.yaml" dvc repro  # via shell expansion in cmd
+dataroot: ${DATA_ROOT:-data/}
+flow_glob: ${FLOW_GLOB:-data/cicids2017/csv/*.csv}
+gpu: '0,1'
+num_workers: 4
