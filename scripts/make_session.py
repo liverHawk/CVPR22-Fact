@@ -59,8 +59,9 @@ def parse_list_opt(v):
 
 
 def get_parser():
-    p = argparse.ArgumentParser(description='Generate session files for CICIDS2017 flow data.')
-    p.add_argument('--config', type=str, default=None, help='YAML config (e.g. params.yaml)')
+    p = argparse.ArgumentParser(description='Generate session files for CIC flow data.')
+    p.add_argument('--config', type=str, default=[], action='append',
+                   help='YAML config file, repeatable (later files win)')
     p.add_argument('--opts', nargs='*', default=[], metavar='KEY=VALUE')
     p.add_argument('--dataset', type=str, default='cicids2017')
     p.add_argument('--flow-glob', type=str, default=None, action='append',
@@ -89,11 +90,12 @@ def get_parser():
     return p
 
 
-def apply_config(ns, cfg):
-    from train import parse_opt_value
+def apply_config(ns, cfg, explicit_keys=()):
+    from train import _expand_env, parse_opt_value
+    cfg = _expand_env(cfg)
     known = set(vars(ns))
     for k, v in cfg.items():
-        if k in known and k not in ('config', 'opts'):
+        if k in known and k not in ('config', 'opts') and k not in explicit_keys:
             ns.__dict__[k] = v
     for item in (ns.opts or []):
         k, v = item.split('=', 1)
@@ -120,7 +122,11 @@ def load_clean_frames(patterns, label_col, drop_cols, aliases):
         patterns = [patterns]
     paths = sorted({p for pat in patterns for p in glob.glob(pat)})
     if not paths:
-        raise FileNotFoundError(f'no flow files matched: {patterns}')
+        raise FileNotFoundError(
+            f'no flow files matched: {patterns}\n'
+            f'Place raw CICFlowMeter files (.csv and/or .arrow/.feather/.ipc) under\n'
+            f'  data/<dataset>/csv/  (e.g. data/cicids2017/csv/Monday.csv)\n'
+            f'or point --flow-glob / params.yaml flow_glob at them.') from None
     frames = []
     for path in paths:
         df = read_flow_file(path)
@@ -146,12 +152,13 @@ def main(argv=None):
     import numpy as np
     from sklearn.model_selection import train_test_split
     from sklearn.preprocessing import StandardScaler
-    from train import load_config_file
+    from train import config_paths, explicit_cli_keys, load_config_file
 
     parser = get_parser()
     ns = parser.parse_args(argv)
-    if ns.config:
-        apply_config(ns, load_config_file(ns.config))
+    explicit = explicit_cli_keys(list(argv) if argv is not None else None)
+    for path in config_paths(ns):
+        apply_config(ns, load_config_file(path), explicit)
 
     seed = ns.session_seed if ns.session_seed is not None else ns.seed
     drop_cols = parse_list_opt(ns.drop_cols)
