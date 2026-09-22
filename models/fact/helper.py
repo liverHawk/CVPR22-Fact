@@ -181,7 +181,7 @@ def replace_base_fc(trainset, transform, model, args):
     return model
 
 
-def test(model, testloader, epoch, args, session, validation=True):
+def test(model, testloader, epoch, args, session, validation=True, log_wandb_cm=False):
     test_class = args.base_class + session * args.way
     model = model.eval()
     vl = Averager()
@@ -215,9 +215,11 @@ def test(model, testloader, epoch, args, session, validation=True):
             unseenac = np.mean(perclassacc[args.base_class :])
             print("Seen Acc:", seenac, "Unseen ACC:", unseenac)
 
-    # Log confusion matrix to wandb if enabled (lightweight aggregated image)
+    # Log confusion matrix to wandb if enabled (lightweight aggregated image).
+    # Only for the session's final evaluation, never mid-training epoch checks.
     if (
-        hasattr(args, "use_wandb")
+        log_wandb_cm
+        and hasattr(args, "use_wandb")
         and args.use_wandb
         and should_log_wandb_cm(args, session, epoch)
     ):
@@ -227,6 +229,7 @@ def test(model, testloader, epoch, args, session, validation=True):
                 torch.argmax(lgt, dim=1).numpy().astype(int),
                 test_class,
                 step=wandb_step(args, session, epoch),
+                key=f"confusion_matrix_session_{session}",
             )
         except Exception as e:
             print(f"Warning: Could not log confusion matrix to wandb: {e}")
@@ -234,7 +237,9 @@ def test(model, testloader, epoch, args, session, validation=True):
     return vl, va
 
 
-def test_withfc(model, testloader, epoch, args, session, validation=True):
+def test_withfc(
+    model, testloader, epoch, args, session, validation=True, log_wandb_cm=False
+):
     test_class = args.base_class + session * args.way
     model = model.eval()
     vl = Averager()
@@ -270,9 +275,11 @@ def test_withfc(model, testloader, epoch, args, session, validation=True):
             unseenac = np.mean(perclassacc[args.base_class :])
             print("Seen Acc:", seenac, "Unseen ACC:", unseenac)
 
-    # Log confusion matrix to wandb if enabled (lightweight aggregated image)
+    # Log confusion matrix to wandb if enabled (lightweight aggregated image).
+    # Only for the session's final evaluation, never mid-training epoch checks.
     if (
-        hasattr(args, "use_wandb")
+        log_wandb_cm
+        and hasattr(args, "use_wandb")
         and args.use_wandb
         and should_log_wandb_cm(args, session, epoch)
     ):
@@ -282,6 +289,7 @@ def test_withfc(model, testloader, epoch, args, session, validation=True):
                 torch.argmax(lgt, dim=1).numpy().astype(int),
                 test_class,
                 step=wandb_step(args, session, epoch),
+                key=f"confusion_matrix_session_{session}",
             )
         except Exception as e:
             print(f"Warning: Could not log confusion matrix to wandb: {e}")

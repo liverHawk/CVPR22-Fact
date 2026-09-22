@@ -204,7 +204,14 @@ class FSCILTrainer(Trainer):
                         else self.model
                     ).mode = "avg_cos"
                     if not no_eval:
-                        tsl, tsa = test(self.model, testloader, 0, args, session)
+                        tsl, tsa = test(
+                            self.model,
+                            testloader,
+                            0,
+                            args,
+                            session,
+                            log_wandb_cm=True,
+                        )
                         if (tsa * 100) >= self.trlog["max_acc"][session]:
                             self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
                             print(
@@ -227,7 +234,13 @@ class FSCILTrainer(Trainer):
 
                 if not no_eval:
                     tsl, tsa = test(
-                        self.model, testloader, 0, args, session, validation=False
+                        self.model,
+                        testloader,
+                        0,
+                        args,
+                        session,
+                        validation=False,
+                        log_wandb_cm=True,
                     )
                 else:
                     tsl, tsa = None, None

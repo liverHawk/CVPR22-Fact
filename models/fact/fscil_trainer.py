@@ -263,7 +263,9 @@ class FSCILTrainer(Trainer):
                     # measured in both modes: this scores the exact data_init
                     # checkpoint test.py evaluates (no_eval skips only the
                     # per-epoch evals above, so metrics stay meaningful)
-                    tsl, tsa = test(self.model, testloader, 0, args, session)
+                    tsl, tsa = test(
+                        self.model, testloader, 0, args, session, log_wandb_cm=True
+                    )
                     if (tsa * 100) >= self.trlog["max_acc"][session]:
                         self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
                         print(
@@ -435,6 +437,7 @@ class FSCILTrainer(Trainer):
                     torch.argmax(lgt, dim=1).numpy().astype(int),
                     test_class,
                     step=wandb_step(args, session, epoch),
+                    key=f"confusion_matrix_session_{session}",
                 )
             except Exception as e:
                 print(f"Warning: Could not log confusion matrix to wandb: {e}")
