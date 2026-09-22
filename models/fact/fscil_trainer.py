@@ -1,5 +1,6 @@
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 
 import numpy as np
@@ -24,6 +25,33 @@ from utils import (
 from .base import Trainer
 from .helper import base_train, replace_base_fc, test
 from .Network import MYNET
+
+
+# --- async checkpoint saving (P1) -------------------------------------------
+# torch.save is synchronous file I/O that stalls the training loop. Each save
+# is snapshotted (deepcopy, so the optimizer can keep stepping while the write
+# runs) and executed on a single background worker; a new save awaits the
+# previous one, so two writers can never target the same path.
+# flush_pending_saves() blocks until the last write is on disk and is called
+# before train() returns.
+_SAVE_POOL = ThreadPoolExecutor(max_workers=1)
+_SAVE_PENDING = None
+
+
+def save_async(obj, path):
+    global _SAVE_PENDING
+    if _SAVE_PENDING is not None:
+        _SAVE_PENDING.result()  # previous write finished -> path is free
+        _SAVE_PENDING = None
+    snapshot = deepcopy(obj)
+    _SAVE_PENDING = _SAVE_POOL.submit(torch.save, snapshot, path)
+
+
+def flush_pending_saves():
+    global _SAVE_PENDING
+    if _SAVE_PENDING is not None:
+        _SAVE_PENDING.result()
+        _SAVE_PENDING = None
 
 
 class FSCILTrainer(Trainer):
@@ -124,20 +152,20 @@ class FSCILTrainer(Trainer):
                     if not no_eval:
                         tsl, tsa = test(self.model, testloader, epoch, args, session)
 
-                    # Log metrics to wandb
+                    # Log metrics to wandb (test_* only exist when in-loop
+                    # eval ran; they are undefined under no_eval)
                     if hasattr(args, "use_wandb") and args.use_wandb:
-                        self.wandb.log(
-                            {
-                                "train_loss": tl,
-                                "train_acc": ta,
-                                "test_loss": tsl,
-                                "test_acc": tsa,
-                                "lr": scheduler.get_last_lr()[0],
-                                "epoch": epoch,
-                                "session": session,
-                            },
-                            step=epoch,
-                        )
+                        payload = {
+                            "train_loss": tl,
+                            "train_acc": ta,
+                            "lr": scheduler.get_last_lr()[0],
+                            "epoch": epoch,
+                            "session": session,
+                        }
+                        if not no_eval:
+                            payload["test_loss"] = tsl
+                            payload["test_acc"] = tsa
+                        self.wandb.log(payload, step=epoch)
 
                     # save better model
                     if not no_eval and (tsa * 100) >= self.trlog["max_acc"][session]:
@@ -146,8 +174,8 @@ class FSCILTrainer(Trainer):
                         save_model_dir = os.path.join(
                             args.save_path, "session" + str(session) + "_max_acc.pth"
                         )
-                        torch.save(dict(params=self.model.state_dict()), save_model_dir)
-                        torch.save(
+                        save_async(dict(params=self.model.state_dict()), save_model_dir)
+                        save_async(
                             optimizer.state_dict(),
                             os.path.join(args.save_path, "optimizer_best.pth"),
                         )
@@ -191,16 +219,25 @@ class FSCILTrainer(Trainer):
                     save_model_dir = os.path.join(
                         args.save_path, "session" + str(session) + "_max_acc.pth"
                     )
-                    torch.save(dict(params=self.model.state_dict()), save_model_dir)
+                    save_async(dict(params=self.model.state_dict()), save_model_dir)
                     print("no_eval: saved final model to :%s" % save_model_dir)
-
-                result_list.append(
-                    "Session {}, Test Best Epoch {},\nbest test Acc {:.4f}\n".format(
-                        session,
-                        self.trlog["max_acc_epoch"],
-                        self.trlog["max_acc"][session],
-                    )
-                )
+                    if args.not_data_init:
+                        # no data_init eval below: measure the final model once
+                        # so max_acc/metrics reflect the saved checkpoint
+                        tsl, tsa = test(
+                            self.model,
+                            testloader,
+                            args.epochs_base - 1,
+                            args,
+                            session,
+                        )
+                        self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
+                        self.trlog["max_acc_epoch"] = args.epochs_base - 1
+                        self.trlog["test_loss"].append(tsl)
+                        self.trlog["test_acc"].append(tsa)
+                        print(
+                            "no_eval: final-model test acc={:.3f}".format(tsa * 100)
+                        )
 
                 if not args.not_data_init:
                     self.model.load_state_dict(self.best_model_dict)
@@ -215,22 +252,34 @@ class FSCILTrainer(Trainer):
                         % best_model_dir
                     )
                     self.best_model_dict = deepcopy(self.model.state_dict())
-                    torch.save(dict(params=self.model.state_dict()), best_model_dir)
+                    save_async(dict(params=self.model.state_dict()), best_model_dir)
 
                     (
                         self.model.module
                         if hasattr(self.model, "module")
                         else self.model
                     ).mode = "avg_cos"
-                    if not no_eval:
-                        tsl, tsa = test(self.model, testloader, 0, args, session)
-                        if (tsa * 100) >= self.trlog["max_acc"][session]:
-                            self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
-                            print(
-                                "The new best test acc of base session={:.3f}".format(
-                                    self.trlog["max_acc"][session]
-                                )
+                    # measured in both modes: this scores the exact data_init
+                    # checkpoint test.py evaluates (no_eval skips only the
+                    # per-epoch evals above, so metrics stay meaningful)
+                    tsl, tsa = test(self.model, testloader, 0, args, session)
+                    if (tsa * 100) >= self.trlog["max_acc"][session]:
+                        self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
+                        print(
+                            "The new best test acc of base session={:.3f}".format(
+                                self.trlog["max_acc"][session]
                             )
+                        )
+
+                # logged after the data_init eval so it matches the checkpoint
+                # that was actually saved
+                result_list.append(
+                    "Session {}, Test Best Epoch {},\nbest test Acc {:.4f}\n".format(
+                        session,
+                        self.trlog["max_acc_epoch"],
+                        self.trlog["max_acc"][session],
+                    )
+                )
 
                 # save dummy classifiers
                 self.dummy_classifiers = deepcopy(
@@ -260,12 +309,12 @@ class FSCILTrainer(Trainer):
 
                 # tsl, tsa = test(self.model, testloader, 0, args, session,validation=False)
                 # tsl, tsa = test_withfc(self.model, testloader, 0, args, session,validation=False)
-                if not no_eval:
-                    tsl, tsa = self.test_intergrate(
-                        self.model, testloader, 0, args, session, validation=True
-                    )
-                else:
-                    tsl, tsa = None, None
+                # evaluated in both modes: there is no epoch loop here (cost
+                # is one eval per session) and it populates max_acc for the
+                # metrics json / tune objective
+                tsl, tsa = self.test_intergrate(
+                    self.model, testloader, 0, args, session, validation=True
+                )
 
                 # Log metrics to wandb
                 if hasattr(args, "use_wandb") and args.use_wandb:
@@ -281,23 +330,21 @@ class FSCILTrainer(Trainer):
                     # Confusion matrix logging will be handled in test function
 
                 # save model (always persist so test.py can run the main test run)
-                if not no_eval:
-                    self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
+                self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
                 save_model_dir = os.path.join(
                     args.save_path, "session" + str(session) + "_max_acc.pth"
                 )
-                torch.save(dict(params=self.model.state_dict()), save_model_dir)
+                save_async(dict(params=self.model.state_dict()), save_model_dir)
                 self.best_model_dict = deepcopy(self.model.state_dict())
                 print("Saving model to :%s" % save_model_dir)
-                if not no_eval:
-                    print("  test acc={:.3f}".format(self.trlog["max_acc"][session]))
-                    result_list.append(
-                        "Session {}, test Acc {:.3f}\n".format(
-                            session, self.trlog["max_acc"][session]
-                        )
+                print("  test acc={:.3f}".format(self.trlog["max_acc"][session]))
+                result_list.append(
+                    "Session {}, test Acc {:.3f}\n".format(
+                        session, self.trlog["max_acc"][session]
                     )
-                else:
-                    result_list.append(f"Session {session}, test skipped (no_eval)\n")
+                )
+
+        flush_pending_saves()  # all checkpoints on disk before train() returns
 
         result_list.append(
             "Base Session Best Epoch {}\n".format(self.trlog["max_acc_epoch"])
