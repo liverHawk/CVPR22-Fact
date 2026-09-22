@@ -28,12 +28,35 @@ stages:
     outs:
       - ${index_list_dir}/${dataset}:
           persist: true
-      # - ${flow_data_dir}:
-      #     persist: true
+      # Side-effect artifacts in flow_data_dir that train/tune/test read
+      # directly (cicflow dataloader + data_utils + mlp_encoder). Tracked with
+      # cache: false (they live outside the repo) + persist: true (DVC must
+      # never delete the real data), so a missing artifact reruns make_session
+      # instead of crashing the consumer deep inside the dataloader.
+      - ${flow_data_dir}/feature_cols.json:
+          persist: true
+          cache: false
+      - ${flow_data_dir}/label_map.json:
+          persist: true
+          cache: false
+      - ${flow_data_dir}/scaler.pkl:
+          persist: true
+          cache: false
+      - ${flow_data_dir}/train.parquet:
+          persist: true
+          cache: false
+      - ${flow_data_dir}/test.parquet:
+          persist: true
+          cache: false
   train:
     cmd: uv run python train.py --config params.yaml --metrics-file dvc_metrics.json
     deps:
       - ${index_list_dir}/${dataset}
+      - ${flow_data_dir}/feature_cols.json
+      - ${flow_data_dir}/label_map.json
+      - ${flow_data_dir}/scaler.pkl
+      - ${flow_data_dir}/train.parquet
+      - ${flow_data_dir}/test.parquet
     params:
       - params.yaml:
     metrics:
@@ -49,6 +72,11 @@ stages:
     deps:
       - checkpoint/
       - ${index_list_dir}/${dataset}
+      - ${flow_data_dir}/feature_cols.json
+      - ${flow_data_dir}/label_map.json
+      - ${flow_data_dir}/scaler.pkl
+      - ${flow_data_dir}/train.parquet
+      - ${flow_data_dir}/test.parquet
     params:
       - params.yaml:
     metrics:
@@ -66,6 +94,11 @@ stages:
       --storage "" --params-out best_params.yaml --metrics-out tune_metrics.json
     deps:
       - ${index_list_dir}/${dataset}
+      - ${flow_data_dir}/feature_cols.json
+      - ${flow_data_dir}/label_map.json
+      - ${flow_data_dir}/scaler.pkl
+      - ${flow_data_dir}/train.parquet
+      - ${flow_data_dir}/test.parquet
     params:
       # dict form with null = track the whole file; a bare string would be
       # read as a KEY inside the default params.yaml
