@@ -78,7 +78,9 @@ class MYNET(nn.Module):
         return x
 
     def forpass_fc(self, x):
-        x = self.encode(x)
+        return self.forpass_fc_emb(self.encode(x))
+
+    def forpass_fc_emb(self, x):
         if "cos" in self.mode:
             x = F.linear(
                 F.normalize(x, p=2, dim=-1), F.normalize(self.fc.weight, p=2, dim=-1)

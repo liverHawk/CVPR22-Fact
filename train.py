@@ -111,9 +111,12 @@ def explicit_cli_keys(argv=None):
     keys = set()
     for tok in argv:
         if tok.startswith("--"):
-            keys.add(tok[2:].split("=")[0])
+            # argparse maps --flag-name to dest flag_name; normalize dashes so
+            # apply_config()'s explicit-flag-wins check matches config keys
+            # (e.g. --test-metrics-file vs params.yaml test_metrics_file).
+            keys.add(tok[2:].split("=")[0].replace("-", "_"))
         elif tok.startswith("-") and not tok.startswith("---"):
-            keys.add(tok[1:].split("=")[0])
+            keys.add(tok[1:].split("=")[0].replace("-", "_"))
     return keys
 
 

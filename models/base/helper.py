@@ -52,7 +52,11 @@ def replace_base_fc(trainset, transform, model, args):
     model = model.eval()
 
     trainloader = torch.utils.data.DataLoader(
-        dataset=trainset, batch_size=128, num_workers=8, pin_memory=True, shuffle=False
+        dataset=trainset,
+        batch_size=512,
+        num_workers=args.num_workers,
+        pin_memory=True,
+        shuffle=False,
     )
     trainloader.dataset.transform = transform
     embedding_list = []
@@ -92,8 +96,8 @@ def test(model, testloader, epoch, args, session, validation=True):
     vl = Averager()
     va = Averager()
     va5 = Averager()
-    lgt = torch.tensor([])
-    lbs = torch.tensor([])
+    lgt_list = []
+    lbs_list = []
     with torch.no_grad():
         for i, batch in enumerate(testloader, 1):
             data, test_label = [_.to(args.device) for _ in batch]
@@ -107,15 +111,15 @@ def test(model, testloader, epoch, args, session, validation=True):
             va.add(acc)
             va5.add(top5acc)
 
-            lgt = torch.cat([lgt, logits.cpu()])
-            lbs = torch.cat([lbs, test_label.cpu()])
+            lgt_list.append(logits.cpu())
+            lbs_list.append(test_label.cpu())
         vl = vl.item()
         va = va.item()
         va5 = va5.item()
         print(f"epo {epoch}, test, loss={vl:.4f} acc={va:.4f}, acc@5={va5:.4f}")
 
-        lgt = lgt.view(-1, test_class)
-        lbs = lbs.view(-1)
+        lgt = torch.cat(lgt_list, dim=0).view(-1, test_class)
+        lbs = torch.cat(lbs_list, dim=0).view(-1)
         if validation is not True:
             save_model_dir = os.path.join(
                 args.save_path, "session" + str(session) + "confusion_matrix"

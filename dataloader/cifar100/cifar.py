@@ -10,6 +10,38 @@ from torchvision.datasets.vision import VisionDataset
 
 from .autoaugment import CIFAR10Policy, Cutout
 
+# Process-level caches. The raw pickled split and the md5 integrity verdict
+# were re-derived on every CIFAR100() construction (train + test sets are
+# rebuilt per FSCIL session), costing seconds per run. The files are
+# immutable after download, so reuse is safe: callers only ever fancy-index
+# the cached arrays (SelectfromDefault/NewClassSelector), never mutate them
+# in place, and __getitem__ is read-only.
+_RAW_SPLIT_CACHE = {}
+_INTEGRITY_CACHE = {}
+
+
+def _load_raw_split(root, base_folder, downloaded_list):
+    """Load + transpose one pickled split once per process."""
+    key = (root, base_folder, tuple(f for f, _ in downloaded_list))
+    hit = _RAW_SPLIT_CACHE.get(key)
+    if hit is None:
+        data, targets = [], []
+        # now load the picked numpy arrays
+        for file_name, checksum in downloaded_list:
+            file_path = os.path.join(root, base_folder, file_name)
+            with open(file_path, "rb") as f:
+                entry = pickle.load(f, encoding="latin1")
+                data.append(entry["data"])
+                if "labels" in entry:
+                    targets.extend(entry["labels"])
+                else:
+                    targets.extend(entry["fine_labels"])
+        data = np.vstack(data).reshape(-1, 3, 32, 32)
+        data = data.transpose((0, 2, 3, 1))  # convert to HWC
+        hit = (data, np.asarray(targets))
+        _RAW_SPLIT_CACHE[key] = hit
+    return hit
+
 
 class CIFAR10(VisionDataset):
     """`CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
@@ -129,24 +161,9 @@ class CIFAR10(VisionDataset):
                     ]
                 )
 
-        self.data = []
-        self.targets = []
-
-        # now load the picked numpy arrays
-        for file_name, checksum in downloaded_list:
-            file_path = os.path.join(self.root, self.base_folder, file_name)
-            with open(file_path, "rb") as f:
-                entry = pickle.load(f, encoding="latin1")
-                self.data.append(entry["data"])
-                if "labels" in entry:
-                    self.targets.extend(entry["labels"])
-                else:
-                    self.targets.extend(entry["fine_labels"])
-
-        self.data = np.vstack(self.data).reshape(-1, 3, 32, 32)
-        self.data = self.data.transpose((0, 2, 3, 1))  # convert to HWC
-
-        self.targets = np.asarray(self.targets)
+        self.data, self.targets = _load_raw_split(
+            self.root, self.base_folder, downloaded_list
+        )
 
         if base_sess:
             self.data, self.targets = self.SelectfromDefault(
@@ -234,12 +251,20 @@ class CIFAR10(VisionDataset):
 
     def _check_integrity(self):
         root = self.root
+        entries = tuple(tuple(f) for f in self.train_list + self.test_list)
+        key = (root, self.base_folder, entries)
+        hit = _INTEGRITY_CACHE.get(key)
+        if hit is not None:
+            return hit
+        ok = True
         for fentry in self.train_list + self.test_list:
             filename, md5 = fentry[0], fentry[1]
             fpath = os.path.join(root, self.base_folder, filename)
             if not check_integrity(fpath, md5):
-                return False
-        return True
+                ok = False
+                break
+        _INTEGRITY_CACHE[key] = ok
+        return ok
 
     def download(self):
         if self._check_integrity():

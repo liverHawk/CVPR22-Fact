@@ -74,11 +74,13 @@ def main(argv=None):
         "models.%s.fscil_trainer" % args.project
     ).FSCILTrainer
     trainer = trainer_cls(args)  # reuses save_path/dataloader/model construction
+    from dataloader.data_utils import get_test_dataloader
     # Default checkpoint dir is the train run's save_path resolved from the same config.
     ckpt_dir = args.checkpoint_dir or args.save_path
     map_loc = args.device if args.device == "cpu" else None
 
     session_acc, session_loss = [], []
+    s0 = None  # session-0 state, reused for dummy-classifier rebuild (load once)
     for session in range(args.start_session, args.sessions):
         ckpt = os.path.join(ckpt_dir, f"session{session}_max_acc.pth")
         if not os.path.exists(ckpt):
@@ -86,8 +88,10 @@ def main(argv=None):
         print(f"== test session {session}: loading {ckpt}")
         state = torch.load(ckpt, map_location=map_loc if map_loc else args.device)
         trainer.model.load_state_dict(state["params"])
+        if session == 0:
+            s0 = state  # later sessions rebuild dummy classifiers from this
         model = trainer.model
-        _, _, testloader = trainer.get_dataloader(session)
+        testloader = get_test_dataloader(args, session)
 
         if session == 0:
             if args.project == "fact":
@@ -104,10 +108,11 @@ def main(argv=None):
 
                 import torch.nn.functional as F
 
-                s0 = torch.load(
-                    os.path.join(ckpt_dir, "session0_max_acc.pth"),
-                    map_location=map_loc if map_loc else args.device,
-                )
+                if s0 is None:
+                    s0 = torch.load(
+                        os.path.join(ckpt_dir, "session0_max_acc.pth"),
+                        map_location=map_loc if map_loc else args.device,
+                    )
                 fc = s0["params"][
                     "module.fc.weight"
                     if any(k.startswith("module.") for k in s0["params"])

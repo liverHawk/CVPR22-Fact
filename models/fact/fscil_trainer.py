@@ -317,8 +317,8 @@ class FSCILTrainer(Trainer):
         vl = Averager()
         va = Averager()
         va5 = Averager()
-        lgt = torch.tensor([])
-        lbs = torch.tensor([])
+        lgt_list = []
+        lbs_list = []
 
         proj_matrix = torch.mm(
             self.dummy_classifiers,
@@ -337,8 +337,6 @@ class FSCILTrainer(Trainer):
 
         eta = args.eta
 
-        softmaxed_proj_matrix = F.softmax(proj_matrix, dim=1)
-
         with torch.no_grad():
             for i, batch in enumerate(testloader, 1):
                 data, test_label = [_.to(args.device) for _ in batch]
@@ -356,9 +354,11 @@ class FSCILTrainer(Trainer):
                 res_logit = res.scatter(1, indices, topk)
 
                 logits1 = torch.mm(res_logit, proj_matrix)
+                # reuse the emb computed above (forpass_fc re-encoded data,
+                # i.e. ran the backbone twice per test batch)
                 logits2 = (
                     model.module if hasattr(model, "module") else model
-                ).forpass_fc(data)[:, :test_class]
+                ).forpass_fc_emb(emb)[:, :test_class]
                 logits = eta * F.softmax(logits1, dim=1) + (1 - eta) * F.softmax(
                     logits2, dim=1
                 )
@@ -369,11 +369,13 @@ class FSCILTrainer(Trainer):
                 vl.add(loss.item())
                 va.add(acc)
                 va5.add(top5acc)
-                lgt = torch.cat([lgt, logits.cpu()])
-                lbs = torch.cat([lbs, test_label.cpu()])
+                lgt_list.append(logits.cpu())
+                lbs_list.append(test_label.cpu())
             vl = vl.item()
             va = va.item()
             va5 = va5.item()
+            lgt = torch.cat(lgt_list, dim=0)
+            lbs = torch.cat(lbs_list, dim=0)
             print(f"epo {epoch}, test, loss={vl:.4f} acc={va:.4f}, acc@5={va5:.4f}")
 
         # Log confusion matrix to wandb if enabled (lightweight aggregated image;

@@ -12,6 +12,19 @@ CIC_FLOW_DATASETS = (
 )
 
 
+def loader_kwargs(args):
+    """Shared DataLoader worker options.
+
+    num_workers=0 must stay single-process (persistent_workers and
+    prefetch_factor are invalid there); >0 adds worker reuse across
+    iterations plus deeper prefetch to hide transform latency.
+    """
+    nw = getattr(args, "num_workers", 0)
+    if nw and nw > 0:
+        return {"num_workers": nw, "persistent_workers": True, "prefetch_factor": 4}
+    return {"num_workers": 0}
+
+
 def set_up_datasets(args):
     if args.dataset == "cifar100":
         import dataloader.cifar100.cifar as Dataset
@@ -196,14 +209,14 @@ def get_base_dataloader(args):
         dataset=trainset,
         batch_size=args.batch_size_base,
         shuffle=True,
-        num_workers=8,
+        **loader_kwargs(args),
         pin_memory=True,
     )
     testloader = torch.utils.data.DataLoader(
         dataset=testset,
         batch_size=args.test_batch_size,
         shuffle=False,
-        num_workers=8,
+        **loader_kwargs(args),
         pin_memory=True,
     )
 
@@ -353,6 +366,50 @@ def get_new_dataloader(args, session):
     )
 
     return trainset, trainloader, testloader
+
+
+def get_test_dataloader(args, session):
+    """Test-only loader for `session` (skips building the session trainset).
+
+    Builds the same testset as get_base_dataloader (session 0) /
+    get_new_dataloader (session > 0): get_session_classes(args, 0) ==
+    arange(base_class), and both base_sess=True/False take the same
+    SelectfromDefault/SelectfromClasses path for train=False. Used by test.py,
+    which never touches the trainset.
+    """
+    class_new = get_session_classes(args, session)
+
+    if args.dataset == "cifar100":
+        testset = args.Dataset.CIFAR100(
+            root=args.dataroot,
+            train=False,
+            download=False,
+            index=class_new,
+            base_sess=False,
+        )
+    if args.dataset == "cub200":
+        testset = args.Dataset.CUB200(root=args.dataroot, train=False, index=class_new)
+    if args.dataset == "mini_imagenet":
+        testset = args.Dataset.MiniImageNet(
+            root=args.dataroot, train=False, index=class_new
+        )
+    if args.dataset == "imagenet100" or args.dataset == "imagenet1000":
+        testset = args.Dataset.ImageNet(
+            root=args.dataroot, train=False, index=class_new
+        )
+    if args.dataset in CIC_FLOW_DATASETS:
+        testset = args.Dataset.CICFlow(
+            root=args.dataroot, train=False, dataset=args.dataset, index=class_new
+        )
+
+    testloader = torch.utils.data.DataLoader(
+        dataset=testset,
+        batch_size=args.test_batch_size,
+        shuffle=False,
+        **loader_kwargs(args),
+        pin_memory=True,
+    )
+    return testloader
 
 
 def get_session_classes(args, session):
