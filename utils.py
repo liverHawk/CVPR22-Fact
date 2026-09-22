@@ -236,6 +236,20 @@ def should_log_wandb_cm(args, session, epoch):
     return int(epoch) % int(freq) == 0
 
 
+def wandb_step(args, session, epoch=0):
+    """Global, monotonically increasing wandb step across base + incremental sessions.
+
+    wandb requires a run's `step` to be non-decreasing; logging with `step`
+    values that don't continue from the base session's per-epoch steps (0..
+    epochs_base-1) makes wandb silently drop the point. Session 0 (pretraining)
+    logs one point per epoch; sessions 1+ (incremental) each log a single
+    point, continuing the counter from where the base session left off.
+    """
+    if session == 0:
+        return epoch
+    return args.epochs_base + session
+
+
 def save_list_to_txt(name, input_list):
     f = open(name, mode="w")
     f.writelines(str(item) + "\n" for item in input_list)

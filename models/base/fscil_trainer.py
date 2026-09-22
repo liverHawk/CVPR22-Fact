@@ -11,7 +11,7 @@ from dataloader.data_utils import (
     get_new_dataloader,
     set_up_datasets,
 )
-from utils import ensure_path, save_list_to_txt
+from utils import ensure_path, save_list_to_txt, wandb_step
 
 from .base import Trainer
 from .helper import base_train, replace_base_fc, test
@@ -117,7 +117,7 @@ class FSCILTrainer(Trainer):
                                 "epoch": epoch,
                                 "session": session,
                             },
-                            step=epoch,
+                            step=wandb_step(args, session, epoch),
                         )
 
                     # save better model
@@ -240,7 +240,7 @@ class FSCILTrainer(Trainer):
                             "session_test_acc": tsa,
                             "session": session,
                         },
-                        step=session,
+                        step=wandb_step(args, session),
                     )
 
                     # Confusion matrix logging will be handled in test function

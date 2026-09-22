@@ -20,6 +20,7 @@ from utils import (
     ensure_path,
     log_wandb_cm_image,
     save_list_to_txt,
+    wandb_step,
 )
 
 from .base import Trainer
@@ -165,7 +166,7 @@ class FSCILTrainer(Trainer):
                         if not no_eval:
                             payload["test_loss"] = tsl
                             payload["test_acc"] = tsa
-                        self.wandb.log(payload, step=epoch)
+                        self.wandb.log(payload, step=wandb_step(args, session, epoch))
 
                     # save better model
                     if not no_eval and (tsa * 100) >= self.trlog["max_acc"][session]:
@@ -324,7 +325,7 @@ class FSCILTrainer(Trainer):
                             "session_test_acc": tsa,
                             "session": session,
                         },
-                        step=session,
+                        step=wandb_step(args, session),
                     )
 
                     # Confusion matrix logging will be handled in test function
@@ -433,7 +434,7 @@ class FSCILTrainer(Trainer):
                     lbs.numpy().astype(int),
                     torch.argmax(lgt, dim=1).numpy().astype(int),
                     test_class,
-                    step=epoch if session == 0 else session,
+                    step=wandb_step(args, session, epoch),
                 )
             except Exception as e:
                 print(f"Warning: Could not log confusion matrix to wandb: {e}")

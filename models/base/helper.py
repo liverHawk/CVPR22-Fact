@@ -13,6 +13,7 @@ from utils import (
     count_acc_topk,
     log_wandb_cm_image,
     should_log_wandb_cm,
+    wandb_step,
 )
 
 
@@ -141,7 +142,7 @@ def test(model, testloader, epoch, args, session, validation=True):
                 lbs.numpy().astype(int),
                 torch.argmax(lgt, dim=1).numpy().astype(int),
                 test_class,
-                step=epoch if session == 0 else session,
+                step=wandb_step(args, session, epoch),
             )
         except Exception as e:
             print(f"Warning: Could not log confusion matrix to wandb: {e}")
