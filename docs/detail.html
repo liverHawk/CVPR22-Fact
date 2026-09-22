@@ -1161,7 +1161,7 @@ self.dummy_orthogonal_classifier.weight.data = self.fc.weight.data[self.args.bas
           事前に配置していたダミー直交分類器との射影行列（$proj\_matrix$）を介した推論スコア（$logits_1$）をパラメータ $\eta$ でアンサンブルします。
         </p>
         <pre><code><span class="hl-com"># models/fact/fscil_trainer.py より抜粋</span>
-proj_matrix = torch.mm(self.dummy_classifiers, F.normalize(torch.transpose(model.module.fc.weight[:test_class, :], <span class="hl-num">1</span>, <span class="hl-num">0</span>), p=<span class="hl-num">2</span>, dim=-<span class="hl-num">1</span>))
+proj_matrix = torch.mm(self.dummy_classifiers, F.normalize(torch.transpose((model.module if hasattr(model, "module") else model).fc.weight[:test_class, :], <span class="hl-num">1</span>, <span class="hl-num">0</span>), p=<span class="hl-num">2</span>, dim=-<span class="hl-num">1</span>))
 
 <span class="hl-com"># 仮想プロトタイプ射影と直接FC出力の加重統合</span>
 logits = eta * F.softmax(logits1, dim=<span class="hl-num">1</span>) + (<span class="hl-num">1</span> - eta) * F.softmax(logits2, dim=<span class="hl-num">1</span>)</code></pre>

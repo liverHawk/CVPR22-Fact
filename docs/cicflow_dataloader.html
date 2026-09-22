@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="FACTコードベースにCIC系フローデータを組み込むためのdataloader実装指針。">
+  <title>CIC系フロー Dataloader指針 &mdash; FACT拡張ガイド</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0e17; --bg-secondary: #111827; --bg-card: rgba(17, 24, 39, 0.75);
+      --bg-card-hover: rgba(30, 41, 59, 0.85); --border-color: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(56, 189, 248, 0.35); --text-main: #f3f4f6; --text-muted: #9ca3af;
+      --text-dim: #6b7280; --accent-cyan: #38bdf8; --accent-indigo: #818cf8;
+      --accent-purple: #c084fc; --accent-emerald: #34d399; --accent-amber: #fbbf24;
+      --accent-rose: #fb7185; --gradient-brand: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+      --gradient-card: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+      --code-bg: #070a11; --radius-sm: 8px; --radius-md: 12px; --radius-lg: 18px;
+      --shadow-subtle: 0 4px 20px -2px rgba(0,0,0,0.5); --shadow-glow: 0 0 30px -5px rgba(56,189,248,0.2);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter',-apple-system,sans-serif; background-color: var(--bg-primary); color: var(--text-main); line-height: 1.65; display: flex; min-height: 100vh; }
+    .ambient-glow-1 { position: fixed; top: -200px; left: 15%; width: 600px; height: 600px; background: radial-gradient(circle, rgba(56,189,248,0.12) 0%, rgba(0,0,0,0) 70%); pointer-events: none; z-index: 0; }
+    .ambient-glow-2 { position: fixed; bottom: -150px; right: 10%; width: 700px; height: 700px; background: radial-gradient(circle, rgba(52,211,153,0.10) 0%, rgba(0,0,0,0) 70%); pointer-events: none; z-index: 0; }
+    .sidebar { width: 290px; background-color: rgba(10,14,23,0.92); backdrop-filter: blur(16px); border-right: 1px solid var(--border-color); position: fixed; top: 0; left: 0; bottom: 0; display: flex; flex-direction: column; z-index: 50; }
+    .sidebar-header { padding: 24px; border-bottom: 1px solid var(--border-color); }
+    .logo-badge { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 9999px; background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.3); color: var(--accent-emerald); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 10px; }
+    .sidebar-title { font-family: 'Outfit',sans-serif; font-size: 1.35rem; font-weight: 800; background: var(--gradient-brand); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .sidebar-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+    .doc-switcher { margin: 14px 20px 0; display: flex; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 4px; gap: 4px; }
+    .doc-tab { flex: 1; text-align: center; padding: 6px 0; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-decoration: none; border-radius: 6px; }
+    .doc-tab.active { background: rgba(52,211,153,0.15); color: var(--accent-emerald); }
+    .doc-tab:hover:not(.active) { color: #fff; }
+    .search-box { margin: 16px 20px 8px; position: relative; }
+    .search-input { width: 100%; padding: 10px 14px 10px 36px; background: var(--code-bg); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: var(--text-main); font-size: 0.85rem; outline: none; }
+    .search-input:focus { border-color: var(--accent-cyan); box-shadow: 0 0 0 2px rgba(56,189,248,0.2); }
+    .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--text-dim); }
+    .nav-list { list-style: none; padding: 12px 14px; flex-grow: 1; overflow-y: auto; }
+    .nav-link { display: block; padding: 9px 14px; color: var(--text-muted); text-decoration: none; font-size: 0.86rem; font-weight: 500; border-radius: var(--radius-sm); }
+    .nav-link:hover,.nav-link.active { color: #fff; background: rgba(255,255,255,0.05); }
+    .nav-link.active { color: var(--accent-emerald); border-left: 3px solid var(--accent-emerald); }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border-color); font-size: 0.75rem; color: var(--text-dim); display: flex; justify-content: space-between; }
+    .content { margin-left: 290px; flex-grow: 1; padding: 40px 60px 100px; max-width: 1300px; position: relative; z-index: 10; }
+    .hero-banner { background: var(--gradient-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 40px 48px; margin-bottom: 48px; position: relative; overflow: hidden; box-shadow: var(--shadow-subtle); }
+    .hero-banner::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--gradient-brand); }
+    .hero-badge-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; }
+    .pill-step { background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.4); color: var(--accent-cyan); }
+    .pill-tab { background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.4); color: var(--accent-emerald); }
+    .pill-warn { background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.4); color: var(--accent-amber); }
+    .hero-title { font-family: 'Outfit',sans-serif; font-size: 2.2rem; font-weight: 800; margin-bottom: 14px; line-height: 1.25; }
+    .hero-desc { font-size: 1.02rem; color: var(--text-muted); max-width: 920px; }
+    section { margin-bottom: 56px; scroll-margin-top: 30px; }
+    .section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; padding-bottom: 14px; border-bottom: 1px solid var(--border-color); }
+    .section-icon { width: 38px; height: 38px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; background: rgba(52,211,153,0.15); color: var(--accent-emerald); font-weight: 800; }
+    .section-title { font-family: 'Outfit',sans-serif; font-size: 1.6rem; font-weight: 700; color: #fff; }
+    .step-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px 28px; margin-bottom: 22px; transition: all 0.25s; }
+    .step-card:hover { border-color: var(--border-glow); transform: translateY(-2px); box-shadow: var(--shadow-glow); }
+    .step-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+    .step-number { width: 32px; height: 32px; border-radius: 50%; background: var(--gradient-brand); color: #fff; font-family: 'Outfit',sans-serif; font-weight: 800; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .step-title { font-family: 'Outfit',sans-serif; font-size: 1.2rem; font-weight: 700; color: #fff; }
+    .step-body { color: var(--text-muted); font-size: 0.92rem; line-height: 1.7; }
+    .step-body p, .step-body ul, .step-body ol { margin-bottom: 12px; }
+    .step-body ul, .step-body ol { padding-left: 20px; }
+    .step-body code { background: rgba(255,255,255,0.07); padding: 1px 6px; border-radius: 4px; font-family: 'Fira Code',monospace; font-size: 0.85em; color: #e5e7eb; }
+    .alert-box { background: rgba(239,68,68,0.08); border-left: 4px solid var(--accent-rose); border-radius: 0 var(--radius-md) var(--radius-md) 0; padding: 16px 20px; margin: 16px 0; color: #fecdd3; font-size: 0.9rem; }
+    .alert-title { font-weight: 700; color: var(--accent-rose); margin-bottom: 6px; }
+    .tip-box { background: rgba(56,189,248,0.08); border-left: 4px solid var(--accent-cyan); border-radius: 0 var(--radius-md) var(--radius-md) 0; padding: 16px 20px; margin: 16px 0; color: #bae6fd; font-size: 0.9rem; }
+    .tip-title { font-weight: 700; color: var(--accent-cyan); margin-bottom: 6px; }
+    .code-box { background: var(--code-bg); border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden; margin: 16px 0; }
+    .code-header { background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-color); padding: 10px 18px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--text-dim); }
+    .code-file { font-family: 'Fira Code',monospace; color: var(--accent-indigo); font-weight: 600; }
+    .copy-btn { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); border-radius: 6px; padding: 4px 10px; font-size: 0.75rem; cursor: pointer; }
+    .copy-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    pre { padding: 16px 20px; overflow-x: auto; font-family: 'Fira Code',monospace; font-size: 0.82rem; line-height: 1.6; color: #d1d5db; }
+    .custom-table-wrap { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow-x: auto; margin: 18px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+    th { background: rgba(255,255,255,0.03); color: var(--text-muted); font-weight: 600; padding: 12px 16px; border-bottom: 1px solid var(--border-color); text-align: left; }
+    td { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    .toast { position: fixed; bottom: 30px; right: 30px; background: #1e293b; color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); padding: 12px 20px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; transform: translateY(100px); opacity: 0; transition: all 0.3s; z-index: 100; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    @media (max-width: 1024px) { .sidebar { width: 240px; } .content { margin-left: 240px; padding: 30px; } }
+    @media (max-width: 768px) { body { flex-direction: column; } .sidebar { position: relative; width: 100%; } .content { margin-left: 0; padding: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="ambient-glow-1" aria-hidden="true"></div>
+  <div class="ambient-glow-2" aria-hidden="true"></div>
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span class="logo-badge">FACT Extension</span>
+      <h1 class="sidebar-title">CICフロー指針</h1>
+      <p class="sidebar-sub">Tabular Dataloader for FSCIL</p>
+    </div>
+    <div class="doc-switcher">
+      <a href="detail.html" class="doc-tab">コード解説</a>
+      <a href="tutorial.html" class="doc-tab">チュートリアル</a>
+      <a href="cicflow_dataloader.html" class="doc-tab active">Flow指針</a>
+    </div>
+    <div class="search-box">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="text" id="quickSearch" class="search-input" placeholder="ステップを検索..." aria-label="ステップ検索">
+    </div>
+    <ul class="nav-list">
+      <li><a href="#premise" class="nav-link active">0. 前提: 画像との違い</a></li>
+      <li><a href="#prepare" class="nav-link">1. CSV準備と洗浄</a></li>
+      <li><a href="#sessions" class="nav-link">2. セッション設計</a></li>
+      <li><a href="#txt" class="nav-link">3. session_*.txt形式</a></li>
+      <li><a href="#dataset" class="nav-link">4. Datasetクラス実装</a></li>
+      <li><a href="#register" class="nav-link">5. data_utils登録</a></li>
+      <li><a href="#backbone" class="nav-link">6. Backbone側の注意</a></li>
+      <li><a href="#verify" class="nav-link">7. 検証とTS</a></li>
+    </ul>
+    <div class="sidebar-footer"><span>CVPR 2022 FACT</span><span>CICFlowMeter</span></div>
+  </aside>
+
+  <main class="content">
+    <div class="hero-banner">
+      <div class="hero-badge-row">
+        <span class="pill pill-step">FSCIL × 表形式</span>
+        <span class="pill pill-tab">CIC-IDS2017 / CIC-DDoS2019 …</span>
+        <span class="pill pill-warn">画像Dataloaderの流用不可</span>
+      </div>
+      <h2 class="hero-title">CIC系フロー用 dataloader 実装指針</h2>
+      <p class="hero-desc">
+        <code>tutorial.html</code> の画像前提（CUB/CIFAR/MiniImageNet: <code>PIL → Resize/Crop → ToTensor</code>）を、
+        CIC系フローデータ（CIC-IDS2017 / CIC-DDoS2019 など、中身はCICFlowMeter形式: 1フロー ≒ 80次元数値ベクトル + <code>Label</code>列）に読み替えるための指針です。同じ汎用ローダー (<code>dataloader/cicflow</code>) でデータセット名だけ変えて使います。
+        結論: <strong>画像transformを捨て、行IDベースのtxt + 一括parquet + StandardScaler + MLP前提</strong>で作ります。
+        本ページはdataloaderが主題で、backbone変更は §6 に要点のみ記します。
+      </p>
+    </div>
+
+    <section id="premise">
+      <div class="section-header"><div class="section-icon">0</div><h3 class="section-title">0. 前提: なぜ既存流用では動かないか</h3></div>
+      <div class="custom-table-wrap"><table>
+        <thead><tr><th>観点</th><th>既存 (画像)</th><th>CICFlowMeter (表形式)</th><th>指針</th></tr></thead>
+        <tbody>
+          <tr><td><strong>1サンプル</strong></td><td>画像ファイルパス</td><td>CSVの1行（フロー）。ファイルは曜日別に複数</td><td>全CSVを結合→洗浄→ <code>flows.parquet</code> に一本化し、安定な行IDを付与</td></tr>
+          <tr><td><strong>特徴量</strong></td><td><code>[3,84,84]</code> 等のテンソル</td><td>約80列の数値（例: Flow Duration, Total Fwd Packets）。欠損・Inf混入あり</td><td><code>__getitem__</code> は <code>FloatTensor[D]</code> を返す。PIL/Resizeは使わない</td></tr>
+          <tr><td><strong>正規化</strong></td><td>ImageNet平均分散で固定</td><td>スケールが桁違い（Duration vs フラグ数）。リーケージ注意</td><td>StandardScalerをbase-trainのみでfit → <code>scaler.pkl</code> 保存→全sessionに適用</td></tr>
+          <tr><td><strong>txtの中身</strong></td><td>CUB: 画像相対パス / CIFAR: サンプル番号</td><td>どちらでも可だが再現性が要</td><td>本指針は <strong>整数のグローバル行ID (CIFAR式)</strong> を推奨。パス方式より壊れにくい</td></tr>
+          <tr><td><strong>encoder</strong></td><td>ResNet (2D conv, pre/post_encode分割)</td><td><code>[B,D]</code> はconvに入らない</td><td>dataloaderは <code>[B,D]</code> を返す所までが責務。MLP backboneは別途必要（§6）</td></tr>
+        </tbody>
+      </table></div>
+      <div class="alert-box"><div class="alert-title">参照実装の対応関係</div>
+        本指針のテンプレは <code>dataloader/cub200/cub200.py: SelectfromTxt / SelectfromClasses</code> と
+        <code>dataloader/data_utils.py: set_up_datasets / get_base_dataloader / get_new_dataloader</code> の3分岐に1対1で対応します。
+        シグネチャ <code>__init__(root, train, index_path, index, base_sess)</code> は変えないでください。
+      </div>
+    </section>
+
+    <section id="prepare">
+      <div class="section-header"><div class="section-icon">1</div><h3 class="section-title">1. CSV準備と洗浄（最初に一回だけ）</h3></div>
+      <div class="step-card"><div class="step-header"><span class="step-number">1</span><h4 class="step-title">配置と列方針</h4></div>
+        <div class="step-body">
+          <p>曜日別CSVを <code>data/&lt;dataset&gt;/csv/</code> に置き、結合・洗浄後を <code>data/&lt;dataset&gt;/flows.parquet</code> として固定します。小規模（数GB・メモリに載る）ならこれで可。大規模でメモリに載らない場合は <code>flows.arrow</code>（Arrow IPC・mmap）または分割parquetを使います（下記TIP）。</p>
+          <div class="code-box"><div class="code-header"><span class="code-file">配置例</span><button class="copy-btn" data-clipboard="data/cicids2017/csv/Monday.csv ... Friday.csv
+data/&lt;dataset&gt;/flows.parquet      # 洗浄済み結合版（正本）
+data/&lt;dataset&gt;/feature_cols.json  # 使用列リスト
+data/&lt;dataset&gt;/label_map.json     # Label -&gt; 0..C-1
+data/&lt;dataset&gt;/scaler.pkl         # base-train fitのStandardScaler
+data/index_list/cicflowmeter/session_1.txt ... session_N.txt">コピー</button></div>
+<pre><code>data/cicids2017/csv/Monday.csv ... Friday.csv
+data/&lt;dataset&gt;/flows.parquet      # 洗浄済み結合版（正本）
+data/&lt;dataset&gt;/feature_cols.json  # 使用列リスト
+data/&lt;dataset&gt;/label_map.json     # Label -&gt; 0..C-1
+data/&lt;dataset&gt;/scaler.pkl         # base-train fitのStandardScaler
+data/index_list/cicflowmeter/session_1.txt ... session_N.txt</code></pre></div>
+          <ul>
+            <li><strong>落とす列（推奨）:</strong> <code>Flow ID, Source IP, Destination IP, Timestamp</code> — 個体識別・時刻リーク源。<code>Source/Destination Port</code> は残すか落とすかを実験前に固定（残すとポートスキャン検出が自明になる場合あり）。</li>
+            <li><strong>残す列:</strong> 残りの数値約78列（CICFlowMeter v3で80前後。環境で変動するため <code>feature_cols.json</code> に記録）。</li>
+            <li><strong>洗浄順:</strong> 列名strip → <code>inf/-inf → NaN</code> → NaN行drop → 全定数列drop（例: <code>Bwd PSH Flags</code> 系が常に0の場合あり）→ Label前後空白除去。</li>
+          </ul>
+          <div class="tip-box"><div class="tip-title">大規模データはArrow / 分割parquetを使う（mmap・遅延読み）</div>
+          Arrowはダメではなく、むしろ大規模では推奨です。違いは保存形式ではなく読み方です:
+          <code>pd.read_parquet</code>一括読みは全量をRAMに載せるためOOMします。
+          <code>pyarrow.memory_map + IPC</code>や<code>pyarrow.dataset</code>ならmmapでゼロコピー・行単位の遅延読みができます。
+          配置は <code>data/&lt;dataset&gt;/arrow/train.arrow</code> / <code>test.arrow</code> または <code>dataset/train/*.parquet</code> 分割とし、Dataset側は§4の大規模版テンプレ（インデックスのみ保持・<code>__getitem__</code>で1行変換）を使ってください。要 <code>uv add pyarrow pandas</code>。
+          </div>
+          <div class="tip-box"><div class="tip-title">CIC-IDS2017既知の汚れ</div>
+          <code>Infinity / NaN</code>混入、空特徴行、攻撃名表記揺れ（例: <code>Web Attack – Brute Force</code>系の分割粒度）が報告されています。結合前に各CSVの <code>Label</code> 分布を集計し、マッピング表を <code>label_map.json</code> に固定してください。
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sessions">
+      <div class="section-header"><div class="section-icon">2</div><h3 class="section-title">2. セッション設計（クラス割当）</h3></div>
+      <div class="step-card"><div class="step-header"><span class="step-number">2</span><h4 class="step-title">base / way / shot を先に決める</h4></div>
+        <div class="step-body">
+          <p><code>data_utils.set_up_datasets</code> に書く4値を、攻撃ラベル割当と同時に決めます。CIC系はBENIGNが約8割で極端に不均衡のため、baseは多数派から、incrementalは少数攻撃から取ります。</p>
+          <div class="custom-table-wrap"><table>
+            <thead><tr><th>設定例</th><th>値</th><th>備考</th></tr></thead>
+            <tbody>
+              <tr><td>base_class</td><td>6</td><td>例: BENIGN + DoS Hulk + PortScan + DDoS + FTP-Patator + SSH-Patator</td></tr>
+              <tr><td>num_classes</td><td>12</td><td>粒度は実験前に固定（Web Attack系を1つに束ねる等）</td></tr>
+              <tr><td>way / shot</td><td>2 / 5（または10）</td><td>1新規session = 2攻撃 × 5フロー。CIFAR式 <code>way*shot</code> 行がtxt1件分</td></tr>
+              <tr><td>sessions</td><td>4 (= 1 + (12-6)/2)</td><td>総session数は自動計算で一致させる</td></tr>
+            </tbody>
+          </table></div>
+          <ul>
+            <li>testは <code>get_session_classes</code>（遭遇済み全クラス）で自動生成されるため、Datasetのtest側は <code>index</code>（クラスID配列）でフィルタできればよいです。</li>
+            <li>train/test分割は <strong>フロー単位の層化分割</strong>（例: train 80% / test 20%、seed固定）で行い、同一フローの重複混入を避けます。時刻順に割りたい場合は別途記録。</li>
+            <li>Heartbleed/Infiltration（数十件）はshot確保不可 → 除外か束ねるかを明記。無理に残すと再現性が崩れます。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="txt">
+      <div class="section-header"><div class="section-icon">3</div><h3 class="section-title">3. session_*.txt の形式と生成</h3></div>
+      <div class="step-card"><div class="step-header"><span class="step-number">3</span><h4 class="step-title">形式: グローバル行ID（整数・1行1件）を推奨</h4></div>
+        <div class="step-body">
+          <p>CUB式（画像パス列挙）はCSVが複数あると壊れやすいため、CIFAR式（整数ID列挙）を推奨します。<code>flows.parquet</code> の行番号をIDとします。</p>
+          <div class="code-box"><div class="code-header"><span class="code-file">data/index_list/cicflowmeter/session_2.txt（例: 2-way×5-shot=10行）</span><button class="copy-btn" data-clipboard="104821
+88213
+519004
+771902
+330115
+902551
+410233
+618870
+201446
+735209">コピー</button></div>
+<pre><code>104821
+88213
+519004
+771902
+330115
+902551
+410233
+618870
+201446
+735209</code></pre></div>
+          <ul>
+            <li><code>session_1.txt</code>: base-trainの行ID全件（数万件になり得る。baseは全件学習が原則）。</li>
+            <li><code>session_2.txt〜</code>: 各 <code>way*shot</code> 行。新規クラスから層化・均等shotで抽出。</li>
+            <li>scalerは <strong>session_1のtrainのみでfit</strong> し保存。新規session生成後にfitし直さない（リーケージ防止）。</li>
+          </ul>
+          <div class="code-box"><div class="code-header"><span class="code-file">scripts/make_cic_sessions.py（骨子）</span><button class="copy-btn" data-clipboard="import json, numpy as np, pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+import pickle
+
+df = pd.read_parquet('data/&lt;dataset&gt;/flows.parquet')  # 洗浄済み・label_id列あり
+train, test = train_test_split(df, test_size=0.2, stratify=df['label_id'], random_state=1)
+train.to_parquet('data/&lt;dataset&gt;/train.parquet'); test.to_parquet('data/&lt;dataset&gt;/test.parquet')
+
+# scalerはbase-trainのみでfit
+base_ids = [0,1,2,3,4,5]
+base_train = train[train.label_id.isin(base_ids)]
+sc = StandardScaler().fit(base_train[json.load(open('data/&lt;dataset&gt;/feature_cols.json'))])
+pickle.dump(sc, open('data/&lt;dataset&gt;/scaler.pkl','wb'))
+
+# session_1.txt: base-trainの行ID
+open('data/index_list/cicflowmeter/session_1.txt','w').write('\n'.join(map(str, base_train.index)))
+# session_2.txt以降: 新規クラスからway*shotを層化抽出（seed固定）
+rng = np.random.RandomState(1)
+for s, cls_group in enumerate([[6,7],[8,9],[10,11]], start=2):
+    picks = []
+    for c in cls_group:
+        pool = train[train.label_id==c].index.to_numpy()
+        picks += list(rng.choice(pool, size=5, replace=False))
+    open(f'data/index_list/cicflowmeter/session_{s}.txt','w').write('\n'.join(map(str, picks)))">コピー</button></div>
+<pre><code>import json, numpy as np, pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+import pickle
+
+df = pd.read_parquet('data/&lt;dataset&gt;/flows.parquet')  # 洗浄済み・label_id列あり
+train, test = train_test_split(df, test_size=0.2, stratify=df['label_id'], random_state=1)
+train.to_parquet('data/&lt;dataset&gt;/train.parquet'); test.to_parquet('data/&lt;dataset&gt;/test.parquet')
+
+# scalerはbase-trainのみでfit
+base_ids = [0,1,2,3,4,5]
+base_train = train[train.label_id.isin(base_ids)]
+sc = StandardScaler().fit(base_train[json.load(open('data/&lt;dataset&gt;/feature_cols.json'))])
+pickle.dump(sc, open('data/&lt;dataset&gt;/scaler.pkl','wb'))
+
+# session_1.txt: base-trainの行ID
+open('data/index_list/cicflowmeter/session_1.txt','w').write('\n'.join(map(str, base_train.index)))
+# session_2.txt以降: 新規クラスからway*shotを層化抽出（seed固定）
+rng = np.random.RandomState(1)
+for s, cls_group in enumerate([[6,7],[8,9],[10,11]], start=2):
+    picks = []
+    for c in cls_group:
+        pool = train[train.label_id==c].index.to_numpy()
+        picks += list(rng.choice(pool, size=5, replace=False))
+    open(f'data/index_list/cicflowmeter/session_{s}.txt','w').write('\n'.join(map(str, picks)))</code></pre></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="dataset">
+      <div class="section-header"><div class="section-icon">4</div><h3 class="section-title">4. Datasetクラス実装（表形式テンプレ）</h3></div>
+      <div class="step-card"><div class="step-header"><span class="step-number">4</span><h4 class="step-title">dataloader/cicflow/cicflow.py</h4></div>
+        <div class="step-body">
+          <p>既存と同一シグネチャで作ります。PIL/transformsは不要、<code>__getitem__</code> は <code>(FloatTensor[D], int)</code> を返します。</p>
+          <div class="code-box"><div class="code-header"><span class="code-file">dataloader/cicflow/cicflow.py</span><button class="copy-btn" data-clipboard="import json, os, pickle
+import numpy as np, torch
+from torch.utils.data import Dataset
+
+class CICFlow(Dataset):
+    def __init__(self, root='data/', train=True, index_path=None,
+                 index=None, base_sess=False, dataset='cicids2017'):
+        self.root = os.path.expanduser(root)
+        base = os.path.join(self.root, 'cicflowmeter')
+        feats = json.load(open(os.path.join(base, 'feature_cols.json')))
+        split = 'train.parquet' if train else 'test.parquet'
+        import pandas as pd
+        df = pd.read_parquet(os.path.join(base, split))
+        sc = pickle.load(open(os.path.join(base, 'scaler.pkl'),'rb'))
+        X = sc.transform(df[feats].to_numpy(np.float32))
+        y = df['label_id'].to_numpy(np.int64)
+        self.data, self.targets = X, y
+        if base_sess:
+            self.data, self.targets = self.SelectfromClasses(self.data, self.targets, index)
+        elif index_path is not None:   # incremental train: txtの行IDのみ
+            self.data, self.targets = self.SelectfromTxt(df, self.data, self.targets, index_path)
+        elif index is not None:        # test: 遭遇済みクラスIDでフィルタ
+            self.data, self.targets = self.SelectfromClasses(self.data, self.targets, index)
+
+    def SelectfromClasses(self, data, targets, index):
+        mask = np.isin(targets, np.asarray(index))
+        return data[mask], targets[mask]
+
+    def SelectfromTxt(self, df, data, targets, index_path):
+        ids = [int(x.strip()) for x in open(index_path) if x.strip()]
+        pos = df.index.get_indexer(ids)  # parquet行ID -&gt; 配列位置
+        assert (pos &gt;= 0).all(), 'txtに行IDの不一致あり'
+        return data[pos], targets[pos]
+
+    def __len__(self): return len(self.targets)
+    def __getitem__(self, i):
+        return torch.from_numpy(self.data[i]), int(self.targets[i])">コピー</button></div>
+<pre><code>import json, os, pickle
+import numpy as np, torch
+from torch.utils.data import Dataset
+
+class CICFlow(Dataset):
+    def __init__(self, root='data/', train=True, index_path=None,
+                 index=None, base_sess=False, dataset='cicids2017'):
+        self.root = os.path.expanduser(root)
+        base = os.path.join(self.root, 'cicflowmeter')
+        feats = json.load(open(os.path.join(base, 'feature_cols.json')))
+        split = 'train.parquet' if train else 'test.parquet'
+        import pandas as pd
+        df = pd.read_parquet(os.path.join(base, split))
+        sc = pickle.load(open(os.path.join(base, 'scaler.pkl'),'rb'))
+        X = sc.transform(df[feats].to_numpy(np.float32))
+        y = df['label_id'].to_numpy(np.int64)
+        self.data, self.targets = X, y
+        if base_sess:
+            self.data, self.targets = self.SelectfromClasses(...)
+        elif index_path is not None:   # incremental train: txtの行IDのみ
+            self.data, self.targets = self.SelectfromTxt(...)
+        elif index is not None:        # test: 遭遇済みクラスIDでフィルタ
+            self.data, self.targets = self.SelectfromClasses(...)
+
+    def __getitem__(self, i):
+        return torch.from_numpy(self.data[i]), int(self.targets[i])
+# 戻り値は FloatTensor[D], int。画像transformなし。</code></pre></div>
+          <div class="tip-box"><div class="tip-title">設計判断の記録</div>
+          <ul>
+            <li>scalerをDataset内で毎回load（リーケージ防止・再現性）。fitは生成スクリプト側のみ。</li>
+            <li>train時augmentは画像のように必須ではない。必要なら <code>__getitem__</code> で微小ガウスノイズを加える程度に留める。</li>
+            <li><code>num_workers</code> は表形式では4程度で十分（画像ほどI/O負荷なし）。</li>
+            <li><strong>大規模版:</strong> 上記テンプレの <code>pd.read_parquet→全量transform</code> はRAMに載る場合のみ。大規模では下記のArrow遅延読み版を使う。全量 <code>numpy</code> 化しないこと。</li>
+          </ul></div>
+          <div class="code-box"><div class="code-header"><span class="code-file">dataloader/cicflow/cicflow.py（大規模・Arrow遅延読み版）</span><button class="copy-btn" data-clipboard="import json, os, pickle
+import numpy as np, torch, pyarrow as pa, pyarrow.ipc as ipc
+from torch.utils.data import Dataset
+
+class CICFlowLarge(Dataset):
+    # train.arrow / test.arrow をmmapで開き、選択インデックスのみ保持
+    def __init__(self, root='data/', train=True, index_path=None,
+                 index=None, base_sess=False, dataset='cicids2017'):
+        base = os.path.join(os.path.expanduser(root), 'cicflowmeter')
+        feats = json.load(open(os.path.join(base, 'feature_cols.json')))
+        self.feats = feats
+        src = ipc.new_file  # placeholder to keep import surface minimal
+        import pyarrow.memory as _m  # noqa
+        f = os.path.join(base, 'arrow', 'train.arrow' if train else 'test.arrow')
+        self.table = ipc.open_file(pa.memory_map(f)).read_all()  # mmap・ゼロコピー
+        sc = pickle.load(open(os.path.join(base, 'scaler.pkl'),'rb'))
+        self.mean_ = sc.mean_.astype(np.float32); self.scale_ = sc.scale_.astype(np.float32)
+        self.labels = self.table.column('label_id').to_numpy()
+        n = self.table.num_rows
+        if base_sess or (index_path is None and index is not None):
+            sel = np.where(np.isin(self.labels, np.asarray(index)))[0]
+        elif index_path is not None:
+            ids = [int(x.strip()) for x in open(index_path) if x.strip()]
+            # txtのグローバル行ID -&gt; 当該split内位置へ変換（id_map.arrow等で対応付け）
+            idmap = {v:k for k,v in enumerate(json.load(open(os.path.join(base,'train_row_ids.json'))))} if train else {}
+            sel = np.asarray([idmap[i] for i in ids], dtype=np.int64)
+        else:
+            sel = np.arange(n)
+        self.sel = sel
+    def __len__(self): return len(self.sel)
+    def __getitem__(self, i):
+        r = self.sel[i]
+        v = np.asarray([self.table.column(c)[r].as_py() for c in self.feats], dtype=np.float32)
+        v = (v - self.mean_) / self.scale_
+        return torch.from_numpy(v), int(self.labels[r])">コピー</button></div>
+<pre><code># 大規模版の要点: tableはmmapのまま保持、sel（選択位置）のみnumpy化。
+# __getitem__で1行だけ取り出し→正規化。pd.read_parquet一括読みはしない。
+# 分割parquetの場合は pa.dataset.dataset('.../arrow/train') + scanner で同等に実装。</code></pre></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="register">
+      <div class="section-header"><div class="section-icon">5</div><h3 class="section-title">5. data_utils.py / train.py への登録</h3></div>
+      <div class="step-card"><div class="step-header"><span class="step-number">5</span><h4 class="step-title">3箇所 + choices の追加</h4></div>
+        <div class="step-body">
+          <div class="code-box"><div class="code-header"><span class="code-file">dataloader/data_utils.py（追加分）</span><button class="copy-btn" data-clipboard="if args.dataset == 'cicflowmeter':
+    import dataloader.cicflowmeter.cicflowmeter as Dataset
+    args.base_class = 6; args.num_classes = 12
+    args.way = 2; args.shot = 5; args.sessions = 4
+
+# get_base_dataloader内
+if args.dataset == 'cicflowmeter':
+    trainset = args.Dataset.CICFlow(root=args.dataroot, train=True, index=class_index, base_sess=True)
+    testset = args.Dataset.CICFlow(root=args.dataroot, train=False, index=class_index)
+
+# get_new_dataloader内
+if args.dataset == 'cicflowmeter':
+    trainset = args.Dataset.CICFlow(root=args.dataroot, train=True, index_path=txt_path)
+    testset = args.Dataset.CICFlow(root=args.dataroot, train=False, index=class_new)">コピー</button></div>
+<pre><code>if args.dataset == 'cicflowmeter':
+    import dataloader.cicflowmeter.cicflowmeter as Dataset
+    args.base_class = 6; args.num_classes = 12
+    args.way = 2; args.shot = 5; args.sessions = 4
+
+# get_base_dataloader内
+if args.dataset == 'cicflowmeter':
+    trainset = args.Dataset.CICFlow(root=args.dataroot, train=True,
+        index=class_index, base_sess=True)
+    testset = args.Dataset.CICFlow(root=args.dataroot, train=False,
+        index=class_index)
+
+# get_new_dataloader内
+if args.dataset == 'cicflowmeter':
+    trainset = args.Dataset.CICFlow(root=args.dataroot, train=True,
+        index_path=txt_path)
+    testset = args.Dataset.CICFlow(root=args.dataroot, train=False,
+        index=class_new)</code></pre></div>
+          <p><code>train.py: get_command_line_parser</code> の <code>-dataset choices</code> に <code>'cicflowmeter'</code> を追加します（4箇所目）。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="backbone">
+      <div class="section-header"><div class="section-icon">6</div><h3 class="section-title">6. Backbone側の注意（dataloader範囲外だが必須）</h3></div>
+      <div class="alert-box"><div class="alert-title">dataloaderだけでは学習は回らない</div>
+        <code>models/fact/Network.py: MYNET</code> は dataset名で <code>resnet20/resnet18</code>（2D conv）を選択し、
+        <code>pre_encode (layer2まで) / post_encode (layer3以降)</code> に分割してMixupします。
+        <code>[B,D]</code> ベクトルはconvに入らないため、MLP encoder（例: <code>Linear(D,256)→ReLU→Linear(256,512)</code> を
+        pre/postに分割）を別途追加する必要があります。詳細は <code>tutorial.html §3</code> の手順に従い、
+        <code>MYNET.__init__ / pre_encode / post_encode</code> に <code>cicflowmeter</code> 分岐を追加してください。
+      </div>
+    </section>
+
+    <section id="verify">
+      <div class="section-header"><div class="section-icon">7</div><h3 class="section-title">7. 検証チェックリストと対処</h3></div>
+      <div class="code-box"><div class="code-header"><span class="code-file">検証スクリプト（抜粋）</span><button class="copy-btn" data-clipboard="from dataloader.data_utils import set_up_datasets, get_dataloader
+import argparse
+args = set_up_datasets(argparse.Namespace(dataset='cicflowmeter', dataroot='data/'))
+tr, _, te = get_dataloader(args, session=0)
+x, y = tr[0]; assert x.shape[0] == len(open('data/&lt;dataset&gt;/feature_cols.json').read().split(',')) or True
+print(x.dtype, x.shape, y)  # torch.float32, (D,), int
+import numpy as np
+assert np.isfinite(tr.data).all(), 'Inf/NaN残存'
+for s in range(args.sessions):
+    _, trl, tel = get_dataloader(args, session=s)
+    print(s, len(trl.dataset), len(tel.dataset))">コピー</button></div>
+<pre><code>from dataloader.data_utils import set_up_datasets, get_dataloader
+# session=0 と各sessionで (B,D) / NaNなし / クラス数が想定通りかを確認</code></pre></div>
+      <div class="custom-table-wrap"><table>
+        <thead><tr><th>現象</th><th>原因</th><th>対策</th></tr></thead>
+        <tbody>
+          <tr><td>scaler適用後に精度が崩壊</td><td>全データでfit（リーケージ）／列順不一致</td><td>base-trainのみfit、<code>feature_cols.json</code> の順序固定</td></tr>
+          <tr><td>新規sessionのshotが足りない</td><td>少数攻撃の件数不足</td><td>除外・統合を先に決定。replace=Falseで失敗したら設計見直し</td></tr>
+          <tr><td>txtのIDが引けない</td><td>parquet再生成で行ID変動</td><td>洗浄後parquetを正本化し、以降は追記のみ。再生成時はtxtも再生成</td></tr>
+          <tr><td>encoderでshape error</td><td>ResNetにベクトル入力</td><td>§6のMLP分岐を追加（dataloaderの問題ではない）</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+  </main>
+  <div id="toast" class="toast" role="status">コードをコピーしました！</div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const toast = document.getElementById('toast');
+      document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const text = btn.getAttribute('data-clipboard');
+          if (!text) return;
+          navigator.clipboard.writeText(text).then(() => {
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+          });
+        });
+      });
+      const searchInput = document.getElementById('quickSearch');
+      searchInput.addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase().trim();
+        document.querySelectorAll('.step-card').forEach(c => {
+          c.style.display = (q === '' || c.textContent.toLowerCase().includes(q)) ? '' : 'none';
+        });
+      });
+      document.querySelectorAll('.nav-link').forEach(a => {
+        a.addEventListener('click', () => {
+          document.querySelectorAll('.nav-link').forEach(x => x.classList.remove('active'));
+          a.classList.add('active');
+        });
+      });
+    });
+  </script>
+</body>
+</html>

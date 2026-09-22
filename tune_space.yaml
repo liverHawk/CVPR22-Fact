@@ -1,0 +1,72 @@
+# Full Optuna search space for FACT: every train.py / params.yaml parameter
+# that meaningfully affects a sweep. tune.py validates that each key exists in
+# train.py's argument parser before the study starts.
+#
+# Types:
+#   float       {type: float, low, high, log?: false}
+#   int         {type: int, low, high, log?: false}
+#   bool        {type: bool}                      -> suggested from [true, false]
+#   categorical {type: categorical, choices: [...]}  (lists are allowed)
+#
+# Notes:
+#   - schedule-dependent keys are always suggested but only take effect when
+#     the matching schedule is drawn: step (Step), milestones (Milestone).
+#   - keys present in BOTH this file and --opts: --opts wins (warning printed).
+#   - identical parameter sets reuse the first trial's result (no re-training,
+#     no checkpoint overwrite).
+
+# --- pre-training (base session) ---
+epochs_base: {type: int, low: 1, high: 200}
+epochs_new: {type: int, low: 1, high: 200}
+lr_base: {type: float, low: 0.001, high: 0.5, log: true}
+lr_new: {type: float, low: 0.001, high: 0.5, log: true}
+schedule: {type: categorical, choices: [Step, Milestone, Cosine]}
+milestones: {type: categorical, choices: [[40, 50], [50, 60], [60, 70], [70, 80], [80, 90]]}
+step: {type: int, low: 5, high: 60}
+decay: {type: float, low: 1.0e-6, high: 1.0e-2, log: true}
+momentum: {type: float, low: 0.8, high: 0.99}
+gamma: {type: float, low: 0.01, high: 0.5, log: true}
+temperature: {type: float, low: 4.0, high: 32.0}
+not_data_init: {type: bool}
+batch_size_base: {type: int, low: 16, high: 256}
+batch_size_new: {type: int, low: 0, high: 128}      # 0 = use all new-session images
+test_batch_size: {type: int, low: 25, high: 200}
+base_mode: {type: categorical, choices: [ft_dot, ft_cos]}
+new_mode: {type: categorical, choices: [ft_dot, ft_cos, avg_cos]}
+
+# --- FACT incremental-session losses ---
+balance: {type: float, low: 1.0e-3, high: 10.0, log: true}
+loss_iter: {type: int, low: 0, high: 300}           # FACT aux loss starts at epoch >= loss_iter (0 = from start; > epochs_base disables)
+alpha: {type: float, low: 0.1, high: 10.0, log: true}  # mixup Beta(alpha, alpha)
+eta: {type: float, low: 0.01, high: 1.0, log: true}
+
+# --- evaluation behaviour ---
+set_no_val: {type: bool}                            # no-op while no_eval=true
+
+# --- CIC flow MLP encoder (ignored by image datasets) ---
+mlp_hidden: {type: int, low: 32, high: 1024}
+mlp_out: {type: int, low: 64, high: 1024}
+
+# --- infra / one-shot params: uncomment any line to sweep it --------------
+# These are valid sweep keys (tune.py accepts them), but mixing them inside
+# one study usually makes the objective incomparable or only affects
+# speed/reproducibility, so they are off by default.
+#
+# seed: {type: int, low: 1, high: 100}               # else tune.py assigns --seed + trial number
+# no_eval: {type: bool}                              # on/off mix -> incomparable objective
+# dataset: {type: categorical, choices: [cifar100, cub200, mini_imagenet, CICIDS2017_flow_improved, CICDDoS2019, CSECICIDS2018_improved]}
+# dataroot: {type: categorical, choices: [data/, /home/toshi/Research/dataset-arrow]}
+# project: {type: categorical, choices: [base, fact]}
+# start_session: {type: int, low: 0, high: 8}        # >0 skips base training
+# model_dir: {type: categorical, choices: [null]}    # or list candidate checkpoint dirs
+# mlp_in_dim: {type: int, low: 10, high: 512}        # null = auto from feature_cols.json
+# gpu: {type: categorical, choices: ["", "0"]}       # "" = CPU
+# num_workers: {type: int, low: 1, high: 4}
+# debug: {type: bool}
+# use_wandb: {type: bool}
+# wandb_cm_freq: {type: int, low: 0, high: 100}
+# wandb_project: {type: categorical, choices: [FACT-FSCIL]}
+# wandb_entity: {type: categorical, choices: [null]}
+
+# Not sweepable (tune.py rejects them): config, opts, metrics_file,
+# save_config_name — these are CLI plumbing owned by tune.py itself.
