@@ -54,14 +54,26 @@ stages:
     metrics:
       - dvc_test_metrics.json:
           cache: false
-  # tune:
-  #   cmd: uv run python tune.py --base-config params.yaml --params-out best_params.yaml --metrics-out tune_metrics.json
-  #   params:
-  #     - params.yaml:
-  #     - tune_space.yaml:
-  #   metrics:
-  #     - tune_metrics.json:
-  #         cache: false
-  #   outs:
-  #     - best_params.yaml:
-  #         cache: false
+  # Optuna sweep. Runs through DVC so make_session's index files are a real
+  # dep (sessions are rebuilt first if missing) and the search space /
+  # params changes trigger a re-run. Fresh in-memory study per repro; for
+  # long resumable searches run tune.py directly with sqlite storage.
+  # After tuning, promote best_params.yaml into params.yaml and `dvc repro`
+  # to re-run train+test on the winner.
+  tune:
+    cmd: >-
+      uv run python tune.py --base-config params.yaml --trials 20
+      --storage "" --params-out best_params.yaml --metrics-out tune_metrics.json
+    deps:
+      - ${index_list_dir}/${dataset}
+    params:
+      # dict form with null = track the whole file; a bare string would be
+      # read as a KEY inside the default params.yaml
+      - params.yaml:
+      - tune_space.yaml:
+    metrics:
+      - tune_metrics.json:
+          cache: false
+    outs:
+      - best_params.yaml:
+          cache: false

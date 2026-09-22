@@ -200,4 +200,6 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    # main() returns the Study object (useful when imported); never hand it to
+    # sys.exit() -- a non-int exit arg makes Python print its repr and exit 1.
+    main()
