@@ -3,3 +3,4 @@ data
 .env
 configs
 !configs/server.example.yaml
+/checkpoint

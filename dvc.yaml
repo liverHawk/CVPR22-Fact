@@ -54,14 +54,14 @@ stages:
     metrics:
       - dvc_test_metrics.json:
           cache: false
-  tune:
-    cmd: uv run python tune.py --base-config params.yaml --params-out best_params.yaml --metrics-out tune_metrics.json
-    params:
-      - params.yaml:
-      - tune_space.yaml:
-    metrics:
-      - tune_metrics.json:
-          cache: false
-    outs:
-      - best_params.yaml:
-          cache: false
+  # tune:
+  #   cmd: uv run python tune.py --base-config params.yaml --params-out best_params.yaml --metrics-out tune_metrics.json
+  #   params:
+  #     - params.yaml:
+  #     - tune_space.yaml:
+  #   metrics:
+  #     - tune_metrics.json:
+  #         cache: false
+  #   outs:
+  #     - best_params.yaml:
+  #         cache: false
