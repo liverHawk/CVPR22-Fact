@@ -10,6 +10,7 @@ from torch import nn
 
 from dataloader.data_utils import (
     get_base_dataloader,
+    get_class_names,
     get_new_dataloader,
     set_up_datasets,
 )
@@ -438,6 +439,7 @@ class FSCILTrainer(Trainer):
                     test_class,
                     step=wandb_step(args, session, epoch),
                     key=f"confusion_matrix_session_{session}",
+                    class_names=get_class_names(args, test_class),
                 )
             except Exception as e:
                 print(f"Warning: Could not log confusion matrix to wandb: {e}")

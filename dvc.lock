@@ -9,10 +9,8 @@ stages:
         dataset: CICIDS2017_flow_improved
         drop_cols: Flow ID,Source IP,Destination IP,Timestamp
         exclude_labels: ''
-        flow_data_dir: 
-          /home/toshi/Research/dataset-arrow/CICIDS2017_flow_improved
-        flow_glob: 
-          /home/toshi/Research/dataset-arrow/CICIDS2017_flow_improved/*.arrow
+        flow_data_dir: /app/dataset-arrow/CICIDS2017_flow_improved
+        flow_glob: /app/dataset-arrow/CICIDS2017_flow_improved/*.arrow
         index_list_dir: data/index_list
         label_aliases:
         label_col: Label
@@ -23,19 +21,59 @@ stages:
         session_way: 1
         test_size: 0.2
     outs:
+    - path: /app/dataset-arrow/CICIDS2017_flow_improved/feature_cols.json
+      hash: md5
+      md5: 309f0b3a4aa044e265d093a60abb3a43
+      size: 1647
+    - path: /app/dataset-arrow/CICIDS2017_flow_improved/label_map.json
+      hash: md5
+      md5: bc040b310750b7a390bc6125552c3524
+      size: 170
+    - path: /app/dataset-arrow/CICIDS2017_flow_improved/scaler.pkl
+      hash: md5
+      md5: 1aa89fc69e2eac536cfe39e8928803b2
+      size: 2297
+    - path: /app/dataset-arrow/CICIDS2017_flow_improved/test.parquet
+      hash: md5
+      md5: e5738c3feaa9afdab90e52cf3ca0c052
+      size: 66485846
+    - path: /app/dataset-arrow/CICIDS2017_flow_improved/train.parquet
+      hash: md5
+      md5: 7bc3788a95427fb691b02d21de3d0df4
+      size: 257942079
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 6d202fbd1825e238c2e389df15d82fab.dir
-      size: 12409804
+      md5: 0ce31c3a1bf0e6183453f3e44ed26814.dir
+      size: 12489480
       nfiles: 13
   train:
     cmd: uv run python train.py --config params.yaml --metrics-file 
       dvc_metrics.json
     deps:
+    - path: /app/dataset-arrow/CICIDS2017_flow_improved/feature_cols.json
+      hash: md5
+      md5: 309f0b3a4aa044e265d093a60abb3a43
+      size: 1647
+    - path: /app/dataset-arrow/CICIDS2017_flow_improved/label_map.json
+      hash: md5
+      md5: bc040b310750b7a390bc6125552c3524
+      size: 170
+    - path: /app/dataset-arrow/CICIDS2017_flow_improved/scaler.pkl
+      hash: md5
+      md5: 1aa89fc69e2eac536cfe39e8928803b2
+      size: 2297
+    - path: /app/dataset-arrow/CICIDS2017_flow_improved/test.parquet
+      hash: md5
+      md5: e5738c3feaa9afdab90e52cf3ca0c052
+      size: 66485846
+    - path: /app/dataset-arrow/CICIDS2017_flow_improved/train.parquet
+      hash: md5
+      md5: 7bc3788a95427fb691b02d21de3d0df4
+      size: 257942079
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 6d202fbd1825e238c2e389df15d82fab.dir
-      size: 12409804
+      md5: 0ce31c3a1bf0e6183453f3e44ed26814.dir
+      size: 12489480
       nfiles: 13
     params:
       params.yaml:
@@ -47,7 +85,7 @@ stages:
         batch_size_base: 128
         batch_size_new: 0
         checkpoint_dir:
-        dataroot: /home/toshi/Research/dataset-arrow
+        dataroot: /app/dataset-arrow
         dataset: CICIDS2017_flow_improved
         debug: false
         decay: 0.0005
@@ -56,10 +94,8 @@ stages:
         epochs_new: 100
         eta: 0.1
         exclude_labels: ''
-        flow_data_dir: 
-          /home/toshi/Research/dataset-arrow/CICIDS2017_flow_improved
-        flow_glob: 
-          /home/toshi/Research/dataset-arrow/CICIDS2017_flow_improved/*.arrow
+        flow_data_dir: /app/dataset-arrow/CICIDS2017_flow_improved
+        flow_glob: /app/dataset-arrow/CICIDS2017_flow_improved/*.arrow
         gamma: 0.1
         gpu: ''
         index_list_dir: data/index_list
@@ -77,7 +113,7 @@ stages:
         model_dir:
         momentum: 0.9
         new_mode: avg_cos
-        no_eval: false
+        no_eval: true
         not_data_init: false
         num_workers: 2
         overwrite_session: true
@@ -101,26 +137,46 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: 99203edfb4fa7c92b57e773b09072c5f.dir
-      size: 25746974
-      nfiles: 30
+      md5: 9a1d67cfa85a33ef5dd94cee125a03ae.dir
+      size: 7329108
+      nfiles: 10
     - path: dvc_metrics.json
       hash: md5
-      md5: 1db1b8fa0a585c122292297dd797e3c9
-      size: 231
+      md5: 8e5293691406ca66ad3681a01b83351d
+      size: 182
   test:
     cmd: uv run python test.py --config params.yaml --test-metrics-file 
       dvc_test_metrics.json
     deps:
+    - path: /app/dataset-arrow/CICIDS2017_flow_improved/feature_cols.json
+      hash: md5
+      md5: 309f0b3a4aa044e265d093a60abb3a43
+      size: 1647
+    - path: /app/dataset-arrow/CICIDS2017_flow_improved/label_map.json
+      hash: md5
+      md5: bc040b310750b7a390bc6125552c3524
+      size: 170
+    - path: /app/dataset-arrow/CICIDS2017_flow_improved/scaler.pkl
+      hash: md5
+      md5: 1aa89fc69e2eac536cfe39e8928803b2
+      size: 2297
+    - path: /app/dataset-arrow/CICIDS2017_flow_improved/test.parquet
+      hash: md5
+      md5: e5738c3feaa9afdab90e52cf3ca0c052
+      size: 66485846
+    - path: /app/dataset-arrow/CICIDS2017_flow_improved/train.parquet
+      hash: md5
+      md5: 7bc3788a95427fb691b02d21de3d0df4
+      size: 257942079
     - path: checkpoint/
       hash: md5
-      md5: 99203edfb4fa7c92b57e773b09072c5f.dir
-      size: 25746974
-      nfiles: 30
+      md5: 9a1d67cfa85a33ef5dd94cee125a03ae.dir
+      size: 7329108
+      nfiles: 10
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 6d202fbd1825e238c2e389df15d82fab.dir
-      size: 12409804
+      md5: 0ce31c3a1bf0e6183453f3e44ed26814.dir
+      size: 12489480
       nfiles: 13
     params:
       params.yaml:
@@ -132,7 +188,7 @@ stages:
         batch_size_base: 128
         batch_size_new: 0
         checkpoint_dir:
-        dataroot: /home/toshi/Research/dataset-arrow
+        dataroot: /app/dataset-arrow
         dataset: CICIDS2017_flow_improved
         debug: false
         decay: 0.0005
@@ -141,10 +197,8 @@ stages:
         epochs_new: 100
         eta: 0.1
         exclude_labels: ''
-        flow_data_dir: 
-          /home/toshi/Research/dataset-arrow/CICIDS2017_flow_improved
-        flow_glob: 
-          /home/toshi/Research/dataset-arrow/CICIDS2017_flow_improved/*.arrow
+        flow_data_dir: /app/dataset-arrow/CICIDS2017_flow_improved
+        flow_glob: /app/dataset-arrow/CICIDS2017_flow_improved/*.arrow
         gamma: 0.1
         gpu: ''
         index_list_dir: data/index_list
@@ -162,7 +216,7 @@ stages:
         model_dir:
         momentum: 0.9
         new_mode: avg_cos
-        no_eval: false
+        no_eval: true
         not_data_init: false
         num_workers: 2
         overwrite_session: true
@@ -186,5 +240,5 @@ stages:
     outs:
     - path: dvc_test_metrics.json
       hash: md5
-      md5: a0f3461240efb9aa5d3925a0eb4bee89
-      size: 838
+      md5: 10d8007c0f430048f14884d7896208c9
+      size: 597

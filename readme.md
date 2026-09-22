@@ -36,6 +36,43 @@ We provide the source code on three benchmark datasets, i.e., CIFAR100, CUB200 a
 
 The split of ImageNet100/1000 is availabel at [Google Drive](https://drive.google.com/drive/folders/1IBjVEmwmLBdABTaD6cDbrdHMXfHHtFvU?usp=sharing).
 
+## CIC Flow Datasets (Network Intrusion Detection)
+
+Besides the image benchmarks above, this repo also supports CIC-family
+network-flow datasets (CICFlowMeter-format flows), e.g. `CICIDS2017_flow_improved`,
+`CICDDoS2019`, `CSECICIDS2018_improved` (see `CIC_FLOW_DATASETS` in
+`dataloader/data_utils.py`). They share one generic loader
+(`dataloader/cicflow/`); the `dataset` name just selects the data directory.
+
+Pipeline (three stages):
+
+1. `scripts/make_session.py` — reads raw flow files (`.csv` / `.arrow` /
+   `.feather` / `.ipc`), cleans them, and writes `flows.parquet`,
+   `train.parquet`, `test.parquet`, `feature_cols.json`, `label_map.json`,
+   `scaler.pkl`, plus `session_*.txt` / `manifest.json` under `data/index_list/<dataset>/`.
+2. `train.py` — trains on the generated sessions (same as the image datasets).
+3. `test.py` — evaluates the checkpoints from stage 2 and writes a metrics JSON.
+
+```
+uv run python scripts/make_session.py --config params.yaml
+uv run python train.py --config params.yaml
+uv run python test.py --config params.yaml
+```
+
+### Merging/unifying labels per dataset
+
+Which raw labels should be merged (e.g. spelling variants, or several
+subtypes folded into one class) differs per dataset, so the mapping lives in
+one JSON file per dataset rather than a single shared list:
+
+- `configs/label_aliases/<dataset>.json` — `{"raw_label": "unified_label"}`.
+  `scripts/make_session.py` picks this file up automatically from the
+  `--dataset` / `dataset` value; a dataset with no such file gets no merging
+  (empty mapping). Stub files already exist for `CICIDS2017_flow_improved`,
+  `CICDDoS2019`, and `CSECICIDS2018_improved` — fill them in as needed.
+- `--label-aliases <path>` (or `label_aliases:` in a YAML config) overrides
+  the auto-discovered file with an arbitrary path.
+
 ## Code Structures
 There are four parts in the code.
  - `models`: It contains the backbone network and training protocols for the experiment.

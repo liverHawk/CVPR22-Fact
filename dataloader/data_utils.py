@@ -142,6 +142,41 @@ def _read_flow_spec(args):
     return 6, 12, 2, 5, 4
 
 
+def _load_label_map(args):
+    """The label -> id mapping make_session.py wrote for this dataset, or None."""
+    import json
+    import os
+
+    manifest = os.path.join("data", "index_list", args.dataset, "manifest.json")
+    if os.path.exists(manifest):
+        with open(manifest) as f:
+            label_map = json.load(f).get("label_map")
+        if label_map:
+            return label_map
+    label_map_path = os.path.join(
+        os.path.expanduser(args.dataroot), args.dataset, "label_map.json"
+    )
+    if os.path.exists(label_map_path):
+        with open(label_map_path) as f:
+            return json.load(f)
+    return None
+
+
+def get_class_names(args, n_classes):
+    """Human-readable label names for confusion-matrix axes, index-aligned to class id.
+
+    CIC flow datasets have this from make_session.py's label_map (the
+    post-alias-merge label -> 0..C-1 mapping); other datasets have no name
+    source here, so the class id itself is used as the name.
+    """
+    if args.dataset in CIC_FLOW_DATASETS:
+        label_map = _load_label_map(args)
+        if label_map:
+            id_to_name = {v: k for k, v in label_map.items()}
+            return [id_to_name.get(i, str(i)) for i in range(n_classes)]
+    return [str(i) for i in range(n_classes)]
+
+
 def get_dataloader(args, session):
     if session == 0:
         trainset, trainloader, testloader = get_base_dataloader(args)

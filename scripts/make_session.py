@@ -17,6 +17,9 @@ Conventions (must match dataloader/cicflow/):
   - session_1.txt: ALL base-train row IDs (full base training).
   - session_t.txt (t>1): way*shot row IDs, evenly sampled per new class.
   - scaler is fit on base-train only; never refit (leakage prevention).
+  - label merging is dataset-specific: configs/label_aliases/<dataset>.json
+    (one file per dataset) holds {raw_label: unified_label}; --label-aliases
+    overrides it with an arbitrary path.
 
 Usage:
   uv run python scripts/make_session.py --config params.yaml
@@ -35,6 +38,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 DEFAULT_DROP_COLS = ["Flow ID", "Source IP", "Destination IP", "Timestamp"]
+DEFAULT_LABEL_ALIASES_DIR = "configs/label_aliases"
 
 
 def sha256_file(path):
@@ -48,6 +52,21 @@ def sha256_file(path):
 def write_txt(path, lines):
     with open(path, "w") as f:
         f.writelines(f"{line}\n" for line in lines)
+
+
+def load_label_aliases(path, dataset):
+    """Resolve the raw_label -> unified_label JSON mapping for `dataset`.
+
+    An explicit `path` always wins. Otherwise, look up
+    configs/label_aliases/<dataset>.json (one file per dataset, since which
+    labels get merged is dataset-specific); missing file means no merging.
+    """
+    if path is None:
+        path = os.path.join(DEFAULT_LABEL_ALIASES_DIR, f"{dataset}.json")
+        if not os.path.exists(path):
+            return {}
+    with open(path) as f:
+        return json.load(f)
 
 
 def parse_list_opt(v):
@@ -74,7 +93,8 @@ def get_parser():
     p.add_argument('--label-col', type=str, default='Label')
     p.add_argument('--drop-cols', type=str, default=','.join(DEFAULT_DROP_COLS))
     p.add_argument('--label-aliases', type=str, default=None,
-                   help='optional JSON {raw_label: unified_label} for spelling variants')
+                   help='optional JSON {raw_label: unified_label} for spelling variants; '
+                        'defaults to configs/label_aliases/<dataset>.json if present')
     p.add_argument('--base-classes', type=str, default=None,
                    help='comma-separated base labels in id order; default: BENIGN + most frequent')
     p.add_argument('--base-class-num', type=int, default=6)
@@ -177,7 +197,7 @@ def main(argv=None):
     seed = ns.session_seed if ns.session_seed is not None else ns.seed
     drop_cols = parse_list_opt(ns.drop_cols)
     exclude = set(parse_list_opt(ns.exclude_labels))
-    aliases = json.load(open(ns.label_aliases)) if ns.label_aliases else {}
+    aliases = load_label_aliases(ns.label_aliases, ns.dataset)
     out_dir = ns.out_dir or os.path.join(ns.index_list_dir, ns.dataset)
     if not ns.flow_glob:
         ns.flow_glob = [os.path.join("data", ns.dataset, "csv", "*.csv")]

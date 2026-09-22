@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
+from dataloader.data_utils import get_class_names
 from utils import (
     Averager,
     confmatrix,
@@ -209,7 +210,9 @@ def test(model, testloader, epoch, args, session, validation=True, log_wandb_cm=
             save_model_dir = os.path.join(
                 args.save_path, "session" + str(session) + "confusion_matrix"
             )
-            cm = confmatrix(lgt, lbs, save_model_dir)
+            cm = confmatrix(
+                lgt, lbs, save_model_dir, class_names=get_class_names(args, test_class)
+            )
             perclassacc = cm.diagonal()
             seenac = np.mean(perclassacc[: args.base_class])
             unseenac = np.mean(perclassacc[args.base_class :])
@@ -230,6 +233,7 @@ def test(model, testloader, epoch, args, session, validation=True, log_wandb_cm=
                 test_class,
                 step=wandb_step(args, session, epoch),
                 key=f"confusion_matrix_session_{session}",
+                class_names=get_class_names(args, test_class),
             )
         except Exception as e:
             print(f"Warning: Could not log confusion matrix to wandb: {e}")
@@ -269,7 +273,9 @@ def test_withfc(
             save_model_dir = os.path.join(
                 args.save_path, "session" + str(session) + "confusion_matrix"
             )
-            cm = confmatrix(lgt, lbs, save_model_dir)
+            cm = confmatrix(
+                lgt, lbs, save_model_dir, class_names=get_class_names(args, test_class)
+            )
             perclassacc = cm.diagonal()
             seenac = np.mean(perclassacc[: args.base_class])
             unseenac = np.mean(perclassacc[args.base_class :])
@@ -290,6 +296,7 @@ def test_withfc(
                 test_class,
                 step=wandb_step(args, session, epoch),
                 key=f"confusion_matrix_session_{session}",
+                class_names=get_class_names(args, test_class),
             )
         except Exception as e:
             print(f"Warning: Could not log confusion matrix to wandb: {e}")

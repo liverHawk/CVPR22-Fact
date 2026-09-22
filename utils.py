@@ -109,7 +109,24 @@ def count_acc_taskIL(logits, label, args):
         return (pred == label).type(torch.FloatTensor).mean().item()
 
 
-def confmatrix(logits, label, filename):
+def _cm_tick_args(clss, class_names):
+    """(positions, labels, fontsize, rotation) for confusion-matrix axis ticks.
+
+    With class_names given (few, human-readable classes, e.g. CIC flow
+    labels), label every class instead of the sparse numeric buckets used
+    for large anonymous class counts (CIFAR100/CUB200/...).
+    """
+    if class_names is not None and len(class_names) >= clss and clss <= 30:
+        return list(range(clss)), list(class_names[:clss]), 10, 90
+    if clss <= 100:
+        return [0, 19, 39, 59, 79, 99], [0, 20, 40, 60, 80, 100], 16, 0
+    elif clss <= 200:
+        return [0, 39, 79, 119, 159, 199], [0, 40, 80, 120, 160, 200], 16, 0
+    else:
+        return [0, 199, 399, 599, 799, 999], [0, 200, 400, 600, 800, 1000], 16, 0
+
+
+def confmatrix(logits, label, filename, class_names=None):
 
     font = {"family": "FreeSerif", "size": 18}
     matplotlib.rc("font", **font)
@@ -120,22 +137,12 @@ def confmatrix(logits, label, filename):
     cm = confusion_matrix(label, pred, normalize="true")
     # print(cm)
     clss = len(cm)
+    pos, labels, fontsize, rotation = _cm_tick_args(clss, class_names)
     fig = plt.figure()
     ax = fig.add_subplot(111)
     cax = ax.imshow(cm, cmap=plt.cm.jet)
-    if clss <= 100:
-        plt.yticks([0, 19, 39, 59, 79, 99], [0, 20, 40, 60, 80, 100], fontsize=16)
-        plt.xticks([0, 19, 39, 59, 79, 99], [0, 20, 40, 60, 80, 100], fontsize=16)
-    elif clss <= 200:
-        plt.yticks([0, 39, 79, 119, 159, 199], [0, 40, 80, 120, 160, 200], fontsize=16)
-        plt.xticks([0, 39, 79, 119, 159, 199], [0, 40, 80, 120, 160, 200], fontsize=16)
-    else:
-        plt.yticks(
-            [0, 199, 399, 599, 799, 999], [0, 200, 400, 600, 800, 1000], fontsize=16
-        )
-        plt.xticks(
-            [0, 199, 399, 599, 799, 999], [0, 200, 400, 600, 800, 1000], fontsize=16
-        )
+    plt.yticks(pos, labels, fontsize=fontsize)
+    plt.xticks(pos, labels, fontsize=fontsize, rotation=rotation)
 
     plt.xlabel("Predicted Label", fontsize=20)
     plt.ylabel("True Label", fontsize=20)
@@ -148,19 +155,8 @@ def confmatrix(logits, label, filename):
     cax = ax.imshow(cm, cmap=plt.cm.jet)
     cbar = plt.colorbar(cax)  # This line includes the color bar
     cbar.ax.tick_params(labelsize=16)
-    if clss <= 100:
-        plt.yticks([0, 19, 39, 59, 79, 99], [0, 20, 40, 60, 80, 100], fontsize=16)
-        plt.xticks([0, 19, 39, 59, 79, 99], [0, 20, 40, 60, 80, 100], fontsize=16)
-    elif clss <= 200:
-        plt.yticks([0, 39, 79, 119, 159, 199], [0, 40, 80, 120, 160, 200], fontsize=16)
-        plt.xticks([0, 39, 79, 119, 159, 199], [0, 40, 80, 120, 160, 200], fontsize=16)
-    else:
-        plt.yticks(
-            [0, 199, 399, 599, 799, 999], [0, 200, 400, 600, 800, 1000], fontsize=16
-        )
-        plt.xticks(
-            [0, 199, 399, 599, 799, 999], [0, 200, 400, 600, 800, 1000], fontsize=16
-        )
+    plt.yticks(pos, labels, fontsize=fontsize)
+    plt.xticks(pos, labels, fontsize=fontsize, rotation=rotation)
     plt.xlabel("Predicted Label", fontsize=20)
     plt.ylabel("True Label", fontsize=20)
     plt.tight_layout()
@@ -170,7 +166,9 @@ def confmatrix(logits, label, filename):
     return cm
 
 
-def log_wandb_cm_image(y_true, y_pred, n_class, step=None, key="confusion_matrix"):
+def log_wandb_cm_image(
+    y_true, y_pred, n_class, step=None, key="confusion_matrix", class_names=None
+):
     """Lightweight confusion-matrix logging: aggregated KxK image, no per-sample table.
 
     Replaces wandb.plot.confusion_matrix (which uploads one table row per
@@ -204,13 +202,22 @@ def log_wandb_cm_image(y_true, y_pred, n_class, step=None, key="confusion_matrix
     ax.set_ylabel("True")
     ax.set_title(f"Confusion matrix (K={n_class})")
     # Sparse ticks only: full tick labels for K=200 are unreadable and heavy
+    named = class_names is not None and len(class_names) >= n_class
     if n_class <= 20:
         ax.set_xticks(range(n_class))
         ax.set_yticks(range(n_class))
+        if named:
+            names = class_names[:n_class]
+            ax.set_xticklabels(names, rotation=90, fontsize=6)
+            ax.set_yticklabels(names, fontsize=6)
     else:
         ticks = np.linspace(0, n_class - 1, 6).astype(int)
         ax.set_xticks(ticks)
         ax.set_yticks(ticks)
+        if named:
+            tick_names = [class_names[i] for i in ticks]
+            ax.set_xticklabels(tick_names, rotation=45, ha="right", fontsize=8)
+            ax.set_yticklabels(tick_names, fontsize=8)
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     fig.tight_layout()
     if step is None:
