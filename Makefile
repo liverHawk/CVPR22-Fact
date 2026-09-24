@@ -42,6 +42,14 @@ TUNE_STORAGE=sqlite:///optuna.db
 GPU0=0
 GPU1=1
 
+# Create the sqlite file + study schema up front, sequentially. If the two
+# workers below both hit a not-yet-existing storage file at once, they race
+# on Optuna/Alembic's one-time schema init and one crashes with
+# "UNIQUE constraint failed: alembic_version.version_num" -- this avoids
+# that by making sure the schema already exists before either worker starts.
+tune-init:
+	uv run python -c "import optuna; optuna.create_study(study_name='$(TUNE_STUDY)', storage='$(TUNE_STORAGE)', direction='maximize', load_if_exists=True)"
+
 tune-gpu0:
 	CUDA_VISIBLE_DEVICES=$(GPU0) uv run python tune.py \
 		--base-config params.yaml --trials $(TUNE_TRIALS) \
@@ -54,7 +62,12 @@ tune-gpu1:
 		--storage "$(TUNE_STORAGE)" --study-name $(TUNE_STUDY) \
 		--params-out best_params.yaml --metrics-out tune_metrics.json
 
-tune-2gpu:
+tune-2gpu: tune-init
 	$(MAKE) tune-gpu0 & \
 	$(MAKE) tune-gpu1 & \
 	wait
+
+# Drop the sqlite study (e.g. after a corrupted/partial optuna.db from a
+# tune-init race, or to start a fresh search under the same study name).
+tune-clear:
+	rm -f optuna.db optuna.db-journal optuna.db-wal optuna.db-shm
