@@ -35,18 +35,21 @@ pipeline:
 # Requires params.yaml's `gpu` to be a quoted string (e.g. "0"): each worker
 # then always addresses its GPU as logical device 0, and
 # CUDA_VISIBLE_DEVICES picks which physical GPU that actually is.
+# Override physical GPU IDs with e.g. `make GPU0=2 GPU1=3 tune-2gpu`.
 TUNE_TRIALS=10
 TUNE_STUDY=fact
 TUNE_STORAGE=sqlite:///optuna.db
+GPU0=0
+GPU1=1
 
 tune-gpu0:
-	CUDA_VISIBLE_DEVICES=0 uv run python tune.py \
+	CUDA_VISIBLE_DEVICES=$(GPU0) uv run python tune.py \
 		--base-config params.yaml --trials $(TUNE_TRIALS) \
 		--storage "$(TUNE_STORAGE)" --study-name $(TUNE_STUDY) \
 		--params-out best_params.yaml --metrics-out tune_metrics.json
 
 tune-gpu1:
-	CUDA_VISIBLE_DEVICES=1 uv run python tune.py \
+	CUDA_VISIBLE_DEVICES=$(GPU1) uv run python tune.py \
 		--base-config params.yaml --trials $(TUNE_TRIALS) \
 		--storage "$(TUNE_STORAGE)" --study-name $(TUNE_STUDY) \
 		--params-out best_params.yaml --metrics-out tune_metrics.json
