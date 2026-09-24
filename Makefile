@@ -62,10 +62,17 @@ tune-gpu1:
 		--storage "$(TUNE_STORAGE)" --study-name $(TUNE_STUDY) \
 		--params-out best_params.yaml --metrics-out tune_metrics.json
 
+TUNE_LOG0=tune-gpu0.log
+TUNE_LOG1=tune-gpu1.log
+
+# Both workers print to the same terminal at once otherwise, interleaving
+# tqdm bars / prints into unreadable output -- redirect each to its own log
+# and tail them yourself with e.g. `tail -f tune-gpu0.log`.
 tune-2gpu: tune-init
-	$(MAKE) tune-gpu0 & \
-	$(MAKE) tune-gpu1 & \
+	$(MAKE) tune-gpu0 > $(TUNE_LOG0) 2>&1 & \
+	$(MAKE) tune-gpu1 > $(TUNE_LOG1) 2>&1 & \
 	wait
+	@echo "done -- logs: $(TUNE_LOG0), $(TUNE_LOG1)"
 
 # Drop the sqlite study (e.g. after a corrupted/partial optuna.db from a
 # tune-init race, or to start a fresh search under the same study name).
