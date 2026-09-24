@@ -31,10 +31,22 @@ def set_seed(seed):
 
 
 def set_gpu(args):
-    gpu_list = [int(x) for x in args.gpu.split(",")]
+    # args.gpu is normally a str ("0", "0,1"), but tune.py's --opts KEY=VALUE
+    # parsing (parse_opt_value) turns a bare/comma value into an int or list
+    # before it ever reaches here -- normalize back to a comma string so
+    # os.environ["CUDA_VISIBLE_DEVICES"] always gets a string, not a crash.
+    gpu = args.gpu
+    if isinstance(gpu, (list, tuple)):
+        gpu = ",".join(str(x) for x in gpu)
+    else:
+        gpu = str(gpu)
+    gpu_list = [int(x) for x in gpu.split(",")]
     print("use gpu:", gpu_list)
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+    # Overwrites (not merges with) any CUDA_VISIBLE_DEVICES the shell already
+    # set -- args.gpu is the single source of truth for which physical
+    # GPU(s) this process uses.
+    os.environ["CUDA_VISIBLE_DEVICES"] = gpu
     return gpu_list.__len__()
 
 

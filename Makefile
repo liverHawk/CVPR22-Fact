@@ -29,12 +29,16 @@ pipeline:
 # Optuna: run 2 worker processes in parallel, one per physical GPU, both
 # writing into the same sqlite-backed study. This bypasses `dvc repro tune`
 # (its --storage "" is an in-memory, single-process study, see dvc.yaml) --
-# GPU parallelism only works as separate OS processes, each with its own
-# CUDA_VISIBLE_DEVICES, never via tune.py's --jobs (that's thread-based and
-# shares the process-global CUDA_VISIBLE_DEVICES, which breaks GPU pinning).
-# Requires params.yaml's `gpu` to be a quoted string (e.g. "0"): each worker
-# then always addresses its GPU as logical device 0, and
-# CUDA_VISIBLE_DEVICES picks which physical GPU that actually is.
+# GPU parallelism only works as separate OS processes, never via tune.py's
+# --jobs (that's thread-based, so parallel trials would share one process's
+# CUDA_VISIBLE_DEVICES/context and step on each other).
+# GPU id is passed as --opts gpu=N, NOT a CUDA_VISIBLE_DEVICES env var:
+# utils.py's set_gpu() unconditionally does
+# os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu, which would silently
+# overwrite (not merge with) whatever the shell set -- both workers would
+# collapse onto whatever params.yaml's `gpu` says (this actually happened:
+# both workers ended up on GPU 0). Passing --opts gpu=N makes args.gpu the
+# per-worker value that set_gpu() actually applies.
 # Override physical GPU IDs with e.g. `make GPU0=2 GPU1=3 tune-2gpu`.
 TUNE_TRIALS=10
 TUNE_STUDY=fact
@@ -51,16 +55,18 @@ tune-init:
 	uv run python -c "import optuna; optuna.create_study(study_name='$(TUNE_STUDY)', storage='$(TUNE_STORAGE)', direction='maximize', load_if_exists=True)"
 
 tune-gpu0:
-	CUDA_VISIBLE_DEVICES=$(GPU0) uv run python tune.py \
+	uv run python tune.py \
 		--base-config params.yaml --trials $(TUNE_TRIALS) \
 		--storage "$(TUNE_STORAGE)" --study-name $(TUNE_STUDY) \
-		--params-out best_params.yaml --metrics-out tune_metrics.json
+		--params-out best_params.yaml --metrics-out tune_metrics.json \
+		--opts gpu=$(GPU0)
 
 tune-gpu1:
-	CUDA_VISIBLE_DEVICES=$(GPU1) uv run python tune.py \
+	uv run python tune.py \
 		--base-config params.yaml --trials $(TUNE_TRIALS) \
 		--storage "$(TUNE_STORAGE)" --study-name $(TUNE_STUDY) \
-		--params-out best_params.yaml --metrics-out tune_metrics.json
+		--params-out best_params.yaml --metrics-out tune_metrics.json \
+		--opts gpu=$(GPU1)
 
 TUNE_LOG0=tune-gpu0.log
 TUNE_LOG1=tune-gpu1.log
