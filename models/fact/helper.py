@@ -12,6 +12,8 @@ from utils import (
     confmatrix,
     count_acc,
     log_wandb_cm_image,
+    log_wandb_session_f1,
+    macro_f1,
     should_log_wandb_cm,
     wandb_step,
 )
@@ -218,25 +220,30 @@ def test(model, testloader, epoch, args, session, validation=True, log_wandb_cm=
             unseenac = np.mean(perclassacc[args.base_class :])
             print("Seen Acc:", seenac, "Unseen ACC:", unseenac)
 
-    # Log confusion matrix to wandb if enabled (lightweight aggregated image).
-    # Only for the session's final evaluation, never mid-training epoch checks.
-    if (
-        log_wandb_cm
-        and hasattr(args, "use_wandb")
-        and args.use_wandb
-        and should_log_wandb_cm(args, session, epoch)
-    ):
+    # Log session-level metrics to wandb if enabled. Only for the session's
+    # final evaluation, never mid-training epoch checks.
+    if log_wandb_cm and hasattr(args, "use_wandb") and args.use_wandb:
+        preds = torch.argmax(lgt, dim=1).numpy().astype(int)
         try:
-            log_wandb_cm_image(
-                lbs.numpy().astype(int),
-                torch.argmax(lgt, dim=1).numpy().astype(int),
-                test_class,
+            log_wandb_session_f1(
+                macro_f1(lbs.numpy().astype(int), preds, test_class),
                 step=wandb_step(args, session, epoch),
-                key=f"confusion_matrix_session_{session}",
-                class_names=get_class_names(args, test_class),
             )
         except Exception as e:
-            print(f"Warning: Could not log confusion matrix to wandb: {e}")
+            print(f"Warning: Could not log F1 to wandb: {e}")
+
+        if should_log_wandb_cm(args, session, epoch):
+            try:
+                log_wandb_cm_image(
+                    lbs.numpy().astype(int),
+                    preds,
+                    test_class,
+                    step=wandb_step(args, session, epoch),
+                    key=f"confusion_matrix_session_{session}",
+                    class_names=get_class_names(args, test_class),
+                )
+            except Exception as e:
+                print(f"Warning: Could not log confusion matrix to wandb: {e}")
 
     return vl, va
 
@@ -281,24 +288,29 @@ def test_withfc(
             unseenac = np.mean(perclassacc[args.base_class :])
             print("Seen Acc:", seenac, "Unseen ACC:", unseenac)
 
-    # Log confusion matrix to wandb if enabled (lightweight aggregated image).
-    # Only for the session's final evaluation, never mid-training epoch checks.
-    if (
-        log_wandb_cm
-        and hasattr(args, "use_wandb")
-        and args.use_wandb
-        and should_log_wandb_cm(args, session, epoch)
-    ):
+    # Log session-level metrics to wandb if enabled. Only for the session's
+    # final evaluation, never mid-training epoch checks.
+    if log_wandb_cm and hasattr(args, "use_wandb") and args.use_wandb:
+        preds = torch.argmax(lgt, dim=1).numpy().astype(int)
         try:
-            log_wandb_cm_image(
-                lbs.numpy().astype(int),
-                torch.argmax(lgt, dim=1).numpy().astype(int),
-                test_class,
+            log_wandb_session_f1(
+                macro_f1(lbs.numpy().astype(int), preds, test_class),
                 step=wandb_step(args, session, epoch),
-                key=f"confusion_matrix_session_{session}",
-                class_names=get_class_names(args, test_class),
             )
         except Exception as e:
-            print(f"Warning: Could not log confusion matrix to wandb: {e}")
+            print(f"Warning: Could not log F1 to wandb: {e}")
+
+        if should_log_wandb_cm(args, session, epoch):
+            try:
+                log_wandb_cm_image(
+                    lbs.numpy().astype(int),
+                    preds,
+                    test_class,
+                    step=wandb_step(args, session, epoch),
+                    key=f"confusion_matrix_session_{session}",
+                    class_names=get_class_names(args, test_class),
+                )
+            except Exception as e:
+                print(f"Warning: Could not log confusion matrix to wandb: {e}")
 
     return vl, va

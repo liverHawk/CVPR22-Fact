@@ -7,7 +7,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, f1_score
 
 _utils_pp = pprint.PrettyPrinter()
 
@@ -225,6 +225,27 @@ def log_wandb_cm_image(
     else:
         wandb.log({key: wandb.Image(fig)}, step=step)
     plt.close(fig)
+
+
+def macro_f1(y_true, y_pred, n_class):
+    """Macro-averaged F1: sum(per-class F1) / n_class (0 for unseen classes)."""
+    y_true = np.asarray(y_true, dtype=int).ravel()
+    y_pred = np.asarray(y_pred, dtype=int).ravel()
+    return float(
+        f1_score(
+            y_true, y_pred, labels=list(range(n_class)), average="macro", zero_division=0
+        )
+    )
+
+
+def log_wandb_session_f1(f1, step=None, key="session_test_f1"):
+    """Log the per-session macro-F1 scalar to wandb."""
+    import wandb
+
+    if step is None:
+        wandb.log({key: f1})
+    else:
+        wandb.log({key: f1}, step=step)
 
 
 def should_log_wandb_cm(args, session, epoch):

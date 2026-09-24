@@ -20,6 +20,11 @@ Conventions (must match dataloader/cicflow/):
   - label merging is dataset-specific: configs/label_aliases/<dataset>.json
     (one file per dataset) holds {raw_label: unified_label}; --label-aliases
     overrides it with an arbitrary path.
+  - base/incremental split is a reproducible random shuffle (seeded by
+    --seed/--session-seed). Without --base-classes, BENIGN is guaranteed
+    to be a base class but has no fixed position among them. With
+    --base-classes (e.g. pinned in params.yaml), that base set/order is
+    kept and only the incremental labels are shuffled.
 
 Usage:
   uv run python scripts/make_session.py --config params.yaml
@@ -52,6 +57,41 @@ def sha256_file(path):
 def write_txt(path, lines):
     with open(path, "w") as f:
         f.writelines(f"{line}\n" for line in lines)
+
+
+def choose_label_order(labels, base_class_num, seed, benign_label="BENIGN", base_labels=None):
+    """Reproducible random base/incremental split.
+
+    With `base_labels` given (an explicit --base-classes/params.yaml pin),
+    that fixed set/order is kept as-is and only the remaining
+    (incremental/novel) labels get a seeded random shuffle -- so a pinned
+    base_classes list no longer forces the old frequency-sorted incremental
+    order.
+
+    Without `base_labels`, `labels` itself is shuffled with a seeded RNG
+    (same seed -> same split every run) and split into the first
+    `base_class_num` (pretraining classes) and the rest (incremental/novel
+    classes). `benign_label`, if present, is guaranteed to land among the
+    base classes -- swapped into a random base slot if the shuffle put it
+    later -- but has no fixed position within them (the base classes are
+    otherwise unordered).
+    """
+    import numpy as np
+
+    rng = np.random.RandomState(seed)
+    if base_labels is not None:
+        remaining = [l for l in labels if l not in set(base_labels)]
+        rng.shuffle(remaining)
+        return list(base_labels), remaining
+
+    order = list(labels)
+    rng.shuffle(order)
+    if benign_label in order:
+        idx = order.index(benign_label)
+        if idx >= base_class_num:
+            swap_idx = rng.randint(0, base_class_num)
+            order[idx], order[swap_idx] = order[swap_idx], order[idx]
+    return order[:base_class_num], order[base_class_num:]
 
 
 def load_label_aliases(path, dataset):
@@ -96,7 +136,9 @@ def get_parser():
                    help='optional JSON {raw_label: unified_label} for spelling variants; '
                         'defaults to configs/label_aliases/<dataset>.json if present')
     p.add_argument('--base-classes', type=str, default=None,
-                   help='comma-separated base labels in id order; default: BENIGN + most frequent')
+                   help='comma-separated base labels in id order; default: reproducible '
+                        'random pick (seeded by --seed/--session-seed), BENIGN guaranteed '
+                        'included but unordered among the base classes')
     p.add_argument('--base-class-num', type=int, default=6)
     p.add_argument('--session-way', type=int, default=2)
     p.add_argument('--session-shot', type=int, default=5)
@@ -221,20 +263,24 @@ def main(argv=None):
         df = df[~df[ns.label_col].isin(set(tiny.index))].reset_index(drop=True)
         counts = df[ns.label_col].value_counts()
 
-    base_labels = parse_list_opt(ns.base_classes)
-    if base_labels:
-        unknown = [l for l in base_labels if l not in set(counts.index)]
+    # reproducible split (same --seed/--session-seed -> same split): with an
+    # explicit --base-classes pin, that set/order is kept and only the
+    # incremental labels get shuffled; without it, the base classes
+    # themselves are picked by the same seeded shuffle (BENIGN guaranteed
+    # included, unordered among them). Either way, "random" stays available
+    # even when base_classes is set in params.yaml.
+    pinned_base = parse_list_opt(ns.base_classes)
+    if pinned_base:
+        unknown = [l for l in pinned_base if l not in set(counts.index)]
         if unknown:
             raise ValueError(f"--base-classes not in data: {unknown}")
+        base_labels, new_labels = choose_label_order(
+            list(counts.index), ns.base_class_num, seed, base_labels=pinned_base
+        )
     else:
-        ordered = list(counts.index)
-        if "BENIGN" in ordered:
-            ordered.remove("BENIGN")
-            ordered = ["BENIGN"] + ordered
-        base_labels = ordered[: ns.base_class_num]
-    new_labels = [l for l in counts.index if l not in set(base_labels)]
-    # frequent-first keeps few-shot pools as large as possible
-    new_labels = sorted(new_labels, key=lambda l: -counts[l])
+        base_labels, new_labels = choose_label_order(
+            list(counts.index), ns.base_class_num, seed
+        )
     way, shot = ns.session_way, ns.session_shot
     if len(new_labels) % way:
         raise ValueError(

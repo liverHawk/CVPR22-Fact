@@ -36,7 +36,7 @@ num_workers: 2
 seed: 1
 debug: false
 use_wandb: false
-wandb_project: FACT-FSCIL
+wandb_project: FACT-FSCIL_bug
 wandb_entity: null
 wandb_cm_freq: 20
 # --- pipeline: make session file -> train -> test ---

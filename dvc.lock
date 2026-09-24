@@ -133,12 +133,12 @@ stages:
         use_wandb: false
         wandb_cm_freq: 20
         wandb_entity:
-        wandb_project: FACT-FSCIL
+        wandb_project: FACT-FSCIL_bug
     outs:
     - path: checkpoint/
       hash: md5
-      md5: 9a1d67cfa85a33ef5dd94cee125a03ae.dir
-      size: 7329108
+      md5: 58f76080a1cef0abdeb6781a99915ecb.dir
+      size: 7329116
       nfiles: 10
     - path: dvc_metrics.json
       hash: md5

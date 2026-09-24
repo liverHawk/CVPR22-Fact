@@ -20,6 +20,8 @@ from utils import (
     count_acc_topk,
     ensure_path,
     log_wandb_cm_image,
+    log_wandb_session_f1,
+    macro_f1,
     save_list_to_txt,
     wandb_step,
 )
@@ -429,13 +431,22 @@ class FSCILTrainer(Trainer):
             lbs = torch.cat(lbs_list, dim=0)
             print(f"epo {epoch}, test, loss={vl:.4f} acc={va:.4f}, acc@5={va5:.4f}")
 
-        # Log confusion matrix to wandb if enabled (lightweight aggregated image;
-        # test_intergrate runs ~once per incremental session, so always log here)
+        # Log session-level metrics to wandb if enabled (test_intergrate runs
+        # ~once per incremental session, so always log here)
         if hasattr(args, "use_wandb") and args.use_wandb:
+            preds = torch.argmax(lgt, dim=1).numpy().astype(int)
+            try:
+                log_wandb_session_f1(
+                    macro_f1(lbs.numpy().astype(int), preds, test_class),
+                    step=wandb_step(args, session, epoch),
+                )
+            except Exception as e:
+                print(f"Warning: Could not log F1 to wandb: {e}")
+
             try:
                 log_wandb_cm_image(
                     lbs.numpy().astype(int),
-                    torch.argmax(lgt, dim=1).numpy().astype(int),
+                    preds,
                     test_class,
                     step=wandb_step(args, session, epoch),
                     key=f"confusion_matrix_session_{session}",
