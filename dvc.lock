@@ -77,7 +77,8 @@ stages:
         model_dir:
         momentum: 0.9
         new_mode: avg_cos
-        no_eval: false
+        no_eval: true
+        normalize: standard
         not_data_init: false
         num_workers: 2
         overwrite_session: true
@@ -101,13 +102,13 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: 99203edfb4fa7c92b57e773b09072c5f.dir
-      size: 25746974
-      nfiles: 30
+      md5: 0b3a77a9ec490945cd31bfda26f9ce4d.dir
+      size: 1498418979
+      nfiles: 626
     - path: dvc_metrics.json
       hash: md5
-      md5: 1db1b8fa0a585c122292297dd797e3c9
-      size: 231
+      md5: d7668a08c24806114a2f8a152aac9fc0
+      size: 225
   test:
     cmd: uv run python test.py --config params.yaml --test-metrics-file 
       dvc_test_metrics.json
