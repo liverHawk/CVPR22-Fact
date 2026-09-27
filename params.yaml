@@ -50,7 +50,7 @@ test_metrics_file: null
 mlp_in_dim: null
 mlp_hidden: 256
 mlp_out: 512
-normalize: standard  # none | standard | minmax | robust (fit on base-train only)
+normalize: none  # none | standard | minmax | robust (fit on base-train only)
 embed_cols: []  # e.g. ['Destination Port', 'Protocol'] -> nn.Embedding, not scaled
 embed_dim: 8
 embed_max_vocab: 1024  # top base-train values per column; unseen -> OOV id 0

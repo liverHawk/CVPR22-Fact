@@ -52,6 +52,9 @@ stages:
         debug: false
         decay: 0.0005
         drop_cols: Flow ID,Source IP,Destination IP,Timestamp
+        embed_cols: []
+        embed_dim: 8
+        embed_max_vocab: 1024
         epochs_base: 100
         epochs_new: 100
         eta: 0.1
@@ -78,7 +81,7 @@ stages:
         momentum: 0.9
         new_mode: avg_cos
         no_eval: true
-        normalize: standard
+        normalize: none
         not_data_init: false
         num_workers: 2
         overwrite_session: true
@@ -102,13 +105,13 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: 0b3a77a9ec490945cd31bfda26f9ce4d.dir
-      size: 1498418979
+      md5: f331ed6624e0dc15e86241249a0b48cc.dir
+      size: 1498419075
       nfiles: 626
     - path: dvc_metrics.json
       hash: md5
-      md5: d7668a08c24806114a2f8a152aac9fc0
-      size: 225
+      md5: c63e6f7878cfb8980d9d33aed6d22e58
+      size: 241
   test:
     cmd: uv run python test.py --config params.yaml --test-metrics-file 
       dvc_test_metrics.json
