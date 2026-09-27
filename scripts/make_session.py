@@ -353,6 +353,15 @@ def main(argv=None):
     if ns.dry_run:
         return manifest
 
+    # refuse BEFORE touching the parquet: writing new parquet and then bailing
+    # on existing session files leaves old row IDs pointing into a new split
+    if not ns.overwrite_session:
+        for name in plan:
+            path = os.path.join(out_dir, name)
+            if os.path.exists(path):
+                raise FileExistsError(
+                    f"{path} exists (use --overwrite-session to regenerate)"
+                )
     os.makedirs(ns.flow_data_dir, exist_ok=True)
     os.makedirs(out_dir, exist_ok=True)
     artifacts = ["flows.parquet", "train.parquet", "test.parquet"]
@@ -370,10 +379,6 @@ def main(argv=None):
         manifest["files"][name] = sha256_file(os.path.join(ns.flow_data_dir, name))
     for name, lines in plan.items():
         path = os.path.join(out_dir, name)
-        if os.path.exists(path) and not ns.overwrite_session:
-            raise FileExistsError(
-                f"{path} exists (use --overwrite-session to regenerate)"
-            )
         write_txt(path, lines)
         manifest["files"][name] = {"lines": len(lines), "sha256": sha256_file(path)}
     with open(os.path.join(out_dir, "manifest.json"), "w") as f:

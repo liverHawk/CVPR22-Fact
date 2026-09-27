@@ -25,12 +25,39 @@ from torch.utils.data import Dataset
 _RAW_CACHE = {}
 
 
-def _load_scaled_split(base, split):
+def _check_manifest(base, split, dataset):
+    """Fail fast if <base>/<split> is not the file make_session paired with
+    data/index_list/<dataset>/session_*.txt (e.g. another run regenerated the
+    parquet in place): otherwise the row IDs silently drift and only blow up in
+    SelectfromTxt at session 2, after the whole base session has trained."""
+    import hashlib
+
+    manifest = os.path.join("data", "index_list", dataset, "manifest.json")
+    if not os.path.exists(manifest):
+        return
+    with open(manifest) as f:
+        want = json.load(f).get("files", {}).get(split)
+    if not isinstance(want, str):
+        return
+    h = hashlib.sha256()
+    with open(os.path.join(base, split), "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    if h.hexdigest() != want:
+        raise RuntimeError(
+            f"{os.path.join(base, split)} does not match {manifest} (sha256 differs):"
+            f" session files and parquet are out of sync -- re-run `make session`"
+        )
+
+
+def _load_scaled_split(base, split, dataset):
     """Read + scale one parquet split, cached for the process lifetime."""
     key = (base, split)
     hit = _RAW_CACHE.get(key)
     if hit is None:
         import pandas as pd
+
+        _check_manifest(base, split, dataset)
 
         with open(os.path.join(base, "feature_cols.json")) as f:
             feats = json.load(f)
@@ -65,7 +92,7 @@ class CICFlow(Dataset):
         base = os.path.join(self.root, dataset)
         split = "train.parquet" if train else "test.parquet"
 
-        feats, data, targets, split_index = _load_scaled_split(base, split)
+        feats, data, targets, split_index = _load_scaled_split(base, split, dataset)
         self.feature_cols = feats
         self.data = data
         self.targets = targets

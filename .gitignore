@@ -4,3 +4,8 @@ data
 configs
 !configs/server.example.yaml
 /checkpoint
+
+# tuning byproducts
+wandb/
+tune-gpu*.log
+optuna.db*

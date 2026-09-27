@@ -6,7 +6,9 @@
 #   dvc repro
 project: fact
 dataset: CICIDS2017_flow_improved
-dataroot: /app/dataset-arrow
+# generated artifacts (parquet/scaler/...) live repo-locally so another
+# checkout running make_session can't overwrite them under our index_list
+dataroot: data/
 epochs_base: 100
 epochs_new: 100
 lr_base: 0.1
@@ -31,12 +33,12 @@ eta: 0.1
 start_session: 0
 model_dir: null
 set_no_val: false
-gpu: ""
+gpu: "0"
 num_workers: 2
 seed: 1
 debug: false
-use_wandb: false
-wandb_project: FACT-FSCIL_bug
+use_wandb: true
+wandb_project: FACT-FSCIL-tune
 wandb_entity: null
 wandb_cm_freq: 20
 # --- pipeline: make session file -> train -> test ---
@@ -52,7 +54,7 @@ mlp_hidden: 256
 mlp_out: 512
 # --- make_session.py source/flow options ---
 flow_glob: /app/dataset-arrow/CICIDS2017_flow_improved/*.arrow
-flow_data_dir: /app/dataset-arrow/CICIDS2017_flow_improved
+flow_data_dir: data/CICIDS2017_flow_improved
 label_col: Label
 drop_cols: 'Flow ID,Source IP,Destination IP,Timestamp'
 label_aliases: null

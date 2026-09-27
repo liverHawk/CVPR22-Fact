@@ -1,0 +1,34 @@
+{
+  "best_value": 94.80991666666667,
+  "best_trial": 1,
+  "objective": "avg_acc",
+  "params": {
+    "epochs_base": 85,
+    "epochs_new": 176,
+    "lr_base": 0.0020856527402448623,
+    "lr_new": 0.0036806438738738903,
+    "schedule": "Milestone",
+    "milestones": [
+      70,
+      80
+    ],
+    "step": 38,
+    "decay": 3.498564269003992e-05,
+    "momentum": 0.853785928025639,
+    "gamma": 0.02412762659164819,
+    "temperature": 6.251515145739724,
+    "not_data_init": false,
+    "batch_size_base": 154,
+    "batch_size_new": 61,
+    "test_batch_size": 127,
+    "base_mode": "ft_cos",
+    "new_mode": "avg_cos",
+    "balance": 0.8804325142418964,
+    "loss_iter": 299,
+    "alpha": 0.18530578089591077,
+    "eta": 0.0307638696113069,
+    "set_no_val": true,
+    "mlp_hidden": 589,
+    "mlp_out": 623
+  }
+}
