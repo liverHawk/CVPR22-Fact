@@ -25,11 +25,21 @@ def loader_kwargs(args):
     return {"num_workers": 0}
 
 
+def embed_cols(args):
+    """embed_cols as a tuple of names (config list or --opts "a,b" string)."""
+    cols = getattr(args, "embed_cols", None) or ()
+    if isinstance(cols, str):
+        cols = cols.split(",")
+    return tuple(str(c).strip() for c in cols if str(c).strip())
+
+
 def cicflow_kwargs(args):
-    """Normalization options shared by every CICFlow construction."""
+    """Normalization/embedding options shared by every CICFlow construction."""
     return {
         "normalize": getattr(args, "normalize", "standard"),
         "base_class": args.base_class,
+        "embed_cols": embed_cols(args),
+        "embed_max_vocab": getattr(args, "embed_max_vocab", 1024),
     }
 
 

@@ -232,6 +232,11 @@ def get_command_line_parser():
     parser.add_argument("-normalize", type=str, default="standard",
                         choices=["none", "standard", "minmax", "robust"],
                         help="flow feature scaling, fit on base-train rows only")
+    parser.add_argument("-embed_cols", nargs="*", default=[],
+                        help="flow columns fed through nn.Embedding instead of scaling")
+    parser.add_argument("-embed_dim", type=int, default=8)
+    parser.add_argument("-embed_max_vocab", type=int, default=1024,
+                        help="per-column vocab size incl. OOV id 0 (top base-train values)")
 
     parser.add_argument("-start_session", type=int, default=0)
     parser.add_argument(

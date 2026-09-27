@@ -11,12 +11,17 @@ time on base-train rows only (train split, label_id < base_class), so
 switching it needs no make_session.py rerun and never leaks test/new-class
 statistics.
 
+Columns in `embed_cols` skip scaling and are mapped to integer ids for
+nn.Embedding (vocab = the embed_max_vocab-1 most frequent base-train values,
+id 0 = unseen/OOV). They are appended after the continuous columns, so each
+row is [continuous..., embed ids...]; flow_layout() tells the encoder where
+the split is and each column's cardinality.
+
 __getitem__ returns (FloatTensor[D], int). No PIL / torchvision transforms.
 """
 
 import json
 import os
-import pickle
 
 import numpy as np
 import torch
@@ -60,23 +65,68 @@ def _load_raw_split(base, split):
     return hit
 
 
-def _load_scaled_split(base, split, normalize, base_class):
-    """Raw split scaled by `normalize`, fit on base-train rows only."""
+def _base_train(base, base_class):
+    _, tr_data, tr_targets, _ = _load_raw_split(base, "train.parquet")
+    return tr_data[tr_targets < base_class]
+
+
+def _split_cols(feats, embed_cols):
+    unknown = [c for c in embed_cols if c not in feats]
+    if unknown:
+        raise ValueError(f"embed_cols not in feature_cols.json: {unknown}")
+    cat = [feats.index(c) for c in embed_cols]
+    cont = [i for i in range(len(feats)) if i not in set(cat)]
+    return cont, cat
+
+
+def _fit_vocab(values, max_vocab):
+    """Sorted top-(max_vocab-1) values by frequency; ids are 1-based."""
+    uniq, cnt = np.unique(values, return_counts=True)
+    top = uniq[np.argsort(-cnt, kind="stable")[: max_vocab - 1]]
+    return np.sort(top)
+
+
+def _to_ids(values, vocab):
+    pos = np.searchsorted(vocab, values)
+    hit = pos < len(vocab)
+    hit[hit] = vocab[pos[hit]] == values[hit]
+    return np.where(hit, pos + 1, 0).astype(np.float32)
+
+
+def _load_scaled_split(base, split, normalize, base_class, embed_cols, max_vocab):
+    """Raw split scaled by `normalize` (continuous cols) + embed ids, with
+    scaler and vocab fit on base-train rows only."""
     if normalize not in NORMALIZERS:
         raise ValueError(f"normalize={normalize!r}; choose from {NORMALIZERS}")
-    key = (base, split, normalize, base_class)
+    key = (base, split, normalize, base_class, embed_cols, max_vocab)
     hit = _SCALED_CACHE.get(key)
     if hit is None:
         feats, data, targets, index = _load_raw_split(base, split)
+        if (normalize != "none" or embed_cols) and base_class is None:
+            raise ValueError("base_class is required to fit the scaler/vocab")
+        cont, cat = _split_cols(feats, embed_cols)
+        x = data[:, cont]
         if normalize != "none":
-            if base_class is None:
-                raise ValueError("base_class is required to fit the scaler")
-            _, tr_data, tr_targets, _ = _load_raw_split(base, "train.parquet")
-            sc = _make_scaler(normalize).fit(tr_data[tr_targets < base_class])
-            data = sc.transform(data).astype(np.float32, copy=False)
-        hit = (feats, data, targets, index)
+            sc = _make_scaler(normalize).fit(_base_train(base, base_class)[:, cont])
+            x = sc.transform(x).astype(np.float32, copy=False)
+        if cat:
+            bt = _base_train(base, base_class)
+            ids = [_to_ids(data[:, j], _fit_vocab(bt[:, j], max_vocab)) for j in cat]
+            x = np.concatenate([x, np.stack(ids, axis=1)], axis=1)
+        hit = ([feats[i] for i in cont + cat], x, targets, index)
         _SCALED_CACHE[key] = hit
     return hit
+
+
+def flow_layout(root, dataset, embed_cols=(), base_class=None, max_vocab=1024):
+    """(n_continuous, [cardinality per embed col]) for building the encoder."""
+    base = os.path.join(os.path.expanduser(root), dataset)
+    feats, _, _, _ = _load_raw_split(base, "train.parquet")
+    cont, cat = _split_cols(feats, tuple(embed_cols))
+    if not cat:
+        return len(cont), []
+    bt = _base_train(base, base_class)
+    return len(cont), [len(_fit_vocab(bt[:, j], max_vocab)) + 1 for j in cat]
 
 
 class CICFlow(Dataset):
@@ -96,13 +146,15 @@ class CICFlow(Dataset):
         dataset="cicids2017",
         normalize="standard",
         base_class=None,
+        embed_cols=(),
+        embed_max_vocab=1024,
     ):
         self.root = os.path.expanduser(root)
         base = os.path.join(self.root, dataset)
         split = "train.parquet" if train else "test.parquet"
 
         feats, data, targets, split_index = _load_scaled_split(
-            base, split, normalize, base_class
+            base, split, normalize, base_class, tuple(embed_cols), embed_max_vocab
         )
         self.feature_cols = feats
         self.data = data
