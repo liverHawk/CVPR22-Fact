@@ -229,6 +229,9 @@ def get_command_line_parser():
                         help="flow feature dim; default auto-reads <dataroot>/<dataset>/feature_cols.json")
     parser.add_argument("-mlp-hidden", dest="mlp_hidden", type=int, default=256)
     parser.add_argument("-mlp-out", dest="mlp_out", type=int, default=512)
+    parser.add_argument("-normalize", type=str, default="standard",
+                        choices=["none", "standard", "minmax", "robust"],
+                        help="flow feature scaling, fit on base-train rows only")
 
     parser.add_argument("-start_session", type=int, default=0)
     parser.add_argument(

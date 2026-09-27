@@ -25,6 +25,14 @@ def loader_kwargs(args):
     return {"num_workers": 0}
 
 
+def cicflow_kwargs(args):
+    """Normalization options shared by every CICFlow construction."""
+    return {
+        "normalize": getattr(args, "normalize", "standard"),
+        "base_class": args.base_class,
+    }
+
+
 def set_up_datasets(args):
     if args.dataset == "cifar100":
         import dataloader.cifar100.cifar as Dataset
@@ -200,9 +208,14 @@ def get_base_dataloader(args):
             dataset=args.dataset,
             index=class_index,
             base_sess=True,
+            **cicflow_kwargs(args),
         )
         testset = args.Dataset.CICFlow(
-            root=args.dataroot, train=False, dataset=args.dataset, index=class_index
+            root=args.dataroot,
+            train=False,
+            dataset=args.dataset,
+            index=class_index,
+            **cicflow_kwargs(args),
         )
 
     trainloader = torch.utils.data.DataLoader(
@@ -310,7 +323,11 @@ def get_new_dataloader(args, session):
         )
     if args.dataset in CIC_FLOW_DATASETS:
         trainset = args.Dataset.CICFlow(
-            root=args.dataroot, train=True, dataset=args.dataset, index_path=txt_path
+            root=args.dataroot,
+            train=True,
+            dataset=args.dataset,
+            index_path=txt_path,
+            **cicflow_kwargs(args),
         )
 
     if args.batch_size_new == 0:
@@ -354,7 +371,11 @@ def get_new_dataloader(args, session):
         )
     if args.dataset in CIC_FLOW_DATASETS:
         testset = args.Dataset.CICFlow(
-            root=args.dataroot, train=False, dataset=args.dataset, index=class_new
+            root=args.dataroot,
+            train=False,
+            dataset=args.dataset,
+            index=class_new,
+            **cicflow_kwargs(args),
         )
 
     testloader = torch.utils.data.DataLoader(
@@ -399,7 +420,11 @@ def get_test_dataloader(args, session):
         )
     if args.dataset in CIC_FLOW_DATASETS:
         testset = args.Dataset.CICFlow(
-            root=args.dataroot, train=False, dataset=args.dataset, index=class_new
+            root=args.dataroot,
+            train=False,
+            dataset=args.dataset,
+            index=class_new,
+            **cicflow_kwargs(args),
         )
 
     testloader = torch.utils.data.DataLoader(

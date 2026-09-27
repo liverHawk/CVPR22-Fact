@@ -4,8 +4,12 @@ CIC-IDS2017, CIC-DDoS2019, ...; content is CICFlowMeter-format flows).
 Reads artifacts produced by scripts/make_session.py:
   <root>/<dataset>/{train,test}.parquet  (index = global row ID)
   <root>/<dataset>/feature_cols.json
-  <root>/<dataset>/scaler.pkl            (fit on base-train only)
   data/index_list/<dataset>/session_*.txt (global row IDs, one per line)
+
+Normalization is selected by `normalize` (see NORMALIZERS) and fit at load
+time on base-train rows only (train split, label_id < base_class), so
+switching it needs no make_session.py rerun and never leaks test/new-class
+statistics.
 
 __getitem__ returns (FloatTensor[D], int). No PIL / torchvision transforms.
 """
@@ -23,10 +27,23 @@ from torch.utils.data import Dataset
 # session). Cached arrays are shared read-only — callers only ever fancy-index
 # them (SelectfromClasses/SelectfromTxt) and __getitem__ is read-only.
 _RAW_CACHE = {}
+_SCALED_CACHE = {}
+
+NORMALIZERS = ("none", "standard", "minmax", "robust")
 
 
-def _load_scaled_split(base, split):
-    """Read + scale one parquet split, cached for the process lifetime."""
+def _make_scaler(name):
+    from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
+
+    return {
+        "standard": StandardScaler,
+        "minmax": MinMaxScaler,
+        "robust": RobustScaler,
+    }[name]()
+
+
+def _load_raw_split(base, split):
+    """Read one unscaled parquet split, cached for the process lifetime."""
     key = (base, split)
     hit = _RAW_CACHE.get(key)
     if hit is None:
@@ -35,13 +52,30 @@ def _load_scaled_split(base, split):
         with open(os.path.join(base, "feature_cols.json")) as f:
             feats = json.load(f)
         df = pd.read_parquet(os.path.join(base, split))
-        with open(os.path.join(base, "scaler.pkl"), "rb") as f:
-            sc = pickle.load(f)
-        data = sc.transform(df[feats].to_numpy(np.float32))
+        data = df[feats].to_numpy(np.float32)
         targets = df["label_id"].to_numpy(np.int64)
         # keep only df.index (row-ID labels for SelectfromTxt), not the frame
         hit = (feats, data, targets, df.index)
         _RAW_CACHE[key] = hit
+    return hit
+
+
+def _load_scaled_split(base, split, normalize, base_class):
+    """Raw split scaled by `normalize`, fit on base-train rows only."""
+    if normalize not in NORMALIZERS:
+        raise ValueError(f"normalize={normalize!r}; choose from {NORMALIZERS}")
+    key = (base, split, normalize, base_class)
+    hit = _SCALED_CACHE.get(key)
+    if hit is None:
+        feats, data, targets, index = _load_raw_split(base, split)
+        if normalize != "none":
+            if base_class is None:
+                raise ValueError("base_class is required to fit the scaler")
+            _, tr_data, tr_targets, _ = _load_raw_split(base, "train.parquet")
+            sc = _make_scaler(normalize).fit(tr_data[tr_targets < base_class])
+            data = sc.transform(data).astype(np.float32, copy=False)
+        hit = (feats, data, targets, index)
+        _SCALED_CACHE[key] = hit
     return hit
 
 
@@ -60,12 +94,16 @@ class CICFlow(Dataset):
         index=None,
         base_sess=False,
         dataset="cicids2017",
+        normalize="standard",
+        base_class=None,
     ):
         self.root = os.path.expanduser(root)
         base = os.path.join(self.root, dataset)
         split = "train.parquet" if train else "test.parquet"
 
-        feats, data, targets, split_index = _load_scaled_split(base, split)
+        feats, data, targets, split_index = _load_scaled_split(
+            base, split, normalize, base_class
+        )
         self.feature_cols = feats
         self.data = data
         self.targets = targets
