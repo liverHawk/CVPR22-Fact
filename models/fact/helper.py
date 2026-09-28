@@ -16,29 +16,60 @@ from utils import (
 )
 
 
+# refresh the tqdm loss/acc text every N steps: each refresh is a GPU sync
+TQDM_DESC_EVERY = 50
+
+
+class _GpuMean:
+    """Mean of per-batch scalars kept on device, synced once in item().
+
+    Replaces Averager in the step loop, where a .item() per value stalled the
+    GPU queue every step. float64 so the mean matches Averager to ~1e-15.
+    """
+
+    def __init__(self):
+        self.sum = None
+        self.n = 0
+
+    def add(self, x):
+        x = x.detach().double()
+        self.sum = x if self.sum is None else self.sum + x
+        self.n += 1
+
+    def item(self):
+        return self.sum.item() / self.n
+
+
 def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
-    tl = Averager()
-    ta = Averager()
-    mix_conf = Averager()  # mean max-prob of mixed z over KNOWN classes (want: low)
-    mix_ent = Averager()  # mean entropy of mixed z over KNOWN classes (want: high)
+    tl = _GpuMean()
+    ta = _GpuMean()
+    mix_conf = _GpuMean()  # mean max-prob of mixed z over KNOWN classes (want: low)
+    mix_ent = _GpuMean()  # mean entropy of mixed z over KNOWN classes (want: high)
     # per-term losses (all but L1 only filled once epoch >= loss_iter)
     loss_avg = {
-        k: Averager()
+        k: _GpuMean()
         for k in ("L1", "L2", "L3", "L4", "Lv", "Lf")
     }
     model = model.train()
+    # single-GPU DataParallel only adds scatter/gather per step; call the
+    # wrapped module directly (state_dict keys keep their "module." prefix)
+    net = (
+        model.module
+        if isinstance(model, torch.nn.DataParallel) and len(model.device_ids) == 1
+        else model
+    )
     tqdm_gen = tqdm(trainloader)
 
     for i, batch in enumerate(tqdm_gen, 1):
         beta = torch.distributions.beta.Beta(args.alpha, args.alpha).sample([]).item()
         data, train_label = [_.to(args.device) for _ in batch]
 
-        logits = model(data)
+        logits = net(data)
         logits_ = logits[:, : args.base_class]
         loss = F.cross_entropy(logits_, train_label)
 
-        acc = count_acc(logits_, train_label)
-        loss_avg["L1"].add(loss.item())
+        acc = (torch.argmax(logits_, dim=1) == train_label).float().mean()
+        loss_avg["L1"].add(loss)
 
         if epoch >= args.loss_iter:
             logits_masked = logits.masked_fill(
@@ -77,11 +108,11 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
                 known_probs = F.softmax(
                     mixed_logits[:, : args.base_class], dim=-1
                 )
-                mix_conf.add(known_probs.max(dim=-1).values.mean().item())
+                mix_conf.add(known_probs.max(dim=-1).values.mean())
                 mix_ent.add(
                     -(known_probs * known_probs.clamp_min(1e-12).log()).sum(
                         dim=-1
-                    ).mean().item()
+                    ).mean()
                 )
 
             pseudo_label1 = (
@@ -114,15 +145,16 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
                 ("Lv", loss_v),
                 ("Lf", loss_f),
             ):
-                loss_avg[k].add(v.item())
+                loss_avg[k].add(v)
         else:
             total_loss = loss
 
-        lrc = scheduler.get_last_lr()[0]
-        tqdm_gen.set_description(
-            f"Session 0, epo {epoch}, lrc={lrc:.4f},total loss={total_loss.item():.4f} acc={acc:.4f}"
-        )
-        tl.add(total_loss.item())
+        if i % TQDM_DESC_EVERY == 1:
+            lrc = scheduler.get_last_lr()[0]
+            tqdm_gen.set_description(
+                f"Session 0, epo {epoch}, lrc={lrc:.4f},total loss={total_loss.item():.4f} acc={acc.item():.4f}"
+            )
+        tl.add(total_loss)
         ta.add(acc)
 
         optimizer.zero_grad()
