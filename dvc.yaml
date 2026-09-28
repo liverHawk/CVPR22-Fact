@@ -45,9 +45,11 @@ stages:
     metrics:
       - dvc_metrics.json:
           cache: false
+    # flat dir: session<N>_max_acc.pth, config.yaml, results.txt (+ tsne/,
+    # confusion/). Cached, not persisted: each repro starts from an empty dir
+    # and every committed dvc.lock pins that run's checkpoints.
     outs:
-      - checkpoint/:
-          persist: true
+      - checkpoint/
   test:
     cmd: >-
       uv run python test.py --config params.yaml
@@ -64,6 +66,26 @@ stages:
     metrics:
       - dvc_test_metrics.json:
           cache: false
+  tsne:
+    # t-SNE of every encoder layer + mixup points / confidence + viewer page.
+    # tsne: false in tsne.yaml -> writes tsne/SKIPPED only (no computation).
+    cmd: >-
+      uv run python scripts/tsne_stage.py --params tsne.yaml
+      --checkpoint-dir checkpoint --out-dir tsne
+    deps:
+      - checkpoint/
+      - ${index_list_dir}/${dataset}
+      - scripts/tsne_stage.py
+      - scripts/tsne_export.py
+      - scripts/tsne_viewer.py
+      - scripts/tsne_viewer.template.html
+      - utils.py
+      - models/
+      - dataloader/
+    params:
+      - tsne.yaml:
+    outs:
+      - tsne/
   # tune:
   #   cmd: uv run python tune.py --base-config params.yaml --params-out best_params.yaml --metrics-out tune_metrics.json
   #   params:
@@ -75,3 +97,13 @@ stages:
   #   outs:
   #     - best_params.yaml:
   #         cache: false
+
+# DVC model registry entry for the train output (dvc artifacts list / get)
+artifacts:
+  fact-checkpoint:
+    path: checkpoint
+    type: model
+    desc: FACT FSCIL checkpoints, one session<N>_max_acc.pth per session
+    labels:
+      - fact
+      - fscil

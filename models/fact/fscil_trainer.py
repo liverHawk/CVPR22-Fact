@@ -30,7 +30,7 @@ from utils import (
 )
 
 from .base import Trainer
-from .helper import base_train, replace_base_fc, test
+from .helper import _GpuMean, base_train, replace_base_fc, test
 from .Network import MYNET
 
 
@@ -490,7 +490,7 @@ class FSCILTrainer(Trainer):
                         mix["emb"] = mix_emb.cpu()
 
             conf, pred = probs.max(dim=1)
-            out_dir = os.path.join(args.save_path, "tsne")
+            out_dir = getattr(args, "tsne_dir", None) or os.path.join(args.save_path, "tsne")
             ensure_path(out_dir)
             names = class_names(args)
             rnd = lambda t: [round(float(v), 4) for v in np.asarray(t).ravel()]
@@ -651,35 +651,38 @@ class FSCILTrainer(Trainer):
     ):
         test_class = args.base_class + session * args.way
         model = model.eval()
-        vl = Averager()
-        va = Averager()
-        va5 = Averager()
+        # per-batch means kept on device (one sync at the end, same batch-mean
+        # averaging as Averager); logits/labels moved to CPU once
+        vl = _GpuMean()
+        va = _GpuMean()
+        va5 = _GpuMean()
         lgt_list = []
         lbs_list = []
 
         net = model.module if hasattr(model, "module") else model
         proj_matrix = self._proj_matrix(net, test_class)
+        k5 = min(5, test_class)
 
         with torch.no_grad():
             for i, batch in enumerate(testloader, 1):
-                data, test_label = [_.to(args.device) for _ in batch]
+                data, test_label = [_.to(args.device, non_blocking=True) for _ in batch]
 
                 emb = net.encode(data)
                 logits = self._integrated_probs(net, emb, proj_matrix, test_class)
 
                 loss = F.cross_entropy(logits, test_label)
-                acc = count_acc(logits, test_label)
-                top5acc = count_acc_topk(logits, test_label)
-                vl.add(loss.item())
-                va.add(acc)
-                va5.add(top5acc)
-                lgt_list.append(logits.cpu())
-                lbs_list.append(test_label.cpu())
+                vl.add(loss)
+                va.add((torch.argmax(logits, dim=1) == test_label).float().mean())
+                # same as count_acc_topk: hits among the top-k / batch size
+                top5 = torch.topk(logits, k5, dim=-1).indices
+                va5.add((top5 == test_label.view(-1, 1)).sum().double() / test_label.size(0))
+                lgt_list.append(logits)
+                lbs_list.append(test_label)
             vl = vl.item()
             va = va.item()
             va5 = va5.item()
-            lgt = torch.cat(lgt_list, dim=0)
-            lbs = torch.cat(lbs_list, dim=0)
+            lgt = torch.cat(lgt_list, dim=0).cpu()
+            lbs = torch.cat(lbs_list, dim=0).cpu()
             print(f"epo {epoch}, test, loss={vl:.4f} acc={va:.4f}, acc@5={va5:.4f}")
 
         if return_stats:
@@ -687,73 +690,7 @@ class FSCILTrainer(Trainer):
         return vl, va
 
     def set_save_path(self):
-        mode = self.args.base_mode + "-" + self.args.new_mode
-        if not self.args.not_data_init:
-            mode = mode + "-" + "data_init"
-
-        self.args.save_path = "%s/" % self.args.dataset
-        self.args.save_path = self.args.save_path + "%s/" % self.args.project
-
-        self.args.save_path = self.args.save_path + "%s-start_%d/" % (
-            mode,
-            self.args.start_session,
-        )
-        if self.args.schedule == "Milestone":
-            mile_stone = (
-                str(self.args.milestones).replace(" ", "").replace(",", "_")[1:-1]
-            )
-            self.args.save_path = (
-                self.args.save_path
-                + "Epo_%d-Lr_%.4f-MS_%s-Gam_%.2f-Bs_%d-Mom_%.2f"
-                % (
-                    self.args.epochs_base,
-                    self.args.lr_base,
-                    mile_stone,
-                    self.args.gamma,
-                    self.args.batch_size_base,
-                    self.args.momentum,
-                )
-            )
-            self.args.save_path = self.args.save_path + "Bal%.2f-LossIter%d" % (
-                self.args.balance,
-                self.args.loss_iter,
-            )
-        elif self.args.schedule == "Step":
-            self.args.save_path = (
-                self.args.save_path
-                + "Epo_%d-Lr_%.4f-Step_%d-Gam_%.2f-Bs_%d-Mom_%.2f"
-                % (
-                    self.args.epochs_base,
-                    self.args.lr_base,
-                    self.args.step,
-                    self.args.gamma,
-                    self.args.batch_size_base,
-                    self.args.momentum,
-                )
-            )
-        elif self.args.schedule == "Cosine":
-            self.args.save_path = self.args.save_path + "Cosine-Epo_%d-Lr_%.4f" % (
-                self.args.epochs_base,
-                self.args.lr_base,
-            )
-            self.args.save_path = self.args.save_path + "Bal%.2f-LossIter%d" % (
-                self.args.balance,
-                self.args.loss_iter,
-            )
-
-        if "cos" in mode:
-            self.args.save_path = self.args.save_path + "-T_%.2f" % (
-                self.args.temperature
-            )
-
-        if "ft" in self.args.new_mode:
-            self.args.save_path = self.args.save_path + "-ftLR_%.3f-ftEpoch_%d" % (
-                self.args.lr_new,
-                self.args.epochs_new,
-            )
-
-        if self.args.debug:
-            self.args.save_path = os.path.join("debug", self.args.save_path)
-
-        self.args.save_path = os.path.join("checkpoint", self.args.save_path)
+        # one flat dir, tracked as the DVC train output; the run's settings
+        # live in its config.yaml, not in the directory name
+        self.args.save_path = "checkpoint_debug" if self.args.debug else "checkpoint"
         ensure_path(self.args.save_path)

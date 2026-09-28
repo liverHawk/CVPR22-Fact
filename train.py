@@ -334,6 +334,39 @@ def build_args(arg_list=None, overrides=None):
     return args
 
 
+# what a train run writes into its (flat) save_path
+RUN_OUTPUT_GLOBS = (
+    "session*_max_acc.pth",
+    "session*confusion_matrix*",
+    "optimizer_best.pth",
+    "results.txt",
+    "metrics.json",
+    "config.yaml",
+    "tsne",
+    "confusion",
+)
+
+
+def clear_run_outputs(save_path):
+    """Remove the previous run's outputs from save_path before training.
+
+    save_path is one shared dir (checkpoint/), so a run with fewer sessions
+    would otherwise leave stale session<N>_max_acc.pth / tsne / confusion
+    files behind for test.py and the t-SNE tools to pick up. Runs kept via
+    `dvc repro` are in the DVC cache; plain train.py runs are overwritten.
+    """
+    import glob
+    import shutil
+
+    removed = []
+    for pattern in RUN_OUTPUT_GLOBS:
+        for path in glob.glob(os.path.join(save_path, pattern)):
+            shutil.rmtree(path) if os.path.isdir(path) else os.remove(path)
+            removed.append(os.path.basename(path))
+    if removed:
+        print(f"cleared previous run outputs in {save_path}: {len(removed)} entries")
+
+
 def run_training(args):
     set_seed(args.seed)
     pprint(vars(args))
@@ -366,6 +399,8 @@ def run_training(args):
     trainer = importlib.import_module(
         "models.%s.fscil_trainer" % (args.project)
     ).FSCILTrainer(args)
+    # after construction: a model_dir inside save_path is already loaded
+    clear_run_outputs(args.save_path)
     trainer.train()
 
     # Save resolved config next to checkpoints (reproducibility / DVC)

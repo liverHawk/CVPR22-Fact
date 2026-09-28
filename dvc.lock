@@ -30,8 +30,8 @@ stages:
     outs:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: c500183aaa048c1575bd0203c9098ef0.dir
-      size: 2321301
+      md5: 4927aedfcf1f88138b4ececb413b75b7.dir
+      size: 12489478
       nfiles: 13
   train:
     cmd: uv run python train.py --config params.yaml --metrics-file 
@@ -39,23 +39,23 @@ stages:
     deps:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: c500183aaa048c1575bd0203c9098ef0.dir
-      size: 2321301
+      md5: 4927aedfcf1f88138b4ececb413b75b7.dir
+      size: 12489478
       nfiles: 13
     - path: dataloader/
       hash: md5
-      md5: 03307163cb191b1ca249ca287c233655.dir
-      size: 126906
+      md5: 78f949011dfa08d8fb26c7cedfb7c4e8.dir
+      size: 127855
       nfiles: 13
     - path: models/
       hash: md5
-      md5: 46085157cfea6c1cfda175cfb6f805fe.dir
-      size: 105560
+      md5: 7871358b3a7159cfa0322fa556d674d5.dir
+      size: 101917
       nfiles: 11
     - path: train.py
       hash: md5
-      md5: 7235404804ad71a9ced6e2d028978936
-      size: 16126
+      md5: 0ae024a6c9bdc8bd5aafcd7d5c8c2e5f
+      size: 17289
     - path: utils.py
       hash: md5
       md5: 8afb4f4d6c890a14a13db7a56803ee7e
@@ -123,10 +123,6 @@ stages:
         test_batch_size: 100
         test_metrics_file:
         test_size: 0.2
-        tsne: false
-        tsne_layer: all
-        tsne_mixup: 500
-        tsne_samples: 2000
         use_wandb: true
         wandb_cm_freq: 20
         wandb_entity:
@@ -134,27 +130,45 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: 07144a098c4406f222267e68d2336d55.dir
-      size: 1648683611
-      nfiles: 938
+      md5: 54520537136abcf9a591eb040916e313.dir
+      size: 7332399
+      nfiles: 17
     - path: dvc_metrics.json
       hash: md5
-      md5: 51a897e775ee992b29f0103e4966d24d
-      size: 1227
+      md5: f1dc8f7d184091792a0237939921805d
+      size: 1412
   test:
     cmd: uv run python test.py --config params.yaml --test-metrics-file 
       dvc_test_metrics.json
     deps:
     - path: checkpoint/
       hash: md5
-      md5: 99203edfb4fa7c92b57e773b09072c5f.dir
-      size: 25746974
-      nfiles: 30
+      md5: 54520537136abcf9a591eb040916e313.dir
+      size: 7332399
+      nfiles: 17
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 6d202fbd1825e238c2e389df15d82fab.dir
-      size: 12409804
+      md5: 4927aedfcf1f88138b4ececb413b75b7.dir
+      size: 12489478
       nfiles: 13
+    - path: dataloader/
+      hash: md5
+      md5: 78f949011dfa08d8fb26c7cedfb7c4e8.dir
+      size: 127855
+      nfiles: 13
+    - path: models/
+      hash: md5
+      md5: 7871358b3a7159cfa0322fa556d674d5.dir
+      size: 101917
+      nfiles: 11
+    - path: test.py
+      hash: md5
+      md5: 4b8cf5352a07f8e4e7e69de8be6ffbcf
+      size: 5833
+    - path: utils.py
+      hash: md5
+      md5: 8afb4f4d6c890a14a13db7a56803ee7e
+      size: 14858
     params:
       params.yaml:
         alpha: 2.0
@@ -170,7 +184,10 @@ stages:
         debug: false
         decay: 0.0005
         drop_cols: Flow ID,Source IP,Destination IP,Timestamp
-        epochs_base: 100
+        embed_cols: []
+        embed_dim: 8
+        embed_max_vocab: 1024
+        epochs_base: 10
         epochs_new: 100
         eta: 0.1
         exclude_labels: ''
@@ -183,7 +200,7 @@ stages:
         index_list_dir: data/index_list
         label_aliases:
         label_col: Label
-        loss_iter: 200
+        loss_iter: 3
         lr_base: 0.1
         lr_new: 0.1
         milestones:
@@ -192,10 +209,13 @@ stages:
         mlp_hidden: 256
         mlp_in_dim:
         mlp_out: 512
+        mlp_post_layers: 1
+        mlp_pre_layers: 2
         model_dir:
         momentum: 0.9
         new_mode: avg_cos
-        no_eval: false
+        no_eval: true
+        normalize: none
         not_data_init: false
         num_workers: 2
         overwrite_session: true
@@ -212,12 +232,68 @@ stages:
         test_batch_size: 100
         test_metrics_file:
         test_size: 0.2
-        use_wandb: false
+        use_wandb: true
         wandb_cm_freq: 20
         wandb_entity:
-        wandb_project: FACT-FSCIL
+        wandb_project: FACT_test
     outs:
     - path: dvc_test_metrics.json
       hash: md5
-      md5: a0f3461240efb9aa5d3925a0eb4bee89
-      size: 838
+      md5: 81aeebe6afdfbb763a55cfd64b19b147
+      size: 481
+  tsne:
+    cmd: uv run python scripts/tsne_stage.py --params tsne.yaml --checkpoint-dir
+      checkpoint --out-dir tsne
+    deps:
+    - path: checkpoint/
+      hash: md5
+      md5: 54520537136abcf9a591eb040916e313.dir
+      size: 7332399
+      nfiles: 17
+    - path: data/index_list/CICIDS2017_flow_improved
+      hash: md5
+      md5: 4927aedfcf1f88138b4ececb413b75b7.dir
+      size: 12489478
+      nfiles: 13
+    - path: dataloader/
+      hash: md5
+      md5: 78f949011dfa08d8fb26c7cedfb7c4e8.dir
+      size: 127855
+      nfiles: 13
+    - path: models/
+      hash: md5
+      md5: 7871358b3a7159cfa0322fa556d674d5.dir
+      size: 101917
+      nfiles: 11
+    - path: scripts/tsne_export.py
+      hash: md5
+      md5: 5843965cab373ab021bb97498600de08
+      size: 3695
+    - path: scripts/tsne_stage.py
+      hash: md5
+      md5: 6665e21ff04d01b4fe8a523d642b8073
+      size: 1757
+    - path: scripts/tsne_viewer.py
+      hash: md5
+      md5: a6aaf02d5f19e35939ec4d7ba9e352f2
+      size: 2957
+    - path: scripts/tsne_viewer.template.html
+      hash: md5
+      md5: 96132c4696f451b61c65fc4e17219335
+      size: 32848
+    - path: utils.py
+      hash: md5
+      md5: d4072340ea3aa36b201489e035818a06
+      size: 15198
+    params:
+      tsne.yaml:
+        tsne: true
+        tsne_layer: all
+        tsne_mixup: 500
+        tsne_samples: 2000
+    outs:
+    - path: tsne/
+      hash: md5
+      md5: b73920e8c99b330dc39c35bcca2c81e2.dir
+      size: 2999155
+      nfiles: 29

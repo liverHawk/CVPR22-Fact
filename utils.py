@@ -283,20 +283,28 @@ def stratified_indices(labels, n_total, seed):
     return np.sort(np.concatenate(picked)) if picked else np.array([], dtype=int)
 
 
+# t-SNE on a few thousand points does not scale past a handful of threads:
+# with every core (48 here, two libgomp runtimes from torch + sklearn plus
+# OpenBLAS) a fit took ~78 s vs ~4 s at 4 threads
+TSNE_THREADS = 4
+
+
 def tsne_embed(feats, seed=1):
     """[N, D] features -> [N, 2] t-SNE coords, or None with fewer than 3 points."""
     from sklearn.manifold import TSNE
+    from threadpoolctl import threadpool_limits
 
     feats = np.asarray(feats, dtype=np.float32).reshape(len(feats), -1)
     n = len(feats)
     if n < 3:
         return None
-    return TSNE(
-        n_components=2,
-        init="pca",
-        perplexity=min(30.0, (n - 1) / 3),
-        random_state=seed,
-    ).fit_transform(feats)
+    with threadpool_limits(limits=TSNE_THREADS):
+        return TSNE(
+            n_components=2,
+            init="pca",
+            perplexity=min(30.0, (n - 1) / 3),
+            random_state=seed,
+        ).fit_transform(feats)
 
 
 def tsne_figure(xy, labels, names=None, base_class=None, title="t-SNE", mix_xy=None):

@@ -1,0 +1,549 @@
+<title>FACT 特徴空間ビューア</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+JP:wght@400;500;600&display=swap">
+<style>
+:root {
+  --bg: #f1f3f1;
+  --surface: #fcfcfb;
+  --ink: #0f1311;
+  --ink-2: #4f5551;
+  --ink-3: #7c837e;
+  --rule: #d9ddd9;
+  --control: #e6e9e6;
+  --control-ink: #0f1311;
+  --focus: #2a78d6;
+  --dim: #c9cdc9;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+  --r-lo: #86b6ef; --r-mid: #2a78d6; --r-hi: #0d366b;
+  --mix: #3b3f3c;
+  --sans: "IBM Plex Sans JP", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111312; --surface: #1a1a19; --ink: #f2f4f2; --ink-2: #c3c6c1; --ink-3: #8e948f;
+    --rule: #2c302d; --control: #262a27; --control-ink: #f2f4f2; --focus: #3987e5; --dim: #3a3e3b;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --r-lo: #184f95; --r-mid: #3987e5; --r-hi: #cde2fb;
+    --mix: #e4e7e4;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111312; --surface: #1a1a19; --ink: #f2f4f2; --ink-2: #c3c6c1; --ink-3: #8e948f;
+  --rule: #2c302d; --control: #262a27; --control-ink: #f2f4f2; --focus: #3987e5; --dim: #3a3e3b;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --r-lo: #184f95; --r-mid: #3987e5; --r-hi: #cde2fb;
+  --mix: #e4e7e4;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.6; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 48px; display: grid; gap: 22px; }
+h1 { font-size: 24px; font-weight: 600; margin: 0; letter-spacing: 0.01em; text-wrap: balance; }
+h2 { font-size: 15px; font-weight: 600; margin: 0; }
+.lede { color: var(--ink-2); margin: 4px 0 0; max-width: 68ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chip { font-family: var(--mono); font-size: 12px; color: var(--ink-2); background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 1px 7px; }
+.run { font-family: var(--mono); font-size: 12px; color: var(--ink-3); word-break: break-all; margin-top: 6px; }
+
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 10px; border-bottom: 1px solid var(--rule); }
+.session-label { font-size: 13px; color: var(--ink-2); min-width: 15ch; }
+.session-label b { font-family: var(--mono); font-size: 20px; font-weight: 500; color: var(--ink); margin-right: 4px; }
+.slider { flex: 1 1 260px; display: grid; gap: 2px; }
+.slider input { width: 100%; accent-color: var(--focus); }
+.ticks { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--ink-3); padding-inline: 4px; }
+.btns { display: flex; gap: 6px; }
+button { font: inherit; color: var(--control-ink); background: var(--control); border: 1px solid var(--rule); border-radius: 6px; padding: 5px 11px; cursor: pointer; }
+button:hover { border-color: var(--ink-3); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.metric { background: var(--surface); padding: 10px 14px; display: grid; gap: 2px; }
+.metric span { font-size: 12px; color: var(--ink-2); }
+.metric b { font-family: var(--mono); font-weight: 500; font-size: 20px; font-variant-numeric: tabular-nums; }
+.metric small { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.panels { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.strip .label { font-size: 12px; color: var(--ink-2); margin-right: 4px; }
+.strip button { font-family: var(--mono); font-size: 12px; padding: 3px 9px; }
+.strip button[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
+.strip .arrow { color: var(--ink-3); font-size: 12px; }
+.strip .cut { font-size: 11px; color: var(--ink-2); border: 1px dashed var(--ink-3); border-radius: 4px; padding: 1px 6px; }
+.view { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; background: transparent; padding: 4px 12px; }
+.seg button[aria-pressed="true"] { background: var(--control); font-weight: 600; }
+.view label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.ramp { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.ramp i { display: inline-block; width: 120px; height: 8px; border-radius: 2px; background: linear-gradient(90deg, var(--r-lo), var(--r-mid), var(--r-hi)); }
+.conf { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.conf .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; }
+.conf .card p { margin: 0; color: var(--ink-2); font-size: 12px; }
+.kv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.kv div { display: grid; gap: 1px; }
+.kv span { font-size: 11px; color: var(--ink-2); }
+.kv b { font-family: var(--mono); font-weight: 500; font-size: 17px; font-variant-numeric: tabular-nums; }
+.hist { width: 100%; height: auto; display: block; }
+.hist text { fill: var(--ink-3); font-family: var(--mono); font-size: 10px; }
+.hist .bar { fill: var(--r-mid); }
+.hist .grid { stroke: var(--rule); stroke-width: 1; }
+.cm-card { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; }
+.cm-card p { margin: 0; color: var(--ink-2); font-size: 12px; }
+table.cm { width: auto; min-width: 100%; }
+table.cm th, table.cm td { padding: 5px 8px; border: 1px solid var(--rule); }
+table.cm thead th { vertical-align: bottom; font-size: 11px; white-space: normal; min-width: 64px; max-width: 96px; text-align: center; }
+table.cm tbody th { text-align: left; font-family: var(--sans); font-weight: 500; white-space: nowrap; }
+table.cm td { position: relative; }
+table.cm td.diag { font-weight: 600; outline: 1.5px solid var(--ink-3); outline-offset: -2px; }
+table.cm td.zero { color: var(--ink-3); }
+table.cm .sum { color: var(--ink-2); background: var(--control); }
+table.cm .corner { font-size: 11px; color: var(--ink-3); text-align: left; }
+.panel .tag { font-size: 11px; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 4px; padding: 0 6px; margin-left: 6px; font-weight: 400; }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px 14px; display: grid; gap: 8px; }
+.panel header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.panel header small { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.plot { position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 100%; }
+.plot canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--rule); border-radius: 6px; padding: 4px 8px; font-size: 12px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.12); transform: translate(10px, -110%); }
+.tip .sw { display: inline-block; width: 8px; height: 8px; margin-right: 6px; vertical-align: 0; }
+
+.legend-wrap { display: grid; gap: 10px; }
+.legend-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.legend-head p { margin: 0; color: var(--ink-2); font-size: 12px; }
+.legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 12px; }
+.legend button { display: flex; align-items: center; gap: 8px; text-align: left; background: transparent; border: 1px solid transparent; padding: 3px 8px; border-radius: 5px; }
+.legend button[aria-pressed="true"] { background: var(--surface); border-color: var(--ink-3); }
+.legend button:disabled { opacity: .38; cursor: default; }
+.legend .name { flex: 1; }
+.legend .when { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.legend svg { flex: none; }
+.group-label { grid-column: 1 / -1; font-size: 11px; letter-spacing: .08em; color: var(--ink-3); margin-top: 4px; }
+
+.notes { color: var(--ink-2); font-size: 13px; max-width: 72ch; display: grid; gap: 4px; }
+.notes p { margin: 0; }
+details { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 14px; }
+summary { cursor: pointer; font-weight: 500; }
+.table-scroll { overflow-x: auto; margin-top: 10px; }
+table { border-collapse: collapse; font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; width: 100%; }
+th, td { text-align: right; padding: 4px 10px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--ink-2); font-weight: 500; font-family: var(--sans); }
+tr.current td { background: var(--control); }
+
+@media (max-width: 760px) {
+}
+@media (max-width: 420px) {
+  .wrap { padding-inline: 16px; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>FACT 特徴空間ビューア</h1>
+    <p class="lede">CICIDS2017 のテストデータを、セッションごとのチェックポイントでエンコードし、MLP エンコーダの各層の出力を t-SNE で 2 次元に落としたものです。pre の最後の層で FACT の mixup を行い、post の最後の層が分類器に入る最終埋め込みです。</p>
+    <div class="chips" id="chips"></div>
+    <div class="run" id="run"></div>
+  </header>
+
+  <div class="controls">
+    <div class="session-label" id="sessionLabel"></div>
+    <div class="slider">
+      <input type="range" id="session" min="0" max="11" step="1" value="0" aria-label="セッション">
+      <div class="ticks" id="ticks"></div>
+    </div>
+    <div class="btns">
+      <button id="prev" aria-label="前のセッション">◀</button>
+      <button id="play">再生</button>
+      <button id="next" aria-label="次のセッション">▶</button>
+    </div>
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+
+  <div class="strip" id="strip" aria-label="表示する層"></div>
+
+  <div class="view">
+    <span class="seg" role="group" aria-label="色分け">
+      <button id="modeClass" aria-pressed="true">色: クラス</button>
+      <button id="modeConf" aria-pressed="false">色: 信頼度</button>
+    </span>
+    <label><input type="checkbox" id="showMix" checked> mixup 点（×）を表示</label>
+    <span class="ramp" id="ramp" hidden>0<i></i>1 最大クラス確率</span>
+  </div>
+
+  <div class="panels" id="panels"></div>
+
+  <section class="conf" id="confSection">
+    <div class="card">
+      <h2>テスト点の分類信頼度</h2>
+      <p>そのセッションの分類器で出した最大クラス確率（評価と同じ計算）。</p>
+      <div class="kv" id="kvReal"></div>
+      <svg class="hist" id="histReal" viewBox="0 0 340 130" role="img" aria-label="テスト点の信頼度ヒストグラム"></svg>
+    </div>
+    <div class="card" id="mixCard">
+      <h2>mixup 点の分類信頼度</h2>
+      <p>異なるクラスの 2 点を mixup 位置で λ〜Beta(α, α) で混ぜた仮想サンプル。FACT はこれを既知クラス以外（仮想クラス）に割り当てるよう学習するので、既知クラスへの確信は低いほど狙いどおりです。</p>
+      <div class="kv" id="kvMix"></div>
+      <svg class="hist" id="histMix" viewBox="0 0 340 130" role="img" aria-label="mixup 点の信頼度ヒストグラム"></svg>
+    </div>
+  </section>
+
+  <section class="cm-card" id="cmSection">
+    <h2>混同行列（件数）</h2>
+    <p id="cmNote">行が正解クラス、列が予測クラス。セル内の数はテストデータ全件での件数で、色の濃さはその行の中での割合です。右端は行合計と再現率、最下段は列合計と適合率。</p>
+    <div class="table-scroll"><table class="cm" id="cmTable"></table></div>
+  </section>
+
+  <section class="legend-wrap">
+    <div class="legend-head">
+      <h2>クラス</h2>
+      <p>クリックでそのクラスだけを強調（複数可）。もう一度押すと解除します。 <button id="clearFocus" hidden>強調を解除</button></p>
+    </div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <div class="notes">
+    <p>t-SNE の軸には意味がありません。各セッションは別々に t-SNE をかけているので、セッションをまたいで位置や向きは対応しません。見るべきはクラスごとのまとまり方と重なり方です。</p>
+    <p>mixup 点は mixup 位置（pre の最後の層）より後の層にだけ存在し、その層ではテスト点と一緒に t-SNE をかけています。</p>
+    <p>点はクラスごとに同数ずつ抽出しています（1 セッション約 2,000 点）。少数クラスは全件が入るため、点の比率は実データのクラス比率とは異なります。</p>
+  </div>
+
+  <details>
+    <summary>セッション別の指標（表）</summary>
+    <div class="table-scroll"><table id="table"></table></div>
+  </details>
+</div>
+
+<script type="application/json" id="data">__DATA__</script>
+<script>
+(() => {
+  const D = JSON.parse(document.getElementById("data").textContent);
+  const names = D.names, B = D.base_class, S = D.sessions;
+  const $ = (id) => document.getElementById(id);
+
+  // identity: hue = class % 8 (fixed slot order), shape = circle for ids 0-7, square for 8+
+  const slotOf = (c) => c % 8;
+  const shapeOf = (c) => (c < 8 ? "circle" : "square");
+  const addedIn = (c) => (c < B ? 0 : c - B + 1);
+  let colors = [];
+  const hexRGB = (h) => { const n = parseInt(h.replace("#", ""), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  function rampColor(t) {
+    t = Math.max(0, Math.min(1, t));
+    const [a, b] = t < 0.5 ? [colors.ramp[0], colors.ramp[1]] : [colors.ramp[1], colors.ramp[2]];
+    const u = t < 0.5 ? t / 0.5 : (t - 0.5) / 0.5;
+    return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * u)).join(",")})`;
+  }
+  function readColors() {
+    const cs = getComputedStyle(document.documentElement);
+    colors = Array.from({ length: 8 }, (_, i) => cs.getPropertyValue(`--s${i + 1}`).trim());
+    colors.dim = cs.getPropertyValue("--dim").trim();
+    colors.surface = cs.getPropertyValue("--surface").trim();
+    colors.mix = cs.getPropertyValue("--mix").trim();
+    colors.ramp = ["--r-lo", "--r-mid", "--r-hi"].map((v) => hexRGB(cs.getPropertyValue(v).trim()));
+  }
+
+  // header
+  const c = D.config;
+  const chipText = [
+    `epochs_base ${c.epochs_base}`, `lr_base ${c.lr_base}`, `batch ${c.batch_size_base}`,
+    `loss_iter ${c.loss_iter}`, `balance ${c.balance}`, `normalize ${c.normalize}`,
+    `MLP ${c.mlp_pre_layers}+${c.mlp_post_layers} 層`, `T ${c.temperature}`, `seed ${c.seed}`,
+  ];
+  $("chips").innerHTML = chipText.map((t) => `<span class="chip">${t}</span>`).join("");
+  $("run").textContent = D.run;
+  const slider = $("session");
+  slider.max = S.length - 1;
+  $("ticks").innerHTML = S.map((s) => `<span>${s.session}</span>`).join("");
+
+  // legend
+  const focus = new Set();
+  let hoverClass = null;
+  function shapeSVG(cls, size = 12) {
+    const col = `var(--s${slotOf(cls) + 1})`;
+    return shapeOf(cls) === "circle"
+      ? `<svg width="${size}" height="${size}" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="${col}"/></svg>`
+      : `<svg width="${size}" height="${size}" viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" rx="1" fill="${col}"/></svg>`;
+  }
+  function buildLegend() {
+    const parts = [`<div class="group-label">BASE（セッション 0 から）</div>`];
+    names.forEach((n, cls) => {
+      if (cls === B) parts.push(`<div class="group-label">追加クラス</div>`);
+      const when = cls < B ? "" : `セッション ${addedIn(cls)} で追加`;
+      parts.push(`<button data-cls="${cls}" aria-pressed="false">${shapeSVG(cls)}<span class="name">${n}</span><span class="when">${when}</span></button>`);
+    });
+    $("legend").innerHTML = parts.join("");
+    $("legend").querySelectorAll("button").forEach((b) => {
+      const cls = +b.dataset.cls;
+      b.addEventListener("click", () => {
+        focus.has(cls) ? focus.delete(cls) : focus.add(cls);
+        b.setAttribute("aria-pressed", focus.has(cls));
+        $("clearFocus").hidden = focus.size === 0;
+        draw();
+      });
+      b.addEventListener("pointerenter", () => { hoverClass = cls; draw(); });
+      b.addEventListener("pointerleave", () => { hoverClass = null; draw(); });
+      b.addEventListener("focus", () => { hoverClass = cls; draw(); });
+      b.addEventListener("blur", () => { hoverClass = null; draw(); });
+    });
+  }
+  $("clearFocus").addEventListener("click", () => {
+    focus.clear();
+    $("legend").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", "false"));
+    $("clearFocus").hidden = true;
+    draw();
+  });
+
+  // metrics + table
+  const fmt = (v, d = 1) => (v === null || v === undefined ? "—" : Number(v).toFixed(d));
+  function renderMetrics(s) {
+    const e = S[s].metrics, prev = s > 0 ? S[s - 1].metrics : null;
+    const delta = (k) => (prev && e[k] != null && prev[k] != null ? `${e[k] - prev[k] >= 0 ? "+" : "−"}${Math.abs(e[k] - prev[k]).toFixed(1)} 前回比` : "&nbsp;");
+    const cells = [
+      ["Accuracy", e.acc, "acc"], ["Macro F1", e.f1, "f1"], ["Old acc", e.old_acc, "old_acc"],
+      ["New acc", e.new_acc, "new_acc"], ["HM", e.hm, "hm"],
+      ["Old F1", e.old_f1, "old_f1"], ["New F1", e.new_f1, "new_f1"], ["HM (F1)", e.hm_f1, "hm_f1"],
+    ].filter(([, v, k]) => v !== undefined || !k.endsWith("f1"));
+    $("metrics").innerHTML = cells.map(([label, v, k]) =>
+      `<div class="metric"><span>${label}</span><b>${fmt(v)}${v == null ? "" : "%"}</b><small>${delta(k)}</small></div>`).join("");
+    const nSeen = B + s;
+    $("sessionLabel").innerHTML = `<b>${s}</b>セッション · ${nSeen} クラス`;
+    $("legend").querySelectorAll("button").forEach((b) => { b.disabled = +b.dataset.cls >= nSeen; });
+    $("table").querySelectorAll("tbody tr").forEach((tr, i) => tr.classList.toggle("current", i === s));
+  }
+  $("table").innerHTML =
+    `<thead><tr><th>セッション</th><th>クラス数</th><th>Accuracy</th><th>Macro F1</th><th>Old acc</th><th>New acc</th><th>HM</th><th>Old F1</th><th>New F1</th><th>HM (F1)</th><th>点数</th></tr></thead><tbody>` +
+    S.map((x) => { const e = x.metrics; return `<tr><td>${x.session}</td><td>${B + x.session}</td><td>${fmt(e.acc, 2)}</td><td>${fmt(e.f1, 2)}</td><td>${fmt(e.old_acc, 2)}</td><td>${fmt(e.new_acc, 2)}</td><td>${fmt(e.hm, 2)}</td><td>${fmt(e.old_f1, 2)}</td><td>${fmt(e.new_f1, 2)}</td><td>${fmt(e.hm_f1, 2)}</td><td>${x.labels.length}</td></tr>`; }).join("") +
+    `</tbody>`;
+
+  // plots: one panel per encoder layer, in network order
+  const layerNames = S[0].layers.map((l) => l.name);
+  const lastPre = layerNames.filter((n) => n.startsWith("pre")).pop();
+  const lastLayer = layerNames[layerNames.length - 1];
+  const pretty = (n) => n.replace(/^(pre|post)(\d+)$/, "$1 $2");
+  function tagOf(n) {
+    if (n === lastPre) return "mixup 位置";
+    if (n === lastLayer) return "最終埋め込み";
+    return "";
+  }
+  const shown = new Set(layerNames);
+  const panelsEl = $("panels");
+  const plots = layerNames.map((name, li) => {
+    const sec = document.createElement("section");
+    sec.className = "panel";
+    const dim = S[0].layers[li].dim;
+    const tag = tagOf(name);
+    sec.innerHTML = `<header><h2>${pretty(name)}${tag ? `<span class="tag">${tag}</span>` : ""}</h2><small>${dim} 次元</small></header>
+      <div class="plot"><canvas role="img" aria-label="${pretty(name)} の t-SNE 散布図"></canvas><div class="tip" hidden></div></div>`;
+    panelsEl.appendChild(sec);
+    return { name, li, sec, canvas: sec.querySelector("canvas"), tip: sec.querySelector(".tip") };
+  });
+
+  // layer strip: toggles, with the mixup cut marked between pre and post
+  const strip = $("strip");
+  strip.innerHTML = `<span class="label">表示する層</span>` + layerNames.map((n, i) => {
+    const btn = `<button data-layer="${n}" aria-pressed="true">${pretty(n)}</button>`;
+    const next = layerNames[i + 1];
+    if (!next) return btn;
+    const sep = n === lastPre ? `<span class="arrow">→</span><span class="cut">mixup</span><span class="arrow">→</span>` : `<span class="arrow">→</span>`;
+    return btn + sep;
+  }).join("");
+  strip.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    const n = b.dataset.layer;
+    if (shown.has(n) && shown.size === 1) return; // keep at least one panel
+    shown.has(n) ? shown.delete(n) : shown.add(n);
+    b.setAttribute("aria-pressed", shown.has(n));
+    plots.forEach((p) => { p.sec.hidden = !shown.has(p.name); });
+    relayout();
+  }));
+
+  let cur = 0;
+  let colorMode = "class";
+  let showMix = true;
+  const PAD = 12;
+  function toPx(p, i, mix = false) {
+    const L = S[cur].layers[p.li], xy = mix ? L.mix_xy : L.xy;
+    const w = p.w - 2 * PAD, h = p.h - 2 * PAD;
+    return [PAD + xy[2 * i] * w, PAD + (1 - xy[2 * i + 1]) * h];
+  }
+  const hasMix = (p) => showMix && !!S[cur].layers[p.li].mix_xy;
+  function sizeCanvas(p) {
+    if (p.sec.hidden) { p.ctx = null; return; }
+    const r = p.canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    p.w = r.width; p.h = r.height;
+    p.canvas.width = Math.round(r.width * dpr); p.canvas.height = Math.round(r.height * dpr);
+    p.ctx = p.canvas.getContext("2d"); p.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  function mark(ctx, x, y, cls, r) {
+    if (shapeOf(cls) === "circle") { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+    else { const s = r * 1.8; ctx.fillRect(x - s / 2, y - s / 2, s, s); }
+  }
+  function draw() {
+    const labels = S[cur].labels;
+    const active = hoverClass !== null ? new Set([hoverClass]) : focus;
+    const order = [];
+    for (let i = 0; i < labels.length; i++) (active.size && !active.has(labels[i]) ? order.unshift(i) : order.push(i));
+    for (const p of plots) {
+      const ctx = p.ctx; if (!ctx) continue;
+      ctx.clearRect(0, 0, p.w, p.h);
+      const r = p.w < 360 ? 2 : 2.6;
+      const conf = S[cur].conf;
+      for (const i of order) {
+        const cls = labels[i], on = !active.size || active.has(cls);
+        ctx.globalAlpha = on ? 0.88 : 0.55;
+        ctx.fillStyle = !on ? colors.dim : colorMode === "conf" ? rampColor(conf[i]) : colors[slotOf(cls)];
+        const [x, y] = toPx(p, i);
+        mark(ctx, x, y, cls, on && active.size ? r + 0.6 : r);
+      }
+      if (hasMix(p)) {
+        const M = S[cur].mix, la = S[cur].labels;
+        ctx.lineWidth = 1.2;
+        for (let k = 0; k < M.conf.length; k++) {
+          const on = !active.size || active.has(la[M.a[k]]) || active.has(la[M.b[k]]);
+          ctx.globalAlpha = on ? 0.75 : 0.25;
+          ctx.strokeStyle = !on ? colors.dim : colorMode === "conf" ? rampColor(M.conf[k]) : colors.mix;
+          const [x, y] = toPx(p, k, true), d = r + 0.8;
+          ctx.beginPath(); ctx.moveTo(x - d, y - d); ctx.lineTo(x + d, y + d); ctx.moveTo(x + d, y - d); ctx.lineTo(x - d, y + d); ctx.stroke();
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+  function nearest(p, mx, my) {
+    const labels = S[cur].labels; let best = null, bd = 14 * 14;
+    for (let i = 0; i < labels.length; i++) {
+      const [x, y] = toPx(p, i), d = (x - mx) ** 2 + (y - my) ** 2;
+      if (d < bd) { bd = d; best = { i, mix: false }; }
+    }
+    if (hasMix(p)) {
+      for (let k = 0; k < S[cur].mix.conf.length; k++) {
+        const [x, y] = toPx(p, k, true), d = (x - mx) ** 2 + (y - my) ** 2;
+        if (d < bd) { bd = d; best = { i: k, mix: true }; }
+      }
+    }
+    return best;
+  }
+  for (const p of plots) {
+    p.canvas.addEventListener("pointermove", (ev) => {
+      const r = p.canvas.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
+      const hit = nearest(p, mx, my);
+      if (!hit) { p.tip.hidden = true; if (hoverClass !== null) { hoverClass = null; draw(); } return; }
+      const E = S[cur];
+      if (hit.mix) {
+        const M = E.mix, k = hit.i, ca = E.labels[M.a[k]], cb = E.labels[M.b[k]];
+        p.tip.innerHTML = `× mixup: ${names[ca]} × ${names[cb]} <span style="color:var(--ink-3)">(λ=${M.lam[k].toFixed(2)})</span><br>予測 ${names[M.pred[k]]} · 信頼度 ${M.conf[k].toFixed(3)}`;
+        if (hoverClass !== null) { hoverClass = null; draw(); }
+      } else {
+        const i = hit.i, cls = E.labels[i];
+        const kind = cls < B ? "base" : `セッション ${addedIn(cls)} で追加`;
+        const ok = E.pred[i] === cls ? "正解" : `誤り → ${names[E.pred[i]]}`;
+        p.tip.innerHTML = `<span class="sw" style="background:var(--s${slotOf(cls) + 1});border-radius:${shapeOf(cls) === "circle" ? "50%" : "1px"}"></span>${names[cls]} <span style="color:var(--ink-3)">· ${kind}</span><br>信頼度 ${E.conf[i].toFixed(3)} · ${ok}`;
+        if (hoverClass !== cls) { hoverClass = cls; draw(); }
+      }
+      p.tip.style.left = `${mx}px`; p.tip.style.top = `${my}px`; p.tip.hidden = false;
+    });
+    p.canvas.addEventListener("pointerleave", () => { p.tip.hidden = true; hoverClass = null; draw(); });
+  }
+
+  const pct = (n, d) => (d ? `${((100 * n) / d).toFixed(1)}%` : "—");
+  const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN);
+  function hist(svg, vals, yMax) {
+    const W = 340, H = 130, L = 30, R = 6, T = 8, Bt = 18, bins = 20;
+    const counts = new Array(bins).fill(0);
+    vals.forEach((v) => { counts[Math.min(bins - 1, Math.floor(v * bins))]++; });
+    const share = counts.map((c) => (vals.length ? (100 * c) / vals.length : 0));
+    const bw = (W - L - R) / bins, y = (v) => T + (H - T - Bt) * (1 - v / yMax);
+    const ticks = [0, yMax / 2, yMax];
+    let g = ticks.map((t) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 4}" y="${y(t) + 3}" text-anchor="end">${Math.round(t)}%</text>`).join("");
+    g += share.map((v, i) => v > 0 ? `<rect class="bar" x="${L + i * bw + 1}" y="${y(v)}" width="${bw - 2}" height="${Math.max(0, y(0) - y(v))}" rx="1"><title>${(i / bins).toFixed(2)}–${((i + 1) / bins).toFixed(2)}: ${v.toFixed(1)}%</title></rect>` : "").join("");
+    g += [0, 0.5, 1].map((t) => `<text x="${L + t * (W - L - R)}" y="${H - 4}" text-anchor="${t === 0 ? "start" : t === 1 ? "end" : "middle"}">${t}</text>`).join("");
+    svg.innerHTML = g;
+    return share;
+  }
+  const niceMax = (m) => Math.max(10, Math.ceil(m / 10) * 10);
+  function renderConf(s) {
+    const E = S[s], M = E.mix;
+    const right = [], wrong = [];
+    E.conf.forEach((c, i) => (E.pred[i] === E.labels[i] ? right : wrong).push(c));
+    const shareOf = (vals) => { const b = new Array(20).fill(0); vals.forEach((v) => b[Math.min(19, Math.floor(v * 20))]++); return Math.max(...b.map((c) => (100 * c) / Math.max(1, vals.length))); };
+    const yMax = niceMax(Math.max(shareOf(E.conf), M ? shareOf(M.conf) : 0));
+    $("kvReal").innerHTML = `<div><span>平均</span><b>${mean(E.conf).toFixed(3)}</b></div><div><span>正解の平均</span><b>${right.length ? mean(right).toFixed(3) : "—"}</b></div><div><span>誤りの平均</span><b>${wrong.length ? mean(wrong).toFixed(3) : "—"}</b></div>`;
+    hist($("histReal"), E.conf, yMax);
+    $("mixCard").hidden = !M;
+    if (M) {
+      const high = M.conf.filter((c) => c >= 0.9).length;
+      const src = M.pred.filter((pr, k) => pr === E.labels[M.a[k]] || pr === E.labels[M.b[k]]).length;
+      $("kvMix").innerHTML = `<div><span>平均</span><b>${mean(M.conf).toFixed(3)}</b></div><div><span>信頼度 ≥ 0.9</span><b>${pct(high, M.conf.length)}</b></div><div><span>元の 2 クラスのどちらかと予測</span><b>${pct(src, M.conf.length)}</b></div>`;
+      hist($("histMix"), M.conf, yMax);
+    }
+  }
+
+  function renderCM(s) {
+    const cm = S[s].cm;
+    $("cmSection").hidden = !cm;
+    if (!cm) return;
+    const K = cm.length, rowSum = cm.map((r) => r.reduce((a, b) => a + b, 0));
+    const colSum = cm[0].map((_, j) => cm.reduce((a, r) => a + r[j], 0));
+    const total = rowSum.reduce((a, b) => a + b, 0);
+    const nf = (v) => v.toLocaleString("ja-JP");
+    const tint = (share) => `color-mix(in srgb, var(--r-mid) ${Math.round(share * 70)}%, transparent)`;
+    let h = `<thead><tr><th class="corner">正解 ＼ 予測</th>` + cm.map((_, j) => `<th>${names[j]}</th>`).join("") + `<th class="sum">合計</th><th class="sum">再現率</th></tr></thead><tbody>`;
+    cm.forEach((row, i) => {
+      h += `<tr><th>${shapeSVG(i, 10)} ${names[i]}</th>`;
+      row.forEach((v, j) => {
+        const share = rowSum[i] ? v / rowSum[i] : 0;
+        const cls = [i === j ? "diag" : "", v === 0 ? "zero" : ""].join(" ").trim();
+        h += `<td class="${cls}" style="background:${v ? tint(share) : "transparent"}" title="${names[i]} → ${names[j]}: ${nf(v)} 件（行の ${(100 * share).toFixed(1)}%）">${nf(v)}</td>`;
+      });
+      h += `<td class="sum">${nf(rowSum[i])}</td><td class="sum">${rowSum[i] ? (100 * row[i] / rowSum[i]).toFixed(1) + "%" : "—"}</td></tr>`;
+    });
+    h += `<tr><th class="sum">合計</th>` + colSum.map((v) => `<td class="sum">${nf(v)}</td>`).join("") + `<td class="sum">${nf(total)}</td><td class="sum"></td></tr>`;
+    h += `<tr><th class="sum">適合率</th>` + colSum.map((v, j) => `<td class="sum">${v ? (100 * cm[j][j] / v).toFixed(1) + "%" : "—"}</td>`).join("") + `<td class="sum"></td><td class="sum"></td></tr></tbody>`;
+    $("cmTable").innerHTML = h;
+  }
+
+  function setSession(s) {
+    cur = Math.max(0, Math.min(S.length - 1, s));
+    slider.value = cur;
+    renderMetrics(cur);
+    renderConf(cur);
+    renderCM(cur);
+    draw();
+  }
+  slider.addEventListener("input", () => setSession(+slider.value));
+  $("prev").addEventListener("click", () => setSession(cur - 1));
+  $("next").addEventListener("click", () => setSession(cur + 1));
+  let timer = null;
+  $("play").addEventListener("click", () => {
+    if (timer) { clearInterval(timer); timer = null; $("play").textContent = "再生"; return; }
+    if (cur >= S.length - 1) setSession(0);
+    $("play").textContent = "停止";
+    timer = setInterval(() => {
+      if (cur >= S.length - 1) { clearInterval(timer); timer = null; $("play").textContent = "再生"; return; }
+      setSession(cur + 1);
+    }, 1400);
+  });
+
+  $("modeClass").addEventListener("click", () => { colorMode = "class"; $("modeClass").setAttribute("aria-pressed", "true"); $("modeConf").setAttribute("aria-pressed", "false"); $("ramp").hidden = true; draw(); });
+  $("modeConf").addEventListener("click", () => { colorMode = "conf"; $("modeConf").setAttribute("aria-pressed", "true"); $("modeClass").setAttribute("aria-pressed", "false"); $("ramp").hidden = false; draw(); });
+  $("showMix").addEventListener("change", (e) => { showMix = e.target.checked; draw(); });
+  if (!S.some((e) => e.mix)) { $("showMix").closest("label").hidden = true; }
+  // strip: mark layers before the mixup point as having no mixup points
+  strip.querySelectorAll("button").forEach((b) => { if (!S[0].layers.find((l) => l.name === b.dataset.layer).mix_xy) b.title = "この層には mixup 点はありません（mixup より前）"; });
+
+  function relayout() { plots.forEach(sizeCanvas); draw(); }
+  new ResizeObserver(relayout).observe(panelsEl);
+  const retheme = () => { readColors(); draw(); };
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", retheme);
+  new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  readColors();
+  buildLegend();
+  plots.forEach(sizeCanvas);
+  setSession(S.length - 1);
+})();
+</script>

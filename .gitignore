@@ -4,3 +4,6 @@ data
 configs
 !configs/server.example.yaml
 /checkpoint
+/checkpoint_legacy
+/checkpoint_debug
+/tsne

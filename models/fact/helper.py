@@ -251,27 +251,28 @@ def test(
     # trainer logs their CM as session/confusion_matrix (x-axis session).
     test_class = args.base_class + session * args.way
     model = model.eval()
-    vl = Averager()
-    va = Averager()
+    # per-batch means kept on device (one sync at the end, same batch-mean
+    # averaging as Averager); logits/labels moved to CPU once
+    vl = _GpuMean()
+    va = _GpuMean()
     lgt_list = []
     lbs_list = []
     with torch.no_grad():
         for i, batch in enumerate(testloader, 1):
-            data, test_label = [_.to(args.device) for _ in batch]
+            data, test_label = [_.to(args.device, non_blocking=True) for _ in batch]
             logits = model(data)
             logits = logits[:, :test_class]
             loss = F.cross_entropy(logits, test_label)
-            acc = count_acc(logits, test_label)
-            vl.add(loss.item())
-            va.add(acc)
-            lgt_list.append(logits.cpu())
-            lbs_list.append(test_label.cpu())
+            vl.add(loss)
+            va.add((torch.argmax(logits, dim=1) == test_label).float().mean())
+            lgt_list.append(logits)
+            lbs_list.append(test_label)
         vl = vl.item()
         va = va.item()
         print(f"epo {epoch}, test, loss={vl:.4f} acc={va:.4f}")
 
-        lgt = torch.cat(lgt_list, dim=0).view(-1, test_class)
-        lbs = torch.cat(lbs_list, dim=0).view(-1)
+        lgt = torch.cat(lgt_list, dim=0).view(-1, test_class).cpu()
+        lbs = torch.cat(lbs_list, dim=0).view(-1).cpu()
         if validation is not True:
             save_model_dir = os.path.join(
                 args.save_path, "session" + str(session) + "confusion_matrix"

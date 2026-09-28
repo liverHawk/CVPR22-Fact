@@ -12,6 +12,43 @@ CIC_FLOW_DATASETS = (
 )
 
 
+class ArrayBatchLoader:
+    """Sequential (shuffle=False) loader for in-memory array datasets.
+
+    Yields the same (x, y) batches a DataLoader with default collate would,
+    but slices dataset.data[i:i+bs] at once instead of calling __getitem__
+    per row, which dominated CIC test time at small test_batch_size.
+    Keeps .dataset so callers that read loader.dataset still work.
+    """
+
+    def __init__(self, dataset, batch_size):
+        self.dataset = dataset
+        self.batch_size = batch_size
+
+    def __len__(self):
+        return (len(self.dataset) + self.batch_size - 1) // self.batch_size
+
+    def __iter__(self):
+        data, targets = self.dataset.data, self.dataset.targets
+        for i in range(0, len(self.dataset), self.batch_size):
+            x = torch.from_numpy(np.ascontiguousarray(data[i : i + self.batch_size]))
+            y = torch.as_tensor(np.asarray(targets[i : i + self.batch_size]), dtype=torch.int64)
+            yield x.pin_memory() if torch.cuda.is_available() else x, y
+
+
+def make_test_loader(args, testset, **dataloader_kwargs):
+    """Test loader: ArrayBatchLoader for CIC flow data, DataLoader otherwise."""
+    if args.dataset in CIC_FLOW_DATASETS:
+        return ArrayBatchLoader(testset, args.test_batch_size)
+    return torch.utils.data.DataLoader(
+        dataset=testset,
+        batch_size=args.test_batch_size,
+        shuffle=False,
+        pin_memory=True,
+        **dataloader_kwargs,
+    )
+
+
 def loader_kwargs(args):
     """Shared DataLoader worker options.
 
@@ -235,13 +272,7 @@ def get_base_dataloader(args):
         **loader_kwargs(args),
         pin_memory=True,
     )
-    testloader = torch.utils.data.DataLoader(
-        dataset=testset,
-        batch_size=args.test_batch_size,
-        shuffle=False,
-        **loader_kwargs(args),
-        pin_memory=True,
-    )
+    testloader = make_test_loader(args, testset, **loader_kwargs(args))
 
     return trainset, trainloader, testloader
 
@@ -295,13 +326,7 @@ def get_base_dataloader_meta(args):
         pin_memory=True,
     )
 
-    testloader = torch.utils.data.DataLoader(
-        dataset=testset,
-        batch_size=args.test_batch_size,
-        shuffle=False,
-        num_workers=args.num_workers,
-        pin_memory=True,
-    )
+    testloader = make_test_loader(args, testset, num_workers=args.num_workers)
 
     return trainset, trainloader, testloader
 
@@ -388,13 +413,7 @@ def get_new_dataloader(args, session):
             **cicflow_kwargs(args),
         )
 
-    testloader = torch.utils.data.DataLoader(
-        dataset=testset,
-        batch_size=args.test_batch_size,
-        shuffle=False,
-        num_workers=args.num_workers,
-        pin_memory=True,
-    )
+    testloader = make_test_loader(args, testset, num_workers=args.num_workers)
 
     return trainset, trainloader, testloader
 
@@ -437,13 +456,7 @@ def get_test_dataloader(args, session):
             **cicflow_kwargs(args),
         )
 
-    testloader = torch.utils.data.DataLoader(
-        dataset=testset,
-        batch_size=args.test_batch_size,
-        shuffle=False,
-        **loader_kwargs(args),
-        pin_memory=True,
-    )
+    testloader = make_test_loader(args, testset, **loader_kwargs(args))
     return testloader
 
 

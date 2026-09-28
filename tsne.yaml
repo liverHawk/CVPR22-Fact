@@ -1,0 +1,7 @@
+# t-SNE settings for the DVC `tsne` stage (scripts/tsne_stage.py), kept out of
+# params.yaml so toggling them never re-runs `train`.
+# Plain train.py runs can also plot during training: --config tsne.yaml
+tsne: true  # false: the stage writes tsne/SKIPPED and computes nothing
+tsne_layer: all  # all (every block: pre1..preN, post1..postM) | pre (mixup point) | emb (final embedding) | both
+tsne_samples: 2000  # points per plot, split evenly across seen classes
+tsne_mixup: 500  # FACT mixup points shown from the mixup layer on (0: none)
