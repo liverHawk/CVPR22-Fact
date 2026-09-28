@@ -4,7 +4,7 @@ import os
 import sys
 
 import wandb
-from utils import ensure_path, pprint, set_gpu, set_seed
+from utils import SPLIT_METRICS, ensure_path, pprint, set_gpu, set_seed
 
 MODEL_DIR = None
 DATA_DIR = "data/"
@@ -162,11 +162,10 @@ def write_metrics(trainer, args, metrics_file):
         # performance drop PD = A_0 - A_B
         "pd": accs[0] - accs[-1],
         "max_f1": [float(f) for f in trainer.trlog.get("max_f1", [])],
-        # old (< base_class) / new sample acc and their harmonic mean per
-        # session; null where undefined (no new classes in session 0)
-        "old_acc": trainer.trlog.get("old_acc", []),
-        "new_acc": trainer.trlog.get("new_acc", []),
-        "hm": trainer.trlog.get("hm", []),
+        # per session: old (< base_class) / new sample acc, old / new macro
+        # F1 and their harmonic means; null where undefined (no new classes
+        # in session 0)
+        **{k: trainer.trlog.get(k, []) for k in SPLIT_METRICS},
         "max_acc_epoch": trainer.trlog.get("max_acc_epoch"),
     }
     with open(metrics_file, "w") as f:
@@ -237,6 +236,10 @@ def get_command_line_parser():
                         help="flow feature dim; default auto-reads <dataroot>/<dataset>/feature_cols.json")
     parser.add_argument("-mlp-hidden", dest="mlp_hidden", type=int, default=256)
     parser.add_argument("-mlp-out", dest="mlp_out", type=int, default=512)
+    parser.add_argument("-mlp-pre-layers", dest="mlp_pre_layers", type=int, default=2,
+                        help="Linear-LN-ReLU blocks before the mixup point")
+    parser.add_argument("-mlp-post-layers", dest="mlp_post_layers", type=int, default=1,
+                        help="Linear-LN-ReLU blocks after the mixup point (last maps to mlp_out)")
     parser.add_argument("-normalize", type=str, default="standard",
                         choices=["none", "standard", "minmax", "robust"],
                         help="flow feature scaling, fit on base-train rows only")
@@ -284,6 +287,18 @@ def get_command_line_parser():
         default=20,
         help="log lightweight confusion-matrix image every N base epochs (0 disables)",
     )
+
+    # t-SNE of encoder features, once per session (models/fact/fscil_trainer.py)
+    parser.add_argument("-tsne", action="store_true",
+                        help="plot t-SNE of test features at the end of every session")
+    parser.add_argument("-tsne_layer", type=str, default="all",
+                        choices=["pre", "emb", "both", "all"],
+                        help="pre: mixup-point features (encoder.pre); emb: final embedding; "
+                             "all: every encoder block (pre1..preN, post1..postM)")
+    parser.add_argument("-tsne_samples", type=int, default=2000,
+                        help="test points per plot, split evenly across seen classes")
+    parser.add_argument("-tsne_mixup", type=int, default=500,
+                        help="FACT mixup points added from the mixup layer on (0: none)")
 
     # config / DVC / Optuna integration (repeatable: later files win;
     # priority: defaults < --config... < --opts < explicit CLI flags)
@@ -385,8 +400,8 @@ def run_training(args):
         else:
             final_metrics["avg_test_accuracy"] = float(max_acc.tolist()[0])
 
-        # per-session old/new/HM as scalars (lists with nulls don't chart)
-        for k in ("old_acc", "new_acc", "hm"):
+        # per-session old/new split metrics as scalars (lists with nulls don't chart)
+        for k in SPLIT_METRICS:
             for i, v in enumerate(metrics.get(k, [])):
                 if v is not None:
                     final_metrics[f"session_{i}_{k}"] = float(v)

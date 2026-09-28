@@ -20,7 +20,12 @@ from utils import (
     ensure_path,
     eval_stats,
     class_names,
+    cm_counts,
     cm_figure,
+    SPLIT_METRICS,
+    stratified_indices,
+    tsne_embed,
+    tsne_figure,
     save_list_to_txt,
 )
 
@@ -343,11 +348,20 @@ class FSCILTrainer(Trainer):
                     )
                 )
 
+            tsne_log = self._session_tsne(session, testloader) if args.tsne else {}
+            cm_table = self._session_cm_counts(session)
+
             # one point per session (x-axis "session", see train.py define_metric)
             if hasattr(args, "use_wandb") and args.use_wandb:
                 cm_img = self._session_cm_image(session)
                 self.wandb.log(
                     {
+                        **tsne_log,
+                        **(
+                            {"session/confusion_table": cm_table}
+                            if cm_table is not None
+                            else {}
+                        ),
                         **(
                             {"session/confusion_matrix": cm_img}
                             if cm_img is not None
@@ -358,7 +372,7 @@ class FSCILTrainer(Trainer):
                         "session/f1": self.trlog["max_f1"][session],
                         **{
                             f"session/{k}": self.trlog[k][session]
-                            for k in ("old_acc", "new_acc", "hm")
+                            for k in SPLIT_METRICS
                             if self.trlog[k][session] is not None
                         },
                     }
@@ -382,10 +396,200 @@ class FSCILTrainer(Trainer):
         """Store one session's best-checkpoint metrics (acc is a 0-1 fraction)."""
         self.trlog["max_acc"][session] = float("%.3f" % (acc * 100))
         self.trlog["max_f1"][session] = stats["f1"]
-        for k in ("old_acc", "new_acc", "hm"):
+        for k in SPLIT_METRICS:
             self.trlog[k][session] = stats[k]
         # predictions of the recorded checkpoint, for session/confusion_matrix
         self.session_cm[session] = (stats["y_true"], stats["y_pred"], stats["n_class"])
+
+    def _session_tsne(self, session, testloader):
+        """t-SNE of the current (= recorded) model's test features, with FACT
+        mixup points and classifier confidence.
+
+        tsne_layer: pre (mixup point) | emb (final embedding) | both | all
+        (every encoder block, pre1..preN + post1..postM, however many
+        mlp_pre_layers / mlp_post_layers there are; encoders without
+        layer_outputs fall back to pre + emb).
+
+        Mixup points are built like base_train builds them: pre features of
+        two test samples with different labels, mixed with lam ~
+        Beta(alpha, alpha), then pushed through post. They exist from the
+        mixup point on (preN / pre, post*, emb) and share each of those
+        layers' t-SNE fit with the real points. Confidence is the max class
+        probability of that session's classifier (same as its evaluation).
+
+        Saves <save_path>/tsne/session<N>_<layer>.png plus session<N>.json and
+        returns the wandb payload for the session log (images + mean
+        confidences; empty without wandb or on failure; t-SNE never stops
+        training).
+        """
+        args = self.args
+        try:
+            import json
+
+            import matplotlib.pyplot as plt
+
+            ds = testloader.dataset
+            idx = stratified_indices(ds.targets, args.tsne_samples, args.seed + session)
+            xs, ys = zip(*(ds[int(i)] for i in idx))
+            x = torch.stack([torch.as_tensor(v) for v in xs]).to(args.device)
+            y = np.asarray(ys, dtype=int)
+            net = self.model.module if hasattr(self.model, "module") else self.model
+            net.eval()
+            mode = args.tsne_layer
+            if mode == "all" and not hasattr(net.encoder, "layer_outputs"):
+                mode = "both"
+            can_mix = hasattr(net.encoder, "post_outputs")
+
+            # mixup pairs over the sampled points (different labels only)
+            rng = np.random.default_rng(args.seed + 1000 + session)
+            n_mix = min(args.tsne_mixup, len(y) * 4)
+            a = rng.integers(0, len(y), n_mix * 4)
+            b = rng.integers(0, len(y), n_mix * 4)
+            keep = y[a] != y[b]
+            a, b = a[keep][:n_mix], b[keep][:n_mix]
+            lam = rng.beta(args.alpha, args.alpha, len(a)).astype(np.float32)
+            if not can_mix or len(a) == 0:
+                a = b = np.zeros(0, dtype=int)
+                lam = np.zeros(0, dtype=np.float32)
+
+            with torch.no_grad():
+                real, h_list, emb_list = {}, [], []
+                for start in range(0, len(x), 1024):
+                    xb = x[start : start + 1024]
+                    h_list.append(net.pre_encode(xb))
+                    emb_list.append(net.encode(xb))
+                    if mode == "all":
+                        outs = net.encoder.layer_outputs(xb)
+                    else:
+                        outs = []
+                        if mode in ("pre", "both"):
+                            outs.append(("pre", h_list[-1]))
+                        if mode in ("emb", "both"):
+                            outs.append(("emb", emb_list[-1]))
+                    for name, f in outs:
+                        real.setdefault(name, []).append(f.flatten(1).cpu())
+                real = {k: torch.cat(v) for k, v in real.items()}
+                h = torch.cat(h_list)
+                emb = torch.cat(emb_list)
+                probs = self._session_probs(net, emb, session)
+
+                mix = {}
+                if len(a):
+                    lam_t = torch.as_tensor(lam, device=h.device)[:, None]
+                    h_mix = lam_t * h[a] + (1 - lam_t) * h[b]
+                    post = net.encoder.post_outputs(h_mix)
+                    mix_emb = post[-1][1]
+                    mix_probs = self._session_probs(net, mix_emb, session)
+                    last_pre = [k for k in real if k.startswith("pre")]
+                    if last_pre:
+                        mix[last_pre[-1]] = h_mix.cpu()
+                    for name, f in post:
+                        if name in real:
+                            mix[name] = f.cpu()
+                    if "emb" in real:
+                        mix["emb"] = mix_emb.cpu()
+
+            conf, pred = probs.max(dim=1)
+            out_dir = os.path.join(args.save_path, "tsne")
+            ensure_path(out_dir)
+            names = class_names(args)
+            rnd = lambda t: [round(float(v), 4) for v in np.asarray(t).ravel()]
+            record = {
+                "session": session,
+                "names": names,
+                "base_class": args.base_class,
+                "labels": y.tolist(),
+                "conf": rnd(conf.cpu()),
+                "pred": pred.cpu().tolist(),
+                "metrics": {
+                    k: self.trlog[t][session]
+                    for k, t in (
+                        ("acc", "max_acc"),
+                        ("f1", "max_f1"),
+                        *((m, m) for m in SPLIT_METRICS),
+                    )
+                },
+                "layers": [],
+            }
+            if session in self.session_cm:
+                yt, yp, k = self.session_cm[session]
+                record["cm"] = cm_counts(yt, yp, k).tolist()  # full test set
+            payload = {"session/tsne_conf_test": float(conf.mean())}
+            if len(a):
+                mc, mp = mix_probs.max(dim=1)
+                record["mix"] = {
+                    "a": a.tolist(),
+                    "b": b.tolist(),
+                    "lam": rnd(lam),
+                    "conf": rnd(mc.cpu()),
+                    "pred": mp.cpu().tolist(),
+                }
+                payload["session/tsne_conf_mixup"] = float(mc.mean())
+
+            for name, f in real.items():  # insertion order = network order
+                f = f.numpy()
+                m = mix[name].numpy() if name in mix else None
+                both = f if m is None else np.concatenate([f, m.reshape(len(m), -1)])
+                xy = tsne_embed(both, seed=args.seed)
+                if xy is None:
+                    continue
+                span = np.ptp(xy, axis=0)
+                span[span == 0] = 1
+                norm = (xy - xy.min(axis=0)) / span  # [0, 1] per axis, for viewers
+                layer = {"name": name, "dim": int(f.shape[1]), "xy": rnd(norm[: len(f)])}
+                if m is not None:
+                    layer["mix_xy"] = rnd(norm[len(f) :])
+                record["layers"].append(layer)
+                fig = tsne_figure(
+                    xy[: len(f)],
+                    y,
+                    names=names,
+                    base_class=args.base_class,
+                    title=f"t-SNE ({name}), session {session}",
+                    mix_xy=None if m is None else xy[len(f) :],
+                )
+                fig.savefig(os.path.join(out_dir, f"session{session}_{name}.png"))
+                if hasattr(args, "use_wandb") and args.use_wandb:
+                    payload[f"session/tsne_{name}"] = self.wandb.Image(fig)
+                plt.close(fig)
+            with open(os.path.join(out_dir, f"session{session}.json"), "w") as fp:
+                json.dump(record, fp, separators=(",", ":"))
+            return payload
+        except Exception as e:
+            print(f"Warning: Could not build t-SNE for session {session}: {e}")
+            return {}
+
+    def _session_cm_counts(self, session):
+        """Raw confusion-matrix counts of the recorded checkpoint.
+
+        Always writes <save_path>/confusion/session<N>.csv (rows = true class,
+        columns = predicted, plus a total column); returns the same as a
+        wandb.Table when wandb is on, else None. Never stops training.
+        """
+        if session not in self.session_cm:
+            return None
+        try:
+            import csv
+
+            args = self.args
+            y_true, y_pred, n_class = self.session_cm[session]
+            counts = cm_counts(y_true, y_pred, n_class)
+            names = class_names(args) or [str(i) for i in range(n_class)]
+            header = ["true \\ pred"] + list(names[:n_class]) + ["total"]
+            rows = [
+                [names[i]] + [int(v) for v in counts[i]] + [int(counts[i].sum())]
+                for i in range(n_class)
+            ]
+            out_dir = os.path.join(args.save_path, "confusion")
+            ensure_path(out_dir)
+            with open(os.path.join(out_dir, f"session{session}.csv"), "w", newline="") as f:
+                csv.writer(f).writerows([header] + rows)
+            if hasattr(args, "use_wandb") and args.use_wandb:
+                return self.wandb.Table(columns=header, data=rows)
+            return None
+        except Exception as e:
+            print(f"Warning: Could not write confusion counts for session {session}: {e}")
+            return None
 
     def _session_cm_image(self, session):
         """wandb.Image of the recorded checkpoint's CM, or None if unavailable."""
@@ -405,6 +609,43 @@ class FSCILTrainer(Trainer):
             print(f"Warning: Could not build confusion matrix image: {e}")
             return None
 
+    def _proj_matrix(self, net, test_class):
+        return torch.mm(
+            self.dummy_classifiers,
+            F.normalize(
+                torch.transpose(net.fc.weight[:test_class, :], 1, 0),
+                p=2,
+                dim=-1,
+            ),
+        )
+
+    def _integrated_probs(self, net, emb, proj_matrix, test_class):
+        """Class probabilities of the incremental-session classifier:
+        eta * (dummy-prototype projection) + (1 - eta) * (cosine fc head)."""
+        eta = self.args.eta
+        proj = torch.mm(
+            F.normalize(emb, p=2, dim=-1),
+            torch.transpose(self.dummy_classifiers, 1, 0),
+        )
+        # top-40 over novel prototypes assumes >=40 novel classes
+        # (CIFAR100/CUB200); clamp for small CIC session setups.
+        topk, indices = torch.topk(proj, min(40, proj.size(1)))
+        res = torch.zeros_like(proj)
+        res_logit = res.scatter(1, indices, topk)
+
+        logits1 = torch.mm(res_logit, proj_matrix)
+        logits2 = net.forpass_fc_emb(emb)[:, :test_class]
+        return eta * F.softmax(logits1, dim=1) + (1 - eta) * F.softmax(logits2, dim=1)
+
+    def _session_probs(self, net, emb, session):
+        """Probabilities over the seen classes, computed like that session's
+        evaluation (test() for session 0, test_intergrate() afterwards)."""
+        test_class = self.args.base_class + session * self.args.way
+        if session == 0:
+            return F.softmax(net.forpass_fc_emb(emb)[:, :test_class], dim=1)
+        proj_matrix = self._proj_matrix(net, test_class)
+        return self._integrated_probs(net, emb, proj_matrix, test_class)
+
     def test_intergrate(
         self, model, testloader, epoch, args, session, validation=True, return_stats=False
     ):
@@ -416,48 +657,15 @@ class FSCILTrainer(Trainer):
         lgt_list = []
         lbs_list = []
 
-        proj_matrix = torch.mm(
-            self.dummy_classifiers,
-            F.normalize(
-                torch.transpose(
-                    (model.module if hasattr(model, "module") else model).fc.weight[
-                        :test_class, :
-                    ],
-                    1,
-                    0,
-                ),
-                p=2,
-                dim=-1,
-            ),
-        )
-
-        eta = args.eta
+        net = model.module if hasattr(model, "module") else model
+        proj_matrix = self._proj_matrix(net, test_class)
 
         with torch.no_grad():
             for i, batch in enumerate(testloader, 1):
                 data, test_label = [_.to(args.device) for _ in batch]
 
-                emb = (model.module if hasattr(model, "module") else model).encode(data)
-
-                proj = torch.mm(
-                    F.normalize(emb, p=2, dim=-1),
-                    torch.transpose(self.dummy_classifiers, 1, 0),
-                )
-                # top-40 over novel prototypes assumes >=40 novel classes
-                # (CIFAR100/CUB200); clamp for small CIC session setups.
-                topk, indices = torch.topk(proj, min(40, proj.size(1)))
-                res = torch.zeros_like(proj)
-                res_logit = res.scatter(1, indices, topk)
-
-                logits1 = torch.mm(res_logit, proj_matrix)
-                # reuse the emb computed above (forpass_fc re-encoded data,
-                # i.e. ran the backbone twice per test batch)
-                logits2 = (
-                    model.module if hasattr(model, "module") else model
-                ).forpass_fc_emb(emb)[:, :test_class]
-                logits = eta * F.softmax(logits1, dim=1) + (1 - eta) * F.softmax(
-                    logits2, dim=1
-                )
+                emb = net.encode(data)
+                logits = self._integrated_probs(net, emb, proj_matrix, test_class)
 
                 loss = F.cross_entropy(logits, test_label)
                 acc = count_acc(logits, test_label)

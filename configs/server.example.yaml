@@ -9,6 +9,8 @@ num_workers: 4
 mlp_in_dim: null
 mlp_hidden: 256
 mlp_out: 512
+mlp_pre_layers: 2  # Linear-LN-ReLU blocks before the mixup point
+mlp_post_layers: 1  # blocks after it; the last one maps to mlp_out
 normalize: none  # none | standard | minmax | robust (fit on base-train only)
 embed_cols: []  # e.g. ['Destination Port', 'Protocol'] -> nn.Embedding, not scaled
 embed_dim: 8

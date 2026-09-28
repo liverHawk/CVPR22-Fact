@@ -2,6 +2,11 @@ schema: '2.0'
 stages:
   make_session:
     cmd: uv run python scripts/make_session.py --config params.yaml
+    deps:
+    - path: scripts/make_session.py
+      hash: md5
+      md5: c52a4d57b8f6f51c39ebaca6d93e824e
+      size: 13577
     params:
       params.yaml:
         base_class_num: 4
@@ -25,8 +30,8 @@ stages:
     outs:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 6d202fbd1825e238c2e389df15d82fab.dir
-      size: 12409804
+      md5: 4927aedfcf1f88138b4ececb413b75b7.dir
+      size: 12489478
       nfiles: 13
   train:
     cmd: uv run python train.py --config params.yaml --metrics-file 
@@ -34,9 +39,27 @@ stages:
     deps:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 6d202fbd1825e238c2e389df15d82fab.dir
-      size: 12409804
+      md5: 4927aedfcf1f88138b4ececb413b75b7.dir
+      size: 12489478
       nfiles: 13
+    - path: dataloader/
+      hash: md5
+      md5: 03307163cb191b1ca249ca287c233655.dir
+      size: 126906
+      nfiles: 13
+    - path: models/
+      hash: md5
+      md5: 46085157cfea6c1cfda175cfb6f805fe.dir
+      size: 105560
+      nfiles: 11
+    - path: train.py
+      hash: md5
+      md5: 7235404804ad71a9ced6e2d028978936
+      size: 16126
+    - path: utils.py
+      hash: md5
+      md5: 8afb4f4d6c890a14a13db7a56803ee7e
+      size: 14858
     params:
       params.yaml:
         alpha: 2.0
@@ -55,7 +78,7 @@ stages:
         embed_cols: []
         embed_dim: 8
         embed_max_vocab: 1024
-        epochs_base: 100
+        epochs_base: 10
         epochs_new: 100
         eta: 0.1
         exclude_labels: ''
@@ -68,7 +91,7 @@ stages:
         index_list_dir: data/index_list
         label_aliases:
         label_col: Label
-        loss_iter: 200
+        loss_iter: 3
         lr_base: 0.1
         lr_new: 0.1
         milestones:
@@ -77,6 +100,8 @@ stages:
         mlp_hidden: 256
         mlp_in_dim:
         mlp_out: 512
+        mlp_post_layers: 1
+        mlp_pre_layers: 2
         model_dir:
         momentum: 0.9
         new_mode: avg_cos
@@ -98,20 +123,24 @@ stages:
         test_batch_size: 100
         test_metrics_file:
         test_size: 0.2
-        use_wandb: false
+        tsne: false
+        tsne_layer: all
+        tsne_mixup: 500
+        tsne_samples: 2000
+        use_wandb: true
         wandb_cm_freq: 20
         wandb_entity:
-        wandb_project: FACT-FSCIL
+        wandb_project: FACT_test
     outs:
     - path: checkpoint/
       hash: md5
-      md5: f331ed6624e0dc15e86241249a0b48cc.dir
-      size: 1498419075
-      nfiles: 626
+      md5: 1abd607edc9575814245857a3cad069b.dir
+      size: 1648753409
+      nfiles: 938
     - path: dvc_metrics.json
       hash: md5
-      md5: c63e6f7878cfb8980d9d33aed6d22e58
-      size: 241
+      md5: ab819dcc079f60ba330e374a85c0006a
+      size: 1416
   test:
     cmd: uv run python test.py --config params.yaml --test-metrics-file 
       dvc_test_metrics.json

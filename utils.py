@@ -186,14 +186,48 @@ def old_new_acc(logits, labels, base_class):
     return old_acc, new_acc, hm
 
 
+# per-session old/new split metrics (percent, None where a split is empty);
+# trlog, metrics json, wandb session/* and the t-SNE export all use this list
+SPLIT_METRICS = ("old_acc", "new_acc", "hm", "old_f1", "new_f1", "hm_f1")
+
+
+def _hm(a, b):
+    if a is None or b is None:
+        return None
+    return 0.0 if a + b == 0 else 2 * a * b / (a + b)
+
+
+def old_new_f1(logits, labels, n_class, base_class):
+    """Macro F1 (percent) over old classes (< base_class) and over new ones
+    (base_class..n_class-1), from predictions over all n_class seen classes,
+    plus their harmonic mean; a split with no classes is None."""
+    preds = torch.argmax(logits, dim=1).cpu().numpy()
+    y = labels.cpu().numpy()
+
+    def split(ids):
+        if not ids:
+            return None
+        return float(
+            f1_score(y, preds, labels=ids, average="macro", zero_division=0) * 100
+        )
+
+    old_f1 = split(list(range(min(base_class, n_class))))
+    new_f1 = split(list(range(base_class, n_class)))
+    return old_f1, new_f1, _hm(old_f1, new_f1)
+
+
 def eval_stats(logits, labels, n_class, base_class):
-    """Per-session metrics recorded next to top-1 acc: macro F1 + old/new/HM."""
+    """Per-session metrics recorded next to top-1 acc: macro F1 + SPLIT_METRICS."""
     old_acc, new_acc, hm = old_new_acc(logits, labels, base_class)
+    old_f1, new_f1, hm_f1 = old_new_f1(logits, labels, n_class, base_class)
     return {
         "f1": macro_f1(logits, labels, n_class),
         "old_acc": old_acc,
         "new_acc": new_acc,
         "hm": hm,
+        "old_f1": old_f1,
+        "new_f1": new_f1,
+        "hm_f1": hm_f1,
         # for the per-session confusion matrix
         "y_true": labels.cpu().numpy().astype(int),
         "y_pred": torch.argmax(logits, dim=1).cpu().numpy().astype(int),
@@ -233,6 +267,80 @@ def class_names(args):
     for name, i in label_map.items():
         names[int(i)] = name
     return names if None not in names else None
+
+
+def stratified_indices(labels, n_total, seed):
+    """Up to n_total indices with an equal cap per class, so rare classes
+    still show up in plots (classes smaller than the cap are taken whole)."""
+    labels = np.asarray(labels)
+    classes = np.unique(labels)
+    cap = max(1, int(np.ceil(n_total / max(len(classes), 1))))
+    rng = np.random.default_rng(seed)
+    picked = []
+    for c in classes:
+        idx = np.flatnonzero(labels == c)
+        picked.append(idx if len(idx) <= cap else rng.choice(idx, cap, replace=False))
+    return np.sort(np.concatenate(picked)) if picked else np.array([], dtype=int)
+
+
+def tsne_embed(feats, seed=1):
+    """[N, D] features -> [N, 2] t-SNE coords, or None with fewer than 3 points."""
+    from sklearn.manifold import TSNE
+
+    feats = np.asarray(feats, dtype=np.float32).reshape(len(feats), -1)
+    n = len(feats)
+    if n < 3:
+        return None
+    return TSNE(
+        n_components=2,
+        init="pca",
+        perplexity=min(30.0, (n - 1) / 3),
+        random_state=seed,
+    ).fit_transform(feats)
+
+
+def tsne_figure(xy, labels, names=None, base_class=None, title="t-SNE", mix_xy=None):
+    """Scatter of t-SNE coords xy [N, 2] colored by class; classes >=
+    base_class are drawn as triangles, mixup points (mix_xy) as grey x.
+    Caller closes it (plt.close)."""
+    labels = np.asarray(labels, dtype=int)
+
+    fig, ax = plt.subplots(figsize=(8, 6.5), dpi=80)
+    # tab20 comes in dark/light pairs; use the 10 dark ones before any light
+    # one so neighbouring class ids don't get near-identical colors
+    tab20 = plt.get_cmap("tab20").colors
+    palette = tab20[0::2] + tab20[1::2]
+    for c in np.unique(labels):
+        m = labels == c
+        new = base_class is not None and c >= base_class
+        name = names[c] if names is not None and c < len(names) else str(c)
+        ax.scatter(
+            xy[m, 0], xy[m, 1], s=6, alpha=0.7, color=palette[c % 20],
+            marker="^" if new else "o", label=name + (" (new)" if new else ""),
+        )
+    if mix_xy is not None and len(mix_xy):
+        ax.scatter(
+            mix_xy[:, 0], mix_xy[:, 1], s=10, marker="x", linewidths=0.8,
+            color="0.35", alpha=0.6, label="mixup",
+        )
+    ax.set_title(title)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.legend(
+        loc="center left", bbox_to_anchor=(1.0, 0.5), fontsize=8,
+        markerscale=2.5, frameon=False,
+    )
+    fig.tight_layout()
+    return fig
+
+
+def cm_counts(y_true, y_pred, n_class):
+    """Raw K x K confusion-matrix counts (rows = true, cols = predicted);
+    out-of-range ids are dropped, as in cm_figure."""
+    y_true = np.asarray(y_true, dtype=int).ravel()
+    y_pred = np.asarray(y_pred, dtype=int).ravel()
+    valid = (y_true >= 0) & (y_true < n_class) & (y_pred >= 0) & (y_pred < n_class)
+    return confusion_matrix(y_true[valid], y_pred[valid], labels=list(range(n_class)))
 
 
 def log_wandb_cm_image(
