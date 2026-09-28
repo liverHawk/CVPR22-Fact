@@ -29,6 +29,11 @@ class ArrayBatchLoader:
         return (len(self.dataset) + self.batch_size - 1) // self.batch_size
 
     def __iter__(self):
+        # a DataLoader draws one int64 from the global torch RNG per epoch
+        # (worker base seed) even with shuffle=False; do the same so that
+        # evaluating between epochs leaves the train-shuffle stream exactly as
+        # it was with DataLoader (runs stay reproducible against older ones)
+        torch.empty((), dtype=torch.int64).random_()
         data, targets = self.dataset.data, self.dataset.targets
         for i in range(0, len(self.dataset), self.batch_size):
             x = torch.from_numpy(np.ascontiguousarray(data[i : i + self.batch_size]))
