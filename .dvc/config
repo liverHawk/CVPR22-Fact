@@ -1,2 +1,4 @@
 [core]
     autostage = true
+['remote "outside"']
+    url = ssh://toshi@kali:/home/toshi/Dvc/fact

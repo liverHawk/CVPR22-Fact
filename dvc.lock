@@ -30,8 +30,8 @@ stages:
     outs:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 4927aedfcf1f88138b4ececb413b75b7.dir
-      size: 12489478
+      md5: c500183aaa048c1575bd0203c9098ef0.dir
+      size: 2321301
       nfiles: 13
   train:
     cmd: uv run python train.py --config params.yaml --metrics-file 
@@ -39,8 +39,8 @@ stages:
     deps:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 4927aedfcf1f88138b4ececb413b75b7.dir
-      size: 12489478
+      md5: c500183aaa048c1575bd0203c9098ef0.dir
+      size: 2321301
       nfiles: 13
     - path: dataloader/
       hash: md5
@@ -134,13 +134,13 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: 1abd607edc9575814245857a3cad069b.dir
-      size: 1648753409
+      md5: 07144a098c4406f222267e68d2336d55.dir
+      size: 1648683611
       nfiles: 938
     - path: dvc_metrics.json
       hash: md5
-      md5: ab819dcc079f60ba330e374a85c0006a
-      size: 1416
+      md5: 51a897e775ee992b29f0103e4966d24d
+      size: 1227
   test:
     cmd: uv run python test.py --config params.yaml --test-metrics-file 
       dvc_test_metrics.json
