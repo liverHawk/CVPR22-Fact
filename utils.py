@@ -194,6 +194,10 @@ def eval_stats(logits, labels, n_class, base_class):
         "old_acc": old_acc,
         "new_acc": new_acc,
         "hm": hm,
+        # for the per-session confusion matrix
+        "y_true": labels.cpu().numpy().astype(int),
+        "y_pred": torch.argmax(logits, dim=1).cpu().numpy().astype(int),
+        "n_class": n_class,
     }
 
 
@@ -212,25 +216,62 @@ def macro_f1(logits, labels, n_class):
     )
 
 
-def log_wandb_cm_image(y_true, y_pred, n_class, step=None, key="confusion_matrix"):
+def class_names(args):
+    """Class-id -> name list from <dataroot>/<dataset>/label_map.json, or None
+    (image datasets / no label map), in which case plots fall back to ids."""
+    import json
+
+    path = os.path.join(
+        os.path.expanduser(str(args.dataroot)), args.dataset, "label_map.json"
+    )
+    try:
+        with open(path) as f:
+            label_map = json.load(f)
+    except (OSError, ValueError):
+        return None
+    names = [None] * len(label_map)
+    for name, i in label_map.items():
+        names[int(i)] = name
+    return names if None not in names else None
+
+
+def log_wandb_cm_image(
+    y_true, y_pred, n_class, step=None, key="confusion_matrix", names=None, extra=None
+):
     """Lightweight confusion-matrix logging: aggregated KxK image, no per-sample table.
 
     Replaces wandb.plot.confusion_matrix (which uploads one table row per
-    test sample every call) with a single small wandb.Image.
+    test sample every call) with a single small wandb.Image. names (class-id
+    -> label, e.g. from class_names) replaces the numeric tick labels; extra
+    is merged into the same log call (e.g. {"epoch": e} for the x-axis).
     """
     import wandb
 
+    fig = cm_figure(y_true, y_pred, n_class, names)
+    if fig is None:
+        return
+    payload = {key: wandb.Image(fig), **(extra or {})}
+    if step is None:
+        wandb.log(payload)
+    else:
+        wandb.log(payload, step=step)
+    plt.close(fig)
+
+
+def cm_figure(y_true, y_pred, n_class, names=None):
+    """Row-normalized KxK confusion-matrix figure, or None with no valid samples.
+    Caller closes it (plt.close)."""
     y_true = np.asarray(y_true, dtype=int).ravel()
     y_pred = np.asarray(y_pred, dtype=int).ravel()
     n_class = int(n_class)
     if y_true.size == 0:
-        return
+        return None
     # Clip out-of-range labels (can happen with partial test_class slices)
     valid = (y_true >= 0) & (y_true < n_class) & (y_pred >= 0) & (y_pred < n_class)
     y_true = y_true[valid]
     y_pred = y_pred[valid]
     if y_true.size == 0:
-        return
+        return None
 
     cm = confusion_matrix(y_true, y_pred, labels=list(range(n_class)))
     # Row-normalize for readability; keep raw counts out of the payload
@@ -240,13 +281,21 @@ def log_wandb_cm_image(y_true, y_pred, n_class, step=None, key="confusion_matrix
             cm, row_sum, out=np.zeros_like(cm, dtype=float), where=row_sum != 0
         )
 
-    fig, ax = plt.subplots(figsize=(4, 3.5), dpi=80)
+    named = names is not None and len(names) >= n_class and n_class <= 20
+    # named ticks need room for strings like "Web Attack - Sql Injection"
+    figsize = (0.45 * n_class + 4, 0.45 * n_class + 3.5) if named else (4, 3.5)
+    fig, ax = plt.subplots(figsize=figsize, dpi=80)
     im = ax.imshow(cm_n, cmap="Blues", vmin=0.0, vmax=1.0, interpolation="nearest")
     ax.set_xlabel("Predicted")
     ax.set_ylabel("True")
     ax.set_title(f"Confusion matrix (K={n_class})")
     # Sparse ticks only: full tick labels for K=200 are unreadable and heavy
-    if n_class <= 20:
+    if named:
+        ax.set_xticks(range(n_class))
+        ax.set_yticks(range(n_class))
+        ax.set_xticklabels(names[:n_class], rotation=90, fontsize=8)
+        ax.set_yticklabels(names[:n_class], fontsize=8)
+    elif n_class <= 20:
         ax.set_xticks(range(n_class))
         ax.set_yticks(range(n_class))
     else:
@@ -255,11 +304,7 @@ def log_wandb_cm_image(y_true, y_pred, n_class, step=None, key="confusion_matrix
         ax.set_yticks(ticks)
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     fig.tight_layout()
-    if step is None:
-        wandb.log({key: wandb.Image(fig)})
-    else:
-        wandb.log({key: wandb.Image(fig)}, step=step)
-    plt.close(fig)
+    return fig
 
 
 def should_log_wandb_cm(args, session, epoch):

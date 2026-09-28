@@ -11,6 +11,7 @@ from utils import (
     confmatrix,
     count_acc,
     count_acc_topk,
+    class_names,
     log_wandb_cm_image,
     should_log_wandb_cm,
 )
@@ -141,6 +142,7 @@ def test(model, testloader, epoch, args, session, validation=True):
                 lbs.numpy().astype(int),
                 torch.argmax(lgt, dim=1).numpy().astype(int),
                 test_class,
+                names=class_names(args),
                 step=epoch if session == 0 else session,
             )
         except Exception as e:

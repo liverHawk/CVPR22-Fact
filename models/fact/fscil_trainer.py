@@ -19,7 +19,8 @@ from utils import (
     count_acc_topk,
     ensure_path,
     eval_stats,
-    log_wandb_cm_image,
+    class_names,
+    cm_figure,
     save_list_to_txt,
 )
 
@@ -68,6 +69,7 @@ class FSCILTrainer(Trainer):
 
             self.wandb = wandb
 
+        self.session_cm = {}  # session -> (y_true, y_pred, n_class)
         self.model = MYNET(self.args, mode=self.args.base_mode)
         if self.args.num_gpu > 0 and torch.cuda.is_available():
             self.model = nn.DataParallel(self.model, list(range(self.args.num_gpu)))
@@ -235,6 +237,7 @@ class FSCILTrainer(Trainer):
                             args,
                             session,
                             return_stats=True,
+                            log_cm=False,
                         )
                         self._record_session(session, tsa, tss)
                         self.trlog["max_acc_epoch"] = args.epochs_base - 1
@@ -268,7 +271,8 @@ class FSCILTrainer(Trainer):
                     # checkpoint test.py evaluates (no_eval skips only the
                     # per-epoch evals above, so metrics stay meaningful)
                     tsl, tsa, tss = test(
-                        self.model, testloader, 0, args, session, return_stats=True
+                        self.model, testloader, 0, args, session, return_stats=True,
+                        log_cm=False,
                     )
                     if (tsa * 100) >= self.trlog["max_acc"][session]:
                         self._record_session(session, tsa, tss)
@@ -341,8 +345,14 @@ class FSCILTrainer(Trainer):
 
             # one point per session (x-axis "session", see train.py define_metric)
             if hasattr(args, "use_wandb") and args.use_wandb:
+                cm_img = self._session_cm_image(session)
                 self.wandb.log(
                     {
+                        **(
+                            {"session/confusion_matrix": cm_img}
+                            if cm_img is not None
+                            else {}
+                        ),
                         "session": session,
                         "session/acc": self.trlog["max_acc"][session],
                         "session/f1": self.trlog["max_f1"][session],
@@ -374,6 +384,26 @@ class FSCILTrainer(Trainer):
         self.trlog["max_f1"][session] = stats["f1"]
         for k in ("old_acc", "new_acc", "hm"):
             self.trlog[k][session] = stats[k]
+        # predictions of the recorded checkpoint, for session/confusion_matrix
+        self.session_cm[session] = (stats["y_true"], stats["y_pred"], stats["n_class"])
+
+    def _session_cm_image(self, session):
+        """wandb.Image of the recorded checkpoint's CM, or None if unavailable."""
+        if session not in self.session_cm:
+            return None
+        try:
+            import matplotlib.pyplot as plt
+
+            y_true, y_pred, n_class = self.session_cm[session]
+            fig = cm_figure(y_true, y_pred, n_class, class_names(self.args))
+            if fig is None:
+                return None
+            img = self.wandb.Image(fig)
+            plt.close(fig)
+            return img
+        except Exception as e:
+            print(f"Warning: Could not build confusion matrix image: {e}")
+            return None
 
     def test_intergrate(
         self, model, testloader, epoch, args, session, validation=True, return_stats=False
@@ -443,18 +473,6 @@ class FSCILTrainer(Trainer):
             lgt = torch.cat(lgt_list, dim=0)
             lbs = torch.cat(lbs_list, dim=0)
             print(f"epo {epoch}, test, loss={vl:.4f} acc={va:.4f}, acc@5={va5:.4f}")
-
-        # Log confusion matrix to wandb if enabled (lightweight aggregated image;
-        # test_intergrate runs ~once per incremental session, so always log here)
-        if hasattr(args, "use_wandb") and args.use_wandb:
-            try:
-                log_wandb_cm_image(
-                    lbs.numpy().astype(int),
-                    torch.argmax(lgt, dim=1).numpy().astype(int),
-                    test_class,
-                )
-            except Exception as e:
-                print(f"Warning: Could not log confusion matrix to wandb: {e}")
 
         if return_stats:
             return vl, va, eval_stats(lgt, lbs, test_class, args.base_class)

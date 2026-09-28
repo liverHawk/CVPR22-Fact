@@ -11,6 +11,7 @@ from utils import (
     confmatrix,
     count_acc,
     eval_stats,
+    class_names,
     log_wandb_cm_image,
     should_log_wandb_cm,
 )
@@ -242,7 +243,12 @@ def replace_base_fc(trainset, transform, model, args):
     return model
 
 
-def test(model, testloader, epoch, args, session, validation=True, return_stats=False):
+def test(
+    model, testloader, epoch, args, session, validation=True, return_stats=False,
+    log_cm=True,
+):
+    # log_cm: per-epoch CM (x-axis epoch). Session-final evals pass False; the
+    # trainer logs their CM as session/confusion_matrix (x-axis session).
     test_class = args.base_class + session * args.way
     model = model.eval()
     vl = Averager()
@@ -278,7 +284,8 @@ def test(model, testloader, epoch, args, session, validation=True, return_stats=
 
     # Log confusion matrix to wandb if enabled (lightweight aggregated image)
     if (
-        hasattr(args, "use_wandb")
+        log_cm
+        and hasattr(args, "use_wandb")
         and args.use_wandb
         and should_log_wandb_cm(args, session, epoch)
     ):
@@ -287,6 +294,9 @@ def test(model, testloader, epoch, args, session, validation=True, return_stats=
                 lbs.numpy().astype(int),
                 torch.argmax(lgt, dim=1).numpy().astype(int),
                 test_class,
+                key="test_confusion_matrix",
+                names=class_names(args),
+                extra={"epoch": epoch},
             )
         except Exception as e:
             print(f"Warning: Could not log confusion matrix to wandb: {e}")
@@ -343,6 +353,7 @@ def test_withfc(model, testloader, epoch, args, session, validation=True):
                 lbs.numpy().astype(int),
                 torch.argmax(lgt, dim=1).numpy().astype(int),
                 test_class,
+                names=class_names(args),
             )
         except Exception as e:
             print(f"Warning: Could not log confusion matrix to wandb: {e}")
