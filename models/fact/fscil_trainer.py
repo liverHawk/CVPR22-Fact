@@ -18,6 +18,7 @@ from utils import (
     count_acc,
     count_acc_topk,
     ensure_path,
+    eval_stats,
     log_wandb_cm_image,
     save_list_to_txt,
 )
@@ -150,7 +151,9 @@ class FSCILTrainer(Trainer):
                     # test model with all seen class (skipped in no_eval mode;
                     # use test.py for the main test run)
                     if not no_eval:
-                        tsl, tsa = test(self.model, testloader, epoch, args, session)
+                        tsl, tsa, tss = test(
+                            self.model, testloader, epoch, args, session, return_stats=True
+                        )
 
                     # Log metrics to wandb (test_* only exist when in-loop
                     # eval ran; they are undefined under no_eval)
@@ -165,11 +168,11 @@ class FSCILTrainer(Trainer):
                         if not no_eval:
                             payload["test_loss"] = tsl
                             payload["test_acc"] = tsa
-                        self.wandb.log(payload, step=epoch)
+                        self.wandb.log(payload)
 
                     # save better model
                     if not no_eval and (tsa * 100) >= self.trlog["max_acc"][session]:
-                        self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
+                        self._record_session(session, tsa, tss)
                         self.trlog["max_acc_epoch"] = epoch
                         save_model_dir = os.path.join(
                             args.save_path, "session" + str(session) + "_max_acc.pth"
@@ -182,11 +185,12 @@ class FSCILTrainer(Trainer):
                         self.best_model_dict = deepcopy(self.model.state_dict())
                         print("********A better model is found!!**********")
                         print("Saving model to :%s" % save_model_dir)
-                    print(
-                        "best epoch {}, best test acc={:.3f}".format(
-                            self.trlog["max_acc_epoch"], self.trlog["max_acc"][session]
+                    if not no_eval:
+                        print(
+                            "best epoch {}, best test acc={:.3f}".format(
+                                self.trlog["max_acc_epoch"], self.trlog["max_acc"][session]
+                            )
                         )
-                    )
 
                     self.trlog["train_loss"].append(tl)
                     self.trlog["train_acc"].append(ta)
@@ -224,14 +228,15 @@ class FSCILTrainer(Trainer):
                     if args.not_data_init:
                         # no data_init eval below: measure the final model once
                         # so max_acc/metrics reflect the saved checkpoint
-                        tsl, tsa = test(
+                        tsl, tsa, tss = test(
                             self.model,
                             testloader,
                             args.epochs_base - 1,
                             args,
                             session,
+                            return_stats=True,
                         )
-                        self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
+                        self._record_session(session, tsa, tss)
                         self.trlog["max_acc_epoch"] = args.epochs_base - 1
                         self.trlog["test_loss"].append(tsl)
                         self.trlog["test_acc"].append(tsa)
@@ -262,9 +267,11 @@ class FSCILTrainer(Trainer):
                     # measured in both modes: this scores the exact data_init
                     # checkpoint test.py evaluates (no_eval skips only the
                     # per-epoch evals above, so metrics stay meaningful)
-                    tsl, tsa = test(self.model, testloader, 0, args, session)
+                    tsl, tsa, tss = test(
+                        self.model, testloader, 0, args, session, return_stats=True
+                    )
                     if (tsa * 100) >= self.trlog["max_acc"][session]:
-                        self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
+                        self._record_session(session, tsa, tss)
                         print(
                             "The new best test acc of base session={:.3f}".format(
                                 self.trlog["max_acc"][session]
@@ -312,25 +319,13 @@ class FSCILTrainer(Trainer):
                 # evaluated in both modes: there is no epoch loop here (cost
                 # is one eval per session) and it populates max_acc for the
                 # metrics json / tune objective
-                tsl, tsa = self.test_intergrate(
-                    self.model, testloader, 0, args, session, validation=True
+                tsl, tsa, tss = self.test_intergrate(
+                    self.model, testloader, 0, args, session, validation=True,
+                    return_stats=True,
                 )
 
-                # Log metrics to wandb
-                if hasattr(args, "use_wandb") and args.use_wandb:
-                    self.wandb.log(
-                        {
-                            "session_test_loss": tsl,
-                            "session_test_acc": tsa,
-                            "session": session,
-                        },
-                        step=session,
-                    )
-
-                    # Confusion matrix logging will be handled in test function
-
                 # save model (always persist so test.py can run the main test run)
-                self.trlog["max_acc"][session] = float("%.3f" % (tsa * 100))
+                self._record_session(session, tsa, tss)
                 save_model_dir = os.path.join(
                     args.save_path, "session" + str(session) + "_max_acc.pth"
                 )
@@ -342,6 +337,21 @@ class FSCILTrainer(Trainer):
                     "Session {}, test Acc {:.3f}\n".format(
                         session, self.trlog["max_acc"][session]
                     )
+                )
+
+            # one point per session (x-axis "session", see train.py define_metric)
+            if hasattr(args, "use_wandb") and args.use_wandb:
+                self.wandb.log(
+                    {
+                        "session": session,
+                        "session/acc": self.trlog["max_acc"][session],
+                        "session/f1": self.trlog["max_f1"][session],
+                        **{
+                            f"session/{k}": self.trlog[k][session]
+                            for k in ("old_acc", "new_acc", "hm")
+                            if self.trlog[k][session] is not None
+                        },
+                    }
                 )
 
         flush_pending_saves()  # all checkpoints on disk before train() returns
@@ -358,7 +368,16 @@ class FSCILTrainer(Trainer):
         print("Base Session Best epoch:", self.trlog["max_acc_epoch"])
         print("Total time used %.2f mins" % total_time)
 
-    def test_intergrate(self, model, testloader, epoch, args, session, validation=True):
+    def _record_session(self, session, acc, stats):
+        """Store one session's best-checkpoint metrics (acc is a 0-1 fraction)."""
+        self.trlog["max_acc"][session] = float("%.3f" % (acc * 100))
+        self.trlog["max_f1"][session] = stats["f1"]
+        for k in ("old_acc", "new_acc", "hm"):
+            self.trlog[k][session] = stats[k]
+
+    def test_intergrate(
+        self, model, testloader, epoch, args, session, validation=True, return_stats=False
+    ):
         test_class = args.base_class + session * args.way
         model = model.eval()
         vl = Averager()
@@ -433,11 +452,12 @@ class FSCILTrainer(Trainer):
                     lbs.numpy().astype(int),
                     torch.argmax(lgt, dim=1).numpy().astype(int),
                     test_class,
-                    step=epoch if session == 0 else session,
                 )
             except Exception as e:
                 print(f"Warning: Could not log confusion matrix to wandb: {e}")
 
+        if return_stats:
+            return vl, va, eval_stats(lgt, lbs, test_class, args.base_class)
         return vl, va
 
     def set_save_path(self):

@@ -25,6 +25,10 @@ class Trainer(metaclass=abc.ABCMeta):
         self.trlog["test_acc"] = []
         self.trlog["max_acc_epoch"] = 0
         self.trlog["max_acc"] = [0.0] * args.sessions
+        self.trlog["max_f1"] = [0.0] * args.sessions
+        self.trlog["old_acc"] = [None] * args.sessions
+        self.trlog["new_acc"] = [None] * args.sessions
+        self.trlog["hm"] = [None] * args.sessions
 
     @abc.abstractmethod
     def train(self):

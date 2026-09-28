@@ -5,3 +5,11 @@ dataroot: ${DATA_ROOT:-data/}
 flow_glob: ${FLOW_GLOB:-data/cicids2017/csv/*.csv}
 gpu: '0,1'
 num_workers: 4
+# --- CIC flow: make_session.py + MLP encoder (models/mlp_encoder.py) ---
+mlp_in_dim: null
+mlp_hidden: 256
+mlp_out: 512
+normalize: none  # none | standard | minmax | robust (fit on base-train only)
+embed_cols: []  # e.g. ['Destination Port', 'Protocol'] -> nn.Embedding, not scaled
+embed_dim: 8
+embed_max_vocab: 1024  # top base-train values per column; unseen -> OOV id 0

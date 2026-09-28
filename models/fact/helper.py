@@ -10,6 +10,7 @@ from utils import (
     Averager,
     confmatrix,
     count_acc,
+    eval_stats,
     log_wandb_cm_image,
     should_log_wandb_cm,
 )
@@ -20,6 +21,11 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
     ta = Averager()
     mix_conf = Averager()  # mean max-prob of mixed z over KNOWN classes (want: low)
     mix_ent = Averager()  # mean entropy of mixed z over KNOWN classes (want: high)
+    # per-term losses (all but L1 only filled once epoch >= loss_iter)
+    loss_avg = {
+        k: Averager()
+        for k in ("L1", "L2", "L3", "L4", "Lv", "Lf")
+    }
     model = model.train()
     tqdm_gen = tqdm(trainloader)
 
@@ -32,6 +38,7 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
         loss = F.cross_entropy(logits_, train_label)
 
         acc = count_acc(logits_, train_label)
+        loss_avg["L1"].add(loss.item())
 
         if epoch >= args.loss_iter:
             logits_masked = logits.masked_fill(
@@ -96,7 +103,18 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
                 -1e9,
             )
             loss4 = F.cross_entropy(novel_logits_masked, pseudo_label2)
-            total_loss = loss + args.balance * (loss2 + loss3 + loss4)
+            # L = Lv + Lf  (Lv: real data, Lf: mixed instances)
+            loss_v = loss + args.balance * loss2
+            loss_f = loss3 + args.balance * loss4
+            total_loss = loss_v + loss_f
+            for k, v in (
+                ("L2", loss2),
+                ("L3", loss3),
+                ("L4", loss4),
+                ("Lv", loss_v),
+                ("Lf", loss_f),
+            ):
+                loss_avg[k].add(v.item())
         else:
             total_loss = loss
 
@@ -113,6 +131,19 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
         optimizer.step()
     tl = tl.item()
     ta = ta.item()
+    if getattr(args, "use_wandb", False):
+        try:
+            import wandb
+
+            wandb.log(
+                {
+                    **{f"train/{k}": a.item() for k, a in loss_avg.items() if a.n > 0},
+                    "train/L": tl,
+                    "epoch": epoch,
+                },
+            )
+        except Exception as e:
+            print(f"Warning: Could not log loss terms to wandb: {e}")
     if mix_conf.n > 0:
         print(
             f"epo {epoch}, mixup vs known classes: "
@@ -130,7 +161,6 @@ def base_train(model, trainloader, optimizer, scheduler, epoch, args, mask):
                         "mixup_known_entropy": mix_ent.item(),
                         "epoch": epoch,
                     },
-                    step=epoch,
                 )
             except Exception as e:
                 print(f"Warning: Could not log mixup stats to wandb: {e}")
@@ -180,7 +210,7 @@ def replace_base_fc(trainset, transform, model, args):
     return model
 
 
-def test(model, testloader, epoch, args, session, validation=True):
+def test(model, testloader, epoch, args, session, validation=True, return_stats=False):
     test_class = args.base_class + session * args.way
     model = model.eval()
     vl = Averager()
@@ -225,11 +255,12 @@ def test(model, testloader, epoch, args, session, validation=True):
                 lbs.numpy().astype(int),
                 torch.argmax(lgt, dim=1).numpy().astype(int),
                 test_class,
-                step=epoch if session == 0 else session,
             )
         except Exception as e:
             print(f"Warning: Could not log confusion matrix to wandb: {e}")
 
+    if return_stats:
+        return vl, va, eval_stats(lgt, lbs, test_class, args.base_class)
     return vl, va
 
 
@@ -280,7 +311,6 @@ def test_withfc(model, testloader, epoch, args, session, validation=True):
                 lbs.numpy().astype(int),
                 torch.argmax(lgt, dim=1).numpy().astype(int),
                 test_class,
-                step=epoch if session == 0 else session,
             )
         except Exception as e:
             print(f"Warning: Could not log confusion matrix to wandb: {e}")

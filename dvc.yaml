@@ -7,6 +7,8 @@ vars:
 stages:
   make_session:
     cmd: uv run python scripts/make_session.py --config params.yaml
+    deps:
+      - scripts/make_session.py
     params:
       - params.yaml:
           - dataset
@@ -34,6 +36,10 @@ stages:
     cmd: uv run python train.py --config params.yaml --metrics-file dvc_metrics.json
     deps:
       - ${index_list_dir}/${dataset}
+      - train.py
+      - utils.py
+      - models/
+      - dataloader/
     params:
       - params.yaml:
     metrics:
@@ -49,6 +55,10 @@ stages:
     deps:
       - checkpoint/
       - ${index_list_dir}/${dataset}
+      - test.py
+      - utils.py
+      - models/
+      - dataloader/
     params:
       - params.yaml:
     metrics:

@@ -7,7 +7,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, f1_score
 
 _utils_pp = pprint.PrettyPrinter()
 
@@ -168,6 +168,48 @@ def confmatrix(logits, label, filename):
     plt.close()
 
     return cm
+
+
+def old_new_acc(logits, labels, base_class):
+    """Top-1 accuracy (percent) on old (< base_class) / new samples and their
+    harmonic mean; a split with no test samples (e.g. new in session 0) is None."""
+    correct = (torch.argmax(logits, dim=1) == labels).float()
+    old = labels < base_class
+    old_acc = float(correct[old].mean() * 100) if old.any() else None
+    new_acc = float(correct[~old].mean() * 100) if (~old).any() else None
+    if old_acc is None or new_acc is None:
+        hm = None
+    elif old_acc + new_acc == 0:
+        hm = 0.0
+    else:
+        hm = 2 * old_acc * new_acc / (old_acc + new_acc)
+    return old_acc, new_acc, hm
+
+
+def eval_stats(logits, labels, n_class, base_class):
+    """Per-session metrics recorded next to top-1 acc: macro F1 + old/new/HM."""
+    old_acc, new_acc, hm = old_new_acc(logits, labels, base_class)
+    return {
+        "f1": macro_f1(logits, labels, n_class),
+        "old_acc": old_acc,
+        "new_acc": new_acc,
+        "hm": hm,
+    }
+
+
+def macro_f1(logits, labels, n_class):
+    """Macro F1 (percent) over the n_class seen classes."""
+    preds = torch.argmax(logits, dim=1).cpu().numpy()
+    return float(
+        f1_score(
+            labels.cpu().numpy(),
+            preds,
+            labels=list(range(n_class)),
+            average="macro",
+            zero_division=0,
+        )
+        * 100
+    )
 
 
 def log_wandb_cm_image(y_true, y_pred, n_class, step=None, key="confusion_matrix"):

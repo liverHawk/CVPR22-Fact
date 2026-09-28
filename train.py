@@ -159,6 +159,14 @@ def write_metrics(trainer, args, metrics_file):
         "avg_acc": sum(accs) / len(accs),
         "final_acc": accs[-1],
         "max_acc": accs,
+        # performance drop PD = A_0 - A_B
+        "pd": accs[0] - accs[-1],
+        "max_f1": [float(f) for f in trainer.trlog.get("max_f1", [])],
+        # old (< base_class) / new sample acc and their harmonic mean per
+        # session; null where undefined (no new classes in session 0)
+        "old_acc": trainer.trlog.get("old_acc", []),
+        "new_acc": trainer.trlog.get("new_acc", []),
+        "hm": trainer.trlog.get("hm", []),
         "max_acc_epoch": trainer.trlog.get("max_acc_epoch"),
     }
     with open(metrics_file, "w") as f:
@@ -327,6 +335,12 @@ def run_training(args):
             config=config_dict,
             notes="Few-Shot Class Incremental Learning with FACT",
         )
+        # two x-axes: per-epoch curves vs. one point per session
+        wandb.define_metric("epoch")
+        wandb.define_metric("session")
+        for pattern in ("train/*", "train_*", "test_*", "lr", "mixup_*"):
+            wandb.define_metric(pattern, step_metric="epoch")
+        wandb.define_metric("session/*", step_metric="session")
 
     if args.gpu == "":
         args.device = "cpu"
@@ -371,7 +385,18 @@ def run_training(args):
         else:
             final_metrics["avg_test_accuracy"] = float(max_acc.tolist()[0])
 
-        wandb.log({**final_metrics, **metrics})
+        # per-session old/new/HM as scalars (lists with nulls don't chart)
+        for k in ("old_acc", "new_acc", "hm"):
+            for i, v in enumerate(metrics.get(k, [])):
+                if v is not None:
+                    final_metrics[f"session_{i}_{k}"] = float(v)
+
+        # scalars only (avg_acc, final_acc, pd, ...); lists are covered above
+        # and by the per-session session/* points
+        scalar_metrics = {
+            k: v for k, v in metrics.items() if not isinstance(v, (list, tuple))
+        }
+        wandb.log({**final_metrics, **scalar_metrics})
         wandb.finish()
     return trainer, metrics
 
