@@ -30,8 +30,8 @@ stages:
     outs:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 4927aedfcf1f88138b4ececb413b75b7.dir
-      size: 12489478
+      md5: c500183aaa048c1575bd0203c9098ef0.dir
+      size: 2321301
       nfiles: 13
   train:
     cmd: uv run python train.py --config params.yaml --metrics-file 
@@ -39,8 +39,8 @@ stages:
     deps:
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 4927aedfcf1f88138b4ececb413b75b7.dir
-      size: 12489478
+      md5: c500183aaa048c1575bd0203c9098ef0.dir
+      size: 2321301
       nfiles: 13
     - path: dataloader/
       hash: md5
@@ -130,26 +130,26 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: cafc43d9e8fdb7c5ea8dae8f3f530a21.dir
-      size: 7332405
-      nfiles: 17
+      md5: 07fa75a8e2b160297257b4d1f19f4732.dir
+      size: 6344608
+      nfiles: 15
     - path: dvc_metrics.json
       hash: md5
-      md5: 34d4a5e1c7d978cbe2ef686da55e40d5
-      size: 1412
+      md5: 051049587a851d896d46ea0761f0156d
+      size: 1228
   test:
     cmd: uv run python test.py --config params.yaml --test-metrics-file 
       dvc_test_metrics.json
     deps:
     - path: checkpoint/
       hash: md5
-      md5: cafc43d9e8fdb7c5ea8dae8f3f530a21.dir
-      size: 7332405
-      nfiles: 17
+      md5: 07fa75a8e2b160297257b4d1f19f4732.dir
+      size: 6344608
+      nfiles: 15
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 4927aedfcf1f88138b4ececb413b75b7.dir
-      size: 12489478
+      md5: c500183aaa048c1575bd0203c9098ef0.dir
+      size: 2321301
       nfiles: 13
     - path: dataloader/
       hash: md5
@@ -239,21 +239,21 @@ stages:
     outs:
     - path: dvc_test_metrics.json
       hash: md5
-      md5: 431413623e47bcbaf0f7b1691e06e80d
-      size: 480
+      md5: 7962b647ccfb56a75baff3ba06d80e58
+      size: 430
   tsne:
     cmd: uv run python scripts/tsne_stage.py --params tsne.yaml --checkpoint-dir
       checkpoint --out-dir tsne
     deps:
     - path: checkpoint/
       hash: md5
-      md5: cafc43d9e8fdb7c5ea8dae8f3f530a21.dir
-      size: 7332405
-      nfiles: 17
+      md5: 07fa75a8e2b160297257b4d1f19f4732.dir
+      size: 6344608
+      nfiles: 15
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
-      md5: 4927aedfcf1f88138b4ececb413b75b7.dir
-      size: 12489478
+      md5: c500183aaa048c1575bd0203c9098ef0.dir
+      size: 2321301
       nfiles: 13
     - path: dataloader/
       hash: md5
@@ -294,6 +294,6 @@ stages:
     outs:
     - path: tsne/
       hash: md5
-      md5: 6400847b53c6303e644c47d3daba38af.dir
-      size: 3011415
-      nfiles: 29
+      md5: 738b10f761722cd2f5a9f1dd029f0de1.dir
+      size: 2360860
+      nfiles: 25
