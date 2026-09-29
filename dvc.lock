@@ -44,8 +44,8 @@ stages:
       nfiles: 13
     - path: dataloader/
       hash: md5
-      md5: 78f949011dfa08d8fb26c7cedfb7c4e8.dir
-      size: 127855
+      md5: 4ca09076851e5fdd7dcc11b912459e28.dir
+      size: 128213
       nfiles: 13
     - path: models/
       hash: md5
@@ -130,21 +130,21 @@ stages:
     outs:
     - path: checkpoint/
       hash: md5
-      md5: 72518693047cb7a043a10cf2267cdfb3.dir
-      size: 7332395
+      md5: cafc43d9e8fdb7c5ea8dae8f3f530a21.dir
+      size: 7332405
       nfiles: 17
     - path: dvc_metrics.json
       hash: md5
-      md5: 6064bacd785e1d12c0ad498b1156fbb9
-      size: 1405
+      md5: 34d4a5e1c7d978cbe2ef686da55e40d5
+      size: 1412
   test:
     cmd: uv run python test.py --config params.yaml --test-metrics-file 
       dvc_test_metrics.json
     deps:
     - path: checkpoint/
       hash: md5
-      md5: 72518693047cb7a043a10cf2267cdfb3.dir
-      size: 7332395
+      md5: cafc43d9e8fdb7c5ea8dae8f3f530a21.dir
+      size: 7332405
       nfiles: 17
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
@@ -153,8 +153,8 @@ stages:
       nfiles: 13
     - path: dataloader/
       hash: md5
-      md5: 78f949011dfa08d8fb26c7cedfb7c4e8.dir
-      size: 127855
+      md5: 4ca09076851e5fdd7dcc11b912459e28.dir
+      size: 128213
       nfiles: 13
     - path: models/
       hash: md5
@@ -239,16 +239,16 @@ stages:
     outs:
     - path: dvc_test_metrics.json
       hash: md5
-      md5: 81aeebe6afdfbb763a55cfd64b19b147
-      size: 481
+      md5: 431413623e47bcbaf0f7b1691e06e80d
+      size: 480
   tsne:
     cmd: uv run python scripts/tsne_stage.py --params tsne.yaml --checkpoint-dir
       checkpoint --out-dir tsne
     deps:
     - path: checkpoint/
       hash: md5
-      md5: 72518693047cb7a043a10cf2267cdfb3.dir
-      size: 7332395
+      md5: cafc43d9e8fdb7c5ea8dae8f3f530a21.dir
+      size: 7332405
       nfiles: 17
     - path: data/index_list/CICIDS2017_flow_improved
       hash: md5
@@ -257,8 +257,8 @@ stages:
       nfiles: 13
     - path: dataloader/
       hash: md5
-      md5: 78f949011dfa08d8fb26c7cedfb7c4e8.dir
-      size: 127855
+      md5: 4ca09076851e5fdd7dcc11b912459e28.dir
+      size: 128213
       nfiles: 13
     - path: models/
       hash: md5
@@ -294,6 +294,6 @@ stages:
     outs:
     - path: tsne/
       hash: md5
-      md5: b73920e8c99b330dc39c35bcca2c81e2.dir
-      size: 2999155
+      md5: 6400847b53c6303e644c47d3daba38af.dir
+      size: 3011415
       nfiles: 29
